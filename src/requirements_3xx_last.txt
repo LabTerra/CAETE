@@ -1,0 +1,28 @@
+# Requirements for the model runtime environment.
+numpy
+joblib
+zstandard
+charset-normalizer
+numba
+pyproj
+polars
+netCDF4
+pydantic
+
+# Compressors for joblib. Needed if you choose lz4 as the compressor for joblib.
+# See the section [compression] in the config file (src/caete.toml).
+lz4
+
+# Requirements for data handling and manipulation (pre and post processing).
+pyarrow
+pandas
+h5py
+
+# Meson build system for python >= 3.12. Working in linux. Windows is not supported.
+meson
+ninja
+
+## Optional requirements - Cython will be used in the future to speed up some parts of the code.
+## See the makefiles
+# cython
+
