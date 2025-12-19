@@ -2,13 +2,13 @@
 
 This repository contains the implementation of the CAETÊ (CArbon and Ecosystem Trait-based Evaluation) Dynamic Vegetation Model, which includes Nitrogen and Phosphorus cycling.
 
-[Overview](build_instruction_slides.md)
+[Overview](./doc/build_instruction_slides.md)
 
-[System requirements, building, and running](system_config.md)
+[System requirements, building, and running](./doc/system_config.md)
 
-[Input data](input_data.md)
+[Input data](./doc/input_data.md)
 
-[Model architecture](./caete_architecture.md)
+[Model architecture](./doc/caete_architecture.md)
 
 ## Help
 
