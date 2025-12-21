@@ -329,7 +329,7 @@ class state_zero:
         Args:
 
         y: int | float -> index in the 0 axis [zero-indexed] or geographic latitude coordinate [degrees North]  89.75 (center of northernmost cell) to -89.75 (center of southernmost cell)
-        x: int | float -> index in the 1 axis [zero-indexed] or geographic longitude coordinate [degrees East] -179.75 (centrer of westernmost cell) to 179.75 (center of easternmost cell) to 179.75 
+        x: int | float -> index in the 1 axis [zero-indexed] or geographic longitude coordinate [degrees East] -179.75 (centrer of westernmost cell) to 179.75 (center of easternmost cell) to 179.75
         output_dump_folder: str -> a string with a valid name to an output folder. This will be used to create a
         child directory in the output location for the region that contains this gridcell.
 
@@ -402,7 +402,7 @@ class state_zero:
         self.metacomm_output = {}
 
         # counts the execution of a time slice (a call of self.run_spinup)
-        # TODO: check if this is still necessary. It seems to be unused now. 
+        # TODO: check if this is still necessary. It seems to be unused now.
         self.run_counter = 0
 
 class climate:
@@ -526,7 +526,7 @@ class soil:
         # N:C ratios (first 4 elements) - typically ranges from 0.1 to 0.05
         self.sp_snc[0] = 0.1    # Fast N pool (litter) ~C:N = 10:1
         self.sp_snc[1] = 0.08   # Intermediate N pool ~C:N = 12.5:1
-        self.sp_snc[2] = 0.067  # Slow N pool ~C:N = 15:1 
+        self.sp_snc[2] = 0.067  # Slow N pool ~C:N = 15:1
         self.sp_snc[3] = 0.05   # Passive N pool ~C:N = 20:1
 
         # P:C ratios (last 4 elements) - typically ranges from 0.008 to 0.002
@@ -546,7 +546,7 @@ class soil:
         self.sp_in_n = 0.4 * self.soil_dict['tn']
         self.sp_so_n = 0.2 * self.soil_dict['tn']
         self.sp_so_p = self.soil_dict['tp'] - (self.soil_dict['ap'] + self.soil_dict['op'] + self.soil_dict['ip'])
-        self.sp_in_p = self.soil_dict['ip'] * 1.0 
+        self.sp_in_p = self.soil_dict['ip'] * 1.0
         self.sp_organic_n = 0.1 * self.soil_dict['tn']
         self.sp_sorganic_n = 0.1 * self.soil_dict['tn']
         self.sp_organic_p = 0.5 * self.soil_dict['op']
@@ -1280,8 +1280,8 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     community.ls = community.vp_lsid.size
                     # # Restore or seed PLS TODO: Error here need to be fixed ()
                     if env_filter and (community.ls < self.metacomm.comm_npls) and not save:
-                        # if julian_day in self.doy_months:
-                        if julian_day % 2 == 0:  # For testing purposes we add a new PLS every 2 days
+                        if julian_day in self.doy_months:
+                        # if julian_day % 2 == 0:  # For testing purposes we add a new PLS every 2 days
                             new_id, new_PLS = community.get_unique_pls(self.get_from_main_array)
                             community.seed_pls(new_id, new_PLS, daily_output.cleafavg_pft,
                                                daily_output.cfrootavg_pft, daily_output.cawoodavg_pft)
@@ -1504,7 +1504,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                 # <- Out of the community loop
                 self.nupt[:, step] = masked_mean_2D(self.metacomm.mask, nupt)
                 self.pupt[:, step] = masked_mean_2D(self.metacomm.mask, pupt)
-                
+
                 # TODO: Soil nutrient dynamics. Isolate this if branch into a separate method/class/function
                 # Critical part of soil nutrient dynamics and availability for plants
                 # IF NUTRICYCLE
@@ -1522,7 +1522,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     self.sp_available_n -= self.nupt[0, step]
 
                     # NUTRIENT DINAMICS
-                    
+
                     # Inorganic N
                     # TODO: NaNs are being sourced upstream , need to track the source and fix it
 
@@ -1535,7 +1535,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     if not np.isfinite(self.sp_so_n):
                         # rwarn(f"Non-finite value detected in sp_so_n pool at step {step}. Resetting to zero.")
                         self.sp_so_n = 0.0
-                    
+
                     self.sp_in_n += self.sp_available_n + self.sp_so_n
                     self.sp_so_n = soil_dec.sorbed_n_equil(self.sp_in_n)
                     self.sp_available_n = soil_dec.solution_n_equil(self.sp_in_n)
@@ -1551,11 +1551,11 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     if not np.isfinite(self.sp_so_p):
                         # rwarn(f"Non-finite value detected in sp_so_p pool at step {step}. Resetting to zero.")
                         self.sp_so_p = 0.0
-                    
+
                     self.sp_in_p += self.sp_available_p + self.sp_so_p
                     # sp_so_p is the occluded P in the inorganic pool
                     self.sp_so_p = soil_dec.sorbed_p_equil(self.sp_in_p)
-                    # THe fraction that can be dissolved in soil solution (passive uptake uses transpiration 
+                    # THe fraction that can be dissolved in soil solution (passive uptake uses transpiration
                     # to estimate the amount of P that can be taken up from the soil solution pool)
                     self.sp_available_p = soil_dec.solution_p_equil(self.sp_in_p)
                     # Inorganic pool that is adsorbed
@@ -1791,17 +1791,17 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
             assert period[0] < period[1], "Period must be a tuple with the start and end spins" # type: ignore
             spins = range(period[0], period[1] + 1) # type: ignore
             files = tuple((f"spin{x}" for x in spins))
-        
+
         elif period is None:
             files:Tuple[str, ...] = tuple(path_str for path_str in self.outputs.values())
             spins = range(1, len(files) + 1)
-        
+
         else:
             raise ValueError("Invalid period argument, period must be an integer, tuple of integers, or None")
 
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             futures = [executor.submit(self.__fetch_spin_data, spin) for spin in spins]
-        
+
         return futures
 
 
