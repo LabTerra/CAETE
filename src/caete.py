@@ -329,7 +329,7 @@ class state_zero:
         Args:
 
         y: int | float -> index in the 0 axis [zero-indexed] or geographic latitude coordinate [degrees North]  89.75 (center of northernmost cell) to -89.75 (center of southernmost cell)
-        x: int | float -> index in the 1 axis [zero-indexed] or geographic longitude coordinate [degrees East] -179.75 (centrer of westernmost cell) to 179.75 (center of easternmost cell) to 179.75
+        x: int | float -> index in the 1 axis [zero-indexed] or geographic longitude coordinate [degrees East] -179.75 (center of westernmost cell) to 179.75 (center of easternmost cell) to 179.75
         output_dump_folder: str -> a string with a valid name to an output folder. This will be used to create a
         child directory in the output location for the region that contains this gridcell.
 
