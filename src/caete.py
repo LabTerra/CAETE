@@ -1555,7 +1555,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     self.sp_in_p += self.sp_available_p + self.sp_so_p
                     # sp_so_p is the occluded P in the inorganic pool
                     self.sp_so_p = soil_dec.sorbed_p_equil(self.sp_in_p)
-                    # THe fraction that can be dissolved in soil solution (passive uptake uses transpiration
+                    # The fraction that can be dissolved in soil solution (passive uptake uses transpiration
                     # to estimate the amount of P that can be taken up from the soil solution pool)
                     self.sp_available_p = soil_dec.solution_p_equil(self.sp_in_p)
                     # Inorganic pool that is adsorbed
