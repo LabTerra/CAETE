@@ -21,8 +21,7 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # """
 
-# This script contains functions to read binary output
-# and create gridded and table outputs. The 
+# CAETE output post-processing functions.
 
 import argparse
 import gc
@@ -921,11 +920,16 @@ class gridded_data:
 
         Args:
             data (List): List of masked arrays to save.
-            output_path (Path | None): Path to save the NetCDF file.
+            run_name (str): Name of the model run to include in the filename.
 
         Returns:
             None
         """
+        # The character set for run_name is limited to lowercase letters, alphanumerics, and underscores ONLY.
+        # Converts any other character to underscore.
+        # The name in the netCDF files needs to be compatible with donwstream tools (benchmarking and testing).
+        run_name = ''.join(c if c.isalnum() or c == '_' else '_' for c in run_name.lower())
+
         vnames = data[-1]
         arr = data[0]
         time = data[1]
@@ -970,7 +974,14 @@ class gridded_data:
             # var_data.data[large_value_mask] = fill_value
             # var_data.mask = np.logical_or(var_data.mask, large_value_mask)
 
-            nc_filename = output_path / f"{var}_{run_name}_{time[0].strftime('%Y%m%d')}_{time[-1].strftime('%Y%m%d')}.nc"
+
+            # ATTENTION: THe naming of the netCDF files is important for downstream tools (benchmarks and tests).
+            # Please, do not change it without checking those tools first.
+            # The filename consists of three elements: variable name, run name, (start date_end date) separated by a dash.
+            # If you wish to add new elements here, please, add it between run_name and the date range.
+            # e.g., var-runname-newinfo-startdate_enddate.nc. Thus the dates are always at the end of the filename and
+            # the order of the other elements is preserved.
+            nc_filename = output_path / f"{var}-{run_name}-{time[0].strftime('%Y%m%d')}_{time[-1].strftime('%Y%m%d')}.nc"
             print(nc_filename)
 
             rootgrp = Dataset(nc_filename, "w", format="NETCDF4")
@@ -1717,7 +1728,7 @@ class table_data:
 
         print(f"Successfully consolidated {len(biomass_files)} biomass files into {output_file}.{output_format.lower()}")
 
-
+    # TODO: JD 14012026 - New version is in use.
     @staticmethod
     def consolidate_annual_biomass_new(experiment_dir: Path,
                                 output_format: str = "parquet",
@@ -2042,14 +2053,14 @@ class output_manager:
 
         Args:
             result (Union[Path, str]): Path to the state file with model results.
-        
+
         Raises:
             ValueError: If the year argument is neither an integer nor None.
         """
         results = get_args(filename)
         available_cpus = 64
 
-        #TODO: Add checks for year validity and file existence
+        #TODO: Remove this
 
         # Define grid cell processing function
         def process_gridcell(grd, year_arg=None):
@@ -2090,7 +2101,7 @@ class output_manager:
         for fname in results:
             reg = worker.load_state_zstd(fname)
             nprocs = min(len(reg), available_cpus)
-            
+
             if year is not None:
                 # Use "threads" backend instead of "processes" for better compatibility
                 Parallel(n_jobs=nprocs, verbose=1, prefer="threads")(
@@ -2115,7 +2126,7 @@ class output_manager:
     @staticmethod
     def pan_amazon_output():
         """Function to process Pan-Amazon historical output and save as netCDF daily files and parquet biomass files (per year)."""
-        
+
         # Load region result file
         output_file = Path("../outputs/pan_amazon_hist_result.psz")
         reg:region = worker.load_state_zstd(output_file)
@@ -2123,7 +2134,7 @@ class output_manager:
         # Select the variables to be written
         # Daily outputs
         variables_to_read = ("npp", "rnpp", "photo", "evapm", "wsoil", "csoil", "hresp", "aresp", "lai")
-        
+
         # Years to output biomass tables
         years_to_output = [1901, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2024]
 
