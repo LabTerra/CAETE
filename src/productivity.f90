@@ -154,7 +154,7 @@ contains
     ! Only shaded leaves considered. Only for output purposes
     ! We consider that this is a reasonable approximation to evaluate
     ! the model with Remote Sensing products (MODIS LAI, etc)
-    laia = shade_lai
+    laia = shade_lai + sun_lai
 
     !CANOPY SCALING of stomatal resitance --
     ! Scale rc from leaf to canopy level. Only sunlit leaves considered

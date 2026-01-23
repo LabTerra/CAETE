@@ -21,6 +21,7 @@ module photo
    ! Module defining functions related with CO2 assimilation and other processes in CAETE
    ! Some of these functions are based in CPTEC-PVM2, others are new features
    use types
+   use ieee_arithmetic, only: ieee_is_nan, ieee_is_normal
    implicit none
    private
 
@@ -664,14 +665,27 @@ contains
       pdw = ppa
       ! print *, 'ndw', ndw
       ! print *, 'pdw', pdw
+      if (ieee_is_nan(sla) .or. .not. ieee_is_normal(sla) .or. sla .le. 0.0D0) then
+         lma = 0.0D0
+      else
+         lma = sla ** (-1) ! g/m2
+      end if
       lma = sla ** (-1) ! g/m2
 
       ! CALCULATE VCMAX
       nlim = alpha_n + nu_n * dlog10(ndw)  ! + (sigma_n * dlog10(sla))
       plim = alpha_p + nu_p * dlog10(pdw)  ! + (sigma_p * dlog10(sla))
 
+      ! TODO: JP:14.01.2026 We need to pass downstream the limitation source (N or P) for analysis
+      ! For now, we just calculate vcmax based on the minimum of the two limitations
       vcmax_dw = min(10**nlim, 10**plim) ! log10(vcmax_dw) in µmol g⁻¹ s⁻¹
+
       vcmaxd = vcmax_dw * lma * 1.0D-6 ! Multiply by LMA to have area values and 1d-6 to mol m-2 s-1
+
+      ! Ensure vcmaxd is non-negative and valid, set to 0.0D0 if invalid
+      if (ieee_is_nan(vcmaxd) .or. .not. ieee_is_normal(vcmaxd) .or. vcmaxd .lt. 0.0D0) then
+         vcmaxd = 0.0D0
+      end if
 
    end function vcmax_a
 
