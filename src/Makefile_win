@@ -108,7 +108,7 @@ so_parallel: $(sources) interface
 modules: $(sources)
 	$(FC) -fpp -c -O3 $(sources)
 
-debug: $(objects)
+debug: $(objects) so
 	$(PYEXEC) create_plsbin.py
 	$(FC) -o $(DEBUG_PROGRAM) $(FCFLAGS) $(objects) debug_caete.f90
 

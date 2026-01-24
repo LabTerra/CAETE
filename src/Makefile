@@ -155,6 +155,8 @@ so: $(sources) interface
 # =================================================================================================
 
 # Build objects for the DEBUG program
+%.o: %.mod
+
 debug: $(objects) so
 	$(PYEXEC) create_plsbin.py
 	$(FC) -o $(DEBUG_PROGRAM) $(FCFLAGS) $(objects)
@@ -162,11 +164,17 @@ debug: $(objects) so
 global.o: global.f90
 	$(FC) $(FLFLAGS) global.f90
 
+types.o: types.f90
+	$(FC) $(FLFLAGS) types.f90
+
 types.mod: types.o types.f90
 	$(FC) $(FLFLAGS) types.f90
 
 global_par.mod: global.o global.f90
 	$(FC) $(FLFLAGS) global.f90
+
+photo_par.o: photo_par.f90
+	$(FC) $(FLFLAGS) photo_par.f90
 
 photo_par.mod: photo_par.o photo_par.f90
 	$(FC) $(FLFLAGS) photo_par.f90
