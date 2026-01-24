@@ -1,3 +1,12 @@
+*.code-workspace
+.copilot*
+run_debug
+.vscode/c_cpp_properties.json
+.vscode/tasks.json
+.vscode/settings.json
+.vs
+src/.vscode
+
 src/*.o
 src/*.c
 src/caete_module*
@@ -20,7 +29,6 @@ src/*pbz2
 src/debug_aux/*.txt
 src/windows_utils/__pycache__
 src/profiling/__pycache__
-src/.python-version
 src/execution.log
 src/build
 src/bbdir
@@ -28,8 +36,10 @@ src/builddir
 src/tests/__pycache__
 src/tests/*.csv
 src/tests/*.txt
-src/.vscode
 src/temp_*
+*_env
+*_data
+*_cache
 input/temp*
 
 outputs/
@@ -60,13 +70,8 @@ input/__pycache__
 
 scripts/*.csv
 
-.copilot*
-run_debug
-.vscode/c_cpp_properties.json
-.vscode/tasks.json
-.vscode/settings.json
-.vs
 .python-version
+src/.python-version
 
 k34/CO2_AMB_AmzFACE2000_2100.csv
 k34/CO2_ELE_AmzFACE2000_2100.csv
