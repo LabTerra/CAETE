@@ -8,28 +8,41 @@ except ImportError:
     raise ImportError("pycdo (requires cdo) module not found. Please install pycdo and cdo to use this script.")
 
 
-def get_caete_dataset(available_variables, variable=None):
+def get_caete_dataset(available_variables, variable=None, experiment=None):
     """Get the path to a CAETE output dataset file.
 
     Args:
+        available_variables (dict): Nested dictionary {experiment: {variable: path}}.
         variable (str): Variable name prefix of the output file.
+        experiment (str, optional): Experiment name. If None, uses the first available experiment.
 
     Returns:
-        a Path to the dataset file.
+        tuple: (Path to the dataset file, experiment name)
 
     Raises:
-        ValueError: If the variable is not found in available variables.
+        ValueError: If the variable or experiment is not found.
 
     """
     assert isinstance(available_variables, dict)
 
     if variable is None:
         raise ValueError("Variable name must be provided.")
-    if variable not in available_variables:
-        raise ValueError(f"Variable '{variable}' not found in output directory.")
 
-    filepath = available_variables[variable]
-    return filepath, filepath.name.split("-")[1]
+    # If no experiment specified, use the first available experiment
+    if experiment is None:
+        if not available_variables:
+            raise ValueError("No experiments found in available variables.")
+        experiment = next(iter(available_variables))
+
+    if experiment not in available_variables:
+        raise ValueError(f"Experiment '{experiment}' not found. Available: {list(available_variables.keys())}")
+
+    if variable not in available_variables[experiment]:
+        raise ValueError(f"Variable '{variable}' not found in experiment '{experiment}'. "
+                        f"Available: {list(available_variables[experiment].keys())}")
+
+    filepath = available_variables[experiment][variable]
+    return filepath, experiment
 
 
 def get_dataset(ref_datasets, dataset, filename):

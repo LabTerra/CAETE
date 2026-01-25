@@ -21,7 +21,26 @@ get_caete_varname = lambda var: caete_names.get(var, var) # Return mapped name o
 # Important change here: The dataframes.py module now saves output files with the format:
 # TODO: ensure this is consistent everywhere specially in the dataframes module
 # <variable>-<experiment>-<timestamp>.nc
-available_variables = dict([(p.name.split("_")[0].split("-")[0], p) for p in Path(cfg.output.output_dir).glob("*.nc")])
+#
+# OLD VERSION (flat structure: {variable: path}):
+# available_variables = dict([(p.name.split("_")[0].split("-")[0], p) for p in Path(cfg.output.output_dir).glob("*.nc")])
+#
+# NEW VERSION (nested structure: {experiment: {variable: path}}):
+# Parse filenames with format: <variable>-<experiment>-<timestamp>.nc
+def _build_available_variables():
+    """Build nested dictionary of available CAETE outputs by experiment and variable."""
+    result = {}
+    for p in Path(cfg.output.output_dir).glob("*.nc"):
+        parts = p.name.split("-")
+        if len(parts) >= 2:
+            variable = parts[0]  # e.g., "photo", "evapm", "lai"
+            experiment = parts[1]  # e.g., "pan_amazon_hist_da"
+            if experiment not in result:
+                result[experiment] = {}
+            result[experiment][variable] = p
+    return result
+
+available_variables = _build_available_variables()
 # ----------------------------------------------------------------
 
 # Some CAETE output variables may need unit conversions / naming changes for benchmarking.
@@ -69,21 +88,21 @@ try:
 except Exception as e:
     print(f"Error while constructing reference datasets tree: {e}")
 
-# Write out a benchmark_datasets.md file listing available datasets and files in the BENCHMARK_DIR
-try:
-    with open("benchmark_datasets.md", "w") as f:
-        f.write("# Benchmark Datasets\n\n")
-        f.write("| Variable | Dataset | Filename |\n")
-        f.write("|----------|---------|----------|\n")
-        for dataset, files in ref_datasets.items():
-            for filename, filepath in files.items():
-                # Variable is the grandparent directory (e.g., gpp/, et/)
-                variable = filepath.parent.parent.name
-                f.write(f"| {variable} | {dataset} | {filename} |\n")
-except Exception as e:
-    print(f"Error while writing benchmark_datasets.md: {e}")
-# ----------------------------------------------------------------
+# # Write out a benchmark_datasets.md file listing available datasets and files in the BENCHMARK_DIR
+# try:
+#     with open("benchmark_datasets.md", "w") as f:
+#         f.write("# Benchmark Datasets\n\n")
+#         f.write("| Variable | Dataset | Filename |\n")
+#         f.write("|----------|---------|----------|\n")
+#         for dataset, files in ref_datasets.items():
+#             for filename, filepath in files.items():
+#                 # Variable is the grandparent directory (e.g., gpp/, et/)
+#                 variable = filepath.parent.parent.name
+#                 f.write(f"| {variable} | {dataset} | {filename} |\n")
+# except Exception as e:
+#     print(f"Error while writing benchmark_datasets.md: {e}")
+# # ----------------------------------------------------------------
 
-if __name__ == "__main__":
-    pass
-    # Unit tests for benchmark utilities
+# if __name__ == "__main__":
+#     pass
+#     # Unit tests for benchmark utilities
