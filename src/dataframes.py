@@ -2124,25 +2124,36 @@ class output_manager:
 
 
     @staticmethod
-    def pan_amazon_output():
-        """Function to process Pan-Amazon historical output and save as netCDF daily files and parquet biomass files (per year)."""
+    def pan_amazon_output(filename_infix: str = "pan_amazon_hist"):
+
+        """Function to process Pan-Amazon historical output and
+        save as netCDF daily files and parquet biomass files (per year).
+
+        Args:
+            filename_infix (str): Infix for the output filename.
+        Returns:
+            None
+
+        """
 
         # Load region result file
-        output_file = Path("../outputs/pan_amazon_hist_result.psz")
+        output_file = Path(f"../outputs/{filename_infix}_result.psz")
         reg:region = worker.load_state_zstd(output_file)
 
         # Select the variables to be written
         # Daily outputs
-        variables_to_read = ("npp", "rnpp", "photo", "evapm", "wsoil", "csoil", "hresp", "aresp", "lai")
+        # variables_to_read = ("npp", "rnpp", "photo", "evapm",
+        #                      "wsoil", "csoil", "hresp", "aresp", "lai")
+        variables_to_read = ("photo", "evapm")
 
         # Years to output biomass tables
-        years_to_output = [1901, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2024]
+        years_to_output = [1961, 2024]
 
         ## NetCDF daily outputs
         from time import perf_counter
         start = perf_counter()
-        a = gridded_data.create_masked_arrays(gridded_data.aggregate_region_data(reg, variables_to_read, (3,5)))
-        gridded_data.save_netcdf_daily(a, "pan_amazon_hist_da")
+        gridded_output = gridded_data.create_masked_arrays(gridded_data.aggregate_region_data(reg, variables_to_read, (3,5)))
+        gridded_data.save_netcdf_daily(gridded_output, filename_infix)
         end = perf_counter()
         print(f"Elapsed time: {end - start:.2f} seconds")
 

@@ -19,8 +19,8 @@ get_caete_varname = lambda var: caete_names.get(var, var) # Return mapped name o
 
 # Construct a dictionary of available CAETE output variables (gets all netCDF files in the CAETE output directory)
 # Important change here: The dataframes.py module now saves output files with the format:
+# <variable>-<experiment>-<timestamp>.nc  -> dashes "-" are mandatory to separate variable and experiment names
 # TODO: ensure this is consistent everywhere specially in the dataframes module
-# <variable>-<experiment>-<timestamp>.nc
 #
 # OLD VERSION (flat structure: {variable: path}):
 # available_variables = dict([(p.name.split("_")[0].split("-")[0], p) for p in Path(cfg.output.output_dir).glob("*.nc")])

@@ -1,7 +1,36 @@
-# -*-coding:utf-8-*-
-# "CAETÊ"
-# Author:  João Paulo Darela Filho
-"""
+# -*- coding: utf-8 -*-
+# CAETÊ - Carbon and Ecosystem Functional-Trait Evolution Model
+# Author: João Paulo Darela Filho
+
+"""CAETÊ Model Driver Script.
+
+This script demonstrates the complete workflow for running the CAETÊ model,
+including spinup, transient climate simulations, and output generation.
+
+Workflow Overview:
+    1. Region Initialization - Load input data and create the simulation region
+    2. Spinup - Equilibrate soil carbon pools using repeated spinup climate
+    3. Transclim Run - Run model with transitional climate (1765-1900)
+    4. State Checkpoint - Save model state for potential restarts
+    5. Prepare Transient - Update input to observational climate data
+    6. Transient Run - Run model with historical climate (1901-2024)
+    7. Finalize - Clean state and export results
+
+Requirements:
+    - CDO (Climate Data Operators) for benchmarking
+    - NetCDF input files (spinclim and obsclim)
+    - PLS (Plant Life Strategy) table CSV file
+    - Gridlist CSV defining simulation domain
+
+Usage:
+    Run this script directly from the src/ directory:
+        $ python caete_driver.py
+
+Output Files:
+    - {region_name}_after_spinup_state_file.psz : State after spinup (restartable)
+    - {region_name}_result.psz : Final simulation results
+    - ../outputs/ : NetCDF and other output formats
+
 Copyright 2017- LabTerra
 
     This program is free software: you can redistribute it and/or modify
@@ -19,38 +48,16 @@ Copyright 2017- LabTerra
 """
 
 import multiprocessing as mp
-import os
 from pathlib import Path
 
 from polars import read_csv
 
-# This is a script that exemplify the usage of the new implementation of the CAETÊ model.
-# Please, refer to the summary section in caete.py for more information.
-
-# We do everything after the if __name__ == "__main__": statement.
-# This avoids the duplication of data placed before it when using multiprocessing in Python with the spawn method.
-# Please refer to the Python multiprocessing library documentation for more information.
-
-# Profiling is enabled by default if the environment variable CAETE_PROFILING is set to True.
-# The results of the profiling at this level are not very useful because most of the time is spent
-# in the region and worker methods. However, it can be useful to identify bottlenecks in the
-# overall execution of the model. Most of the activity captured in this profiling is related waiting time of parallel processes and threads.
-# In the end of the caete.py module there is another profiling implementation that provides more detailed information about
-# the execution of the model at the gridcell level. It may be outdated. Please refer to the comments there for more information.
-PROFILING = False or os.environ.get("CAETE_PROFILING", "False").lower() in ("true", "1", "yes")
-
-if PROFILING:
-    import cProfile
-    import io
-    import pstats
+# All simulation code must be inside the if __name__ == "__main__" block.
+# This is required for multiprocessing with the 'spawn' method, which is
+# used to ensure compatibility across Linux and Windows platforms.
+# See: https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods
 
 if __name__ == "__main__":
-
-    if PROFILING:
-        # Create a profile object
-        print("Profiling is enabled. This will slow down the execution of the model.")
-        pr = cProfile.Profile()
-        pr.enable()
 
     import time
 
@@ -59,165 +66,215 @@ if __name__ == "__main__":
     from region import region
     from worker import worker
 
-
     time_start = time.time()
-    # Force spawn method to avoid issues with multiprocessing use with threading in Linux
-    # This statement is always necessary when running the model. Specifically, it needs to be
-    # always after the if __name__ == "__main__": statement. This is a Python requirement.
+
+    # Force 'spawn' start method for multiprocessing compatibility.
+    # This must be called before any multiprocessing operations.
     mp.set_start_method('spawn', force=True)
 
-    # Create a worker instance to access the gridcell-wise functions and other utilities
+    # Worker instance provides gridcell-level functions (spinup, transient runs, etc.)
     fn: worker = worker()
 
-    # Name of the region. This name will be used to create the output folder.
-    region_name = "pan_amazon_hist" # Name of the run (the outputs of this region will be saved in this folder). Look at caete.toml
+    # -------------------------------------------------------------------------
+    # CONFIGURATION
+    # -------------------------------------------------------------------------
 
-    # Paths to input data
+    # Region identifier - used for output file naming
+    region_name = "pan_amazon_hist_2"
+
+    # Climate input files (NetCDF format)
     obsclim_files = "../input/20CRv3-ERA5/obsclim/caete_input_20CRv3-ERA5_obsclim.nc"
     spinclim_files = "../input/20CRv3-ERA5/spinclim/caete_input_20CRv3-ERA5_spinclim.nc"
 
-    # Gridlists control which gridcells will be used in the simulation. In the grd folder there
-    # are some examples of gridlists that can be used to run the model in different regions or
-    # with different number of gridcells.
-    gridlist = read_csv("../grd/gridlist_test.csv") # Test gridlist n = 16
+    # Gridlist defines which gridcells to simulate
+    gridlist = read_csv("../grd/gridlist_test.csv")
 
-    # Soil hydraulic parameters, e.g.,  wilting point(RWC), field capacity(RWC) and water saturation(RWC) for soil layers
-    # tsoil = # Top soil
-    # ssoil = # Sub soil
-    # hsoil = # Parameters used in Gabriela's model
-    #TODO: Reconcile with the parameters from the soil hydrology model.
+    # Soil hydraulic parameters (wilting point, field capacity, saturation)
+    # TODO: Reconcile with soil hydrology model parameters
     soil_tuple = tsoil, ssoil, hsoil
 
-    #CO2 atmospheric data. The model expects a formated table in a text file with
-    # exactly 2 columns (year, co2 concentration) separetd by a space, a coma, a semicolon etc.
-    # A header is optional. The model also expects annual records in ppm (parts per million).
+    # Atmospheric CO2 concentration time series (CSV: year, ppm)
     co2_path = Path("../input/co2/historical_CO2_annual_1765-2024.csv")
 
-    # Read PLS table. The model expects csv file created with the table_gen defined in
-    # the plsgen.py script. This table contains the global PLS definitions. We also refer to
-    # this table as main table. it represents all possible plant functional types
-    # that can be used in the model. The model will use this table to create (subsample)
-    # the metacommunities. Everthing is everywhere, but the environment selects.
-    PLS_TABLE_PATH = Path("./PLS_MAIN/pls_attrs-50000.csv")
+    # PLS (Plant Life Strategy) table - defines all possible functional types
+    # Generated by plsgen.py using table_gen function
+    PLS_TABLE_PATH = Path("./PLS_MAIN/pls_attrs-25000.csv")
     assert PLS_TABLE_PATH.exists(), f"PLS table not found at {PLS_TABLE_PATH.resolve()}"
 
     main_table = pls_table.read_pls_table(PLS_TABLE_PATH)
 
-    # Create the region using the spinup climate files
-    print("creating region with spinclim files")
+    # -------------------------------------------------------------------------
+    # HELPER FUNCTIONS
+    # -------------------------------------------------------------------------
+
+    def format_time(seconds: float) -> str:
+        """Format elapsed time in human-readable format.
+
+        Args:
+            seconds: Elapsed time in seconds.
+
+        Returns:
+            Formatted string like "01h 23m 45s" or "23m 45s".
+        """
+        hours, remainder = divmod(int(seconds), 3600)
+        minutes, secs = divmod(remainder, 60)
+        if hours > 0:
+            return f"{hours:02d}h {minutes:02d}m {secs:02d}s"
+        return f"{minutes:02d}m {secs:02d}s"
+
+    # -------------------------------------------------------------------------
+    # SIMULATION HEADER
+    # -------------------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("  CAETÊ MODEL - Simulation Driver")
+    print("=" * 70)
+    print(f"  Region: {region_name}")
+    print(f"  Gridcells: {len(gridlist)}")
+    print("=" * 70 + "\n")
+
+    # =========================================================================
+    # PHASE 1: Region Initialization
+    # =========================================================================
+    print("[1/7] Initializing region with spinclim files...")
     pan_amazon = region(region_name,
                         spinclim_files,
                         soil_tuple,
                         co2_path,
                         main_table,
                         gridlist=gridlist)
+    print("      Region initialized successfully.\n")
 
-    # print(f"Region {region_name} created with {len(r.gridcells)} gridcells")
-    # Spinup and run
-    print("START soil pools spinup")
+    # =========================================================================
+    # PHASE 2: Spinup - Equilibrate soil carbon pools
+    # =========================================================================
+    print("[2/7] Running spinup...")
     s1 = time.perf_counter()
 
-    # Run the spinup. run_region_map maps the function fn.spinup to all gridcells in the region.
     pan_amazon.run_region_map(fn.spinup)
 
     e1 = time.perf_counter()
-    print(f"Spinup time: {(e1 - s1) // 60 :.0f}:{(e1 - s1) % 60:.0f}")
+    print(f"      ✓ Spinup completed in {format_time(e1 - s1)}\n")
 
-    # Run the model
+    # =========================================================================
+    # PHASE 3: Transclim Run - Transitional climate (1851-1900)
+    # =========================================================================
+    print("[3/7] Running transclim simulation...")
     s3 = time.perf_counter()
 
-    # run transclim
-    print("\n\nSTART transclim run")
     pan_amazon.run_region_map(fn.transclim_run)
 
     e3 = time.perf_counter()
-    print(f"Transclim run: {(e3 - s3) // 60 :.0f}:{(e3 - s3) % 60:.0f}")
+    print(f"      ✓ Transclim completed in {format_time(e3 - s3)}\n")
 
-    # # # Save state after spinup.
-    # # This state file can be used to restart the model from this point. 1900-12-31
+    # =========================================================================
+    # PHASE 4: Save State Checkpoint
+    # =========================================================================
+    # State file enables restarting simulations from this point (end of 1900) - Starts in 01.01.1901
     state_file = Path(f"./{region_name}_after_spinup_state_file.psz")
-    print(f"\n\nSaving state file as {state_file}")
+    print(f"[4/7] Saving post-spinup state → {state_file.name}")
     s4 = time.perf_counter()
 
     pan_amazon.save_state(state_file)
 
     e4 = time.perf_counter()
-    print(f"State file save time: {(e4 - s4) // 60 :.0f}:{(e4 - s4) % 60 :.0f}")
+    print(f"      ✓ State saved in {format_time(e4 - s4)}\n")
 
-    # Set a new state for the pan_amazon region. This is necessary to
-    # update the model state with the new input data (obsclim file).
-    # If this step is ommited, the model will continue to use the old state, modifying it with the new input data.
-    # This is not desired, as we would like to use that state after the spinup to start other transient runs with different forcings.
-    print(f"\n\nExecution time so far: ", (time.time() - time_start) / 60, " minutes", end="\n\n")
-    print("setting new state")
+    elapsed = time.time() - time_start
+    print(f"      ⏱ Elapsed time: {format_time(elapsed)}\n")
+
+    # =========================================================================
+    # PHASE 5: Prepare for Transient Run
+    # =========================================================================
+    # Create a fresh copy of the model state before switching to obsclim data.
+    # This preserves the spinup state for potential alternative scenario runs.
+    print("[5/7] Preparing transient run...")
+    print("      Setting new state...")
     s5 = time.perf_counter()
 
     pan_amazon.set_new_state()
 
     e5 = time.perf_counter()
-    print(f"Set new state time: {(e5 - s5) // 60 :.0f}:{(e5 - s5) % 60 :.0f}")
+    print(f"      ✓ New state set in {format_time(e5 - s5)}")
 
-    # # Update the input source to the transient run - we now use the obsclim file
-    print("Uodating input to obsclim files")
+    # Switch input source to observational climate data
+    print("      Updating input to obsclim files...")
     s2 = time.perf_counter()
 
     pan_amazon.update_input(obsclim_files)
 
     e2 = time.perf_counter()
-    print(f"Update input time: {(e2 - s2) // 60 :.0f}:{(e2 - s2) % 60:.0f}")
+    print(f"      ✓ Input updated in {format_time(e2 - s2)}\n")
 
-    print("\n\nSTART transient run")
+    # =========================================================================
+    # PHASE 6: Transient Run - Historical climate (1901-2024)
+    # =========================================================================
+    # Run in 30-year segments to manage memory and enable progress tracking
+    # Until now we did not generated any output files. The state files generated
+    # during spinup only stores the model state for restarts.
+    # All outputs in the spinup phase are discarded.
+    print("[6/7] Running transient simulation (1901-2024)...")
+    s_trans = time.perf_counter()
     run_breaks = fn.create_run_breaks(1901, 2024, 30)
-    for period in run_breaks:
-        print(f"Running period {period[0]} - {period[1]}")
+
+    for i, period in enumerate(run_breaks, 1):
+        print(f"      Period {i}/{len(run_breaks)}: {period[0]} → {period[1]}", end="")
+        sp = time.perf_counter()
+
+        # In fn.transient_run_brk the ouptut is serialized to "spin" files named spinXXXX.pkz
+        # Each file contains the outputs for that period.
+        # THis means that for downstream processing, the period in each file
+        # will depend on the run breaks defined here.
+        # Have a look at dataframes.output_manager.pan_amazon_output
+        # to see how to process these files.
         pan_amazon.run_region_starmap(fn.transient_run_brk, period)
 
-    # final_state:
-    # We clean the state of the gridcells to save the final state of the region
-    # THis final state is not useful to restart the model, but it is useful to
-    # access the model outputs and export it to other formats.
-    # r.save_state(Path(f"./{region_name}_{period[1]}_final_state.psz"))
-    # r.set_new_state()
-    print("\nCleaning model state and saving final state file")
+        ep = time.perf_counter()
+        print(f" ({format_time(ep - sp)})")
+
+    e_trans = time.perf_counter()
+    print(f"      ✓ Transient run completed in {format_time(e_trans - s_trans)}\n")
+
+    # =========================================================================
+    # PHASE 7: Finalize and Export Results
+    # =========================================================================
+    # Clean model state to prepare for output export.
+    # Note: This cleaned state cannot be used for restarts.
+    print("[7/7] Finalizing simulation...")
+    print("      Cleaning model state...")
     s6 = time.perf_counter()
     pan_amazon.clean_model_state_fast()
-    # r.clean_model_state()
     e6 = time.perf_counter()
-    print("Time in seconds: " + str(e6 - s6))
-    print(f"Clean model state time: {(e6 - s6) // 60 :.0f}:{(e6 - s6) % 60 :.4f}")
+    print(f"      ✓ State cleaned in {format_time(e6 - s6)}")
 
-    print(f"\n\nSaving final state file as ./{region_name}_result.psz")
+    print(f"      Saving final results → {region_name}_result.psz")
     s7 = time.perf_counter()
     pan_amazon.save_state(Path(f"./{region_name}_result.psz"))
     e7 = time.perf_counter()
-    print(f"Final state file save time: {(e7 - s7) // 60 :.0f}:{(e7 - s7) % 60 :.0f}")
+    print(f"      ✓ Results saved in {format_time(e7 - s7)}\n")
 
-    print("\n\nExecution time: ", (time.time() - time_start) / 60, " minutes", end="\n\n")
+    # =========================================================================
+    # SIMULATION SUMMARY
+    # =========================================================================
+    total_time = time.time() - time_start
+    print("=" * 70)
+    print("  SIMULATION COMPLETE")
+    print("=" * 70)
+    print(f"  Total execution time: {format_time(total_time)}")
+    print("=" * 70 + "\n")
 
-    # Generate outputs - Import here to avoid multiprocessing issues
+    # -------------------------------------------------------------------------
+    # OUTPUT GENERATION
+    # -------------------------------------------------------------------------
+    # Import here to avoid multiprocessing pickle issues
+    print("Generating output files...")
     from dataframes import output_manager
-    output_manager.pan_amazon_output()
+    output_manager.pan_amazon_output(filename_infix=region_name)
+    print("✓ Output files generated.\n")
 
-    # Copy the PLS table used in the run to the output folder
+    # Archive the PLS table used in this simulation for reproducibility
     from shutil import copy2
-    output_folder = Path(f"../outputs")
-    copy2(PLS_TABLE_PATH, output_folder / PLS_TABLE_PATH.name)
 
-
-    if PROFILING:
-        # Disable profiling
-        pr.disable()
-
-        # Save profiling results to file with region name
-        profile_filename = f"{region_name}_profile.prof"
-        pr.dump_stats(profile_filename)
-        print(f"\nProfiling results saved to: {profile_filename}")
-        print("Analyze with: python -m pstats pan_amazon_hist_profile.prof")
-        print("Or visualize with: snakeviz pan_amazon_hist_profile.prof")
-
-        # Quick summary to console
-        s = io.StringIO()
-        ps = pstats.Stats(pr, stream=s)
-        ps.sort_stats('cumulative').print_stats(10)
-        print("\nQuick Summary - Top 10 functions by cumulative time:")
-        print(s.getvalue())
+    output_folder = pan_amazon.config.output.output_dir
+    pls_filename = f"{PLS_TABLE_PATH.stem}_{region_name}{PLS_TABLE_PATH.suffix}"
+    copy2(PLS_TABLE_PATH, output_folder / pls_filename)
+    print(f"✓ PLS table copied to {output_folder / pls_filename}")

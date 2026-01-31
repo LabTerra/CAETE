@@ -1,13 +1,14 @@
 """Benchmark script for CAETE model evaluation.
 
 This module provides functions to load, preprocess, and compare CAETE model outputs
-with reference datasets for benchmarking purposes.
+with reference datasets for benchmarking purposes. Supports comparing multiple
+experiments against a single reference dataset in the same benchmark.
 
 Requires CDO to be installed and accessible in the system path.
 """
 
 from pathlib import Path
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List
 
 import numpy as np
 import numpy.ma as ma
@@ -29,6 +30,20 @@ from benchmark_utils import available_variables as caete_data
 from benchmark_utils import ref_datasets, get_caete_varname
 from benchmark_utils import BENCHMARCK_CACHE_DIR, ensure_cache_dir
 import _geos as geos
+
+# Color palette for distinguishing multiple experiments in plots
+EXPERIMENT_COLORS = [
+    '#1f77b4',  # blue
+    '#ff7f0e',  # orange
+    '#2ca02c',  # green
+    '#d62728',  # red
+    '#9467bd',  # purple
+    '#8c564b',  # brown
+    '#e377c2',  # pink
+    '#7f7f7f',  # gray
+    '#bcbd22',  # olive
+    '#17becf',  # cyan
+]
 
 ensure_cache_dir()
 
@@ -110,6 +125,54 @@ def get_model_data(variable: str, experiment: str | None = None, use_cache: bool
     model_mask = _extract_model_mask(model_ds, variable)
 
     return model_ds, experiment, model_mask
+
+
+def get_multiple_model_data(
+    variable: str,
+    experiments: List[str] | None = None,
+    use_cache: bool = True
+) -> Tuple[Dict[str, xr.Dataset], Dict[str, xr.Dataset]]:
+    """Load and preprocess CAETE model output for multiple experiments.
+
+    Args:
+        variable: Variable name to read from CAETE output.
+        experiments: List of experiment names. If None, loads all available experiments.
+        use_cache: If True, use cached preprocessed files if available.
+
+    Returns:
+        A tuple containing:
+            - model_datasets: Dict mapping experiment name to preprocessed Dataset.
+            - model_masks: Dict mapping experiment name to mask Dataset.
+    """
+    caete_varname = get_caete_varname(variable)
+
+    # Get available experiments for this variable
+    if experiments is None:
+        experiments = list(caete_data.keys())
+        # Filter to experiments that have this variable
+        experiments = [exp for exp in experiments if caete_varname in caete_data.get(exp, {})]
+
+    if not experiments:
+        raise ValueError(f"No experiments found with variable '{variable}'")
+
+    print(f"Loading {len(experiments)} experiment(s): {experiments}")
+
+    model_datasets = {}
+    model_masks = {}
+
+    for exp in experiments:
+        try:
+            model_ds, _, model_mask = get_model_data(variable, exp, use_cache)
+            model_datasets[exp] = model_ds
+            model_masks[exp] = model_mask
+        except Exception as e:
+            print(f"Warning: Failed to load experiment '{exp}': {e}")
+            continue
+
+    if not model_datasets:
+        raise RuntimeError("Failed to load any experiments")
+
+    return model_datasets, model_masks
 
 
 def _extract_model_mask(model_ds: xr.Dataset, variable: str) -> xr.Dataset:
@@ -261,21 +324,65 @@ def get_model_and_ref(
     return model_ds, ref_ds, experiment, region_mask, model_mask
 
 
+def get_models_and_ref(
+    variable: str = "gpp",
+    dataset_name: str = "GOSIF",
+    filename: str = "gpp_GOSIF_2000-2024.nc",
+    experiments: List[str] | None = None
+) -> Tuple[Dict[str, xr.Dataset], xr.Dataset, xr.Dataset, Dict[str, xr.Dataset]]:
+    """Load and prepare multiple model experiments and reference dataset for comparison.
+
+    This function supports multi-experiment benchmarking by loading multiple CAETE
+    experiments and comparing them against a single reference dataset.
+
+    Args:
+        variable: Variable name to read from CAETE output. Default is "gpp".
+        dataset_name: Name of the reference dataset. Default is "GOSIF".
+        filename: Filename within the reference datasets.
+        experiments: List of experiment names. If None, loads all available experiments.
+
+    Returns:
+        A tuple containing:
+            - model_datasets: Dict[str, xr.Dataset] mapping experiment names to datasets.
+            - ref_ds: Reference dataset (single).
+            - region_mask: RAISG mask for the Pan Amazon region.
+            - model_masks: Dict[str, xr.Dataset] mapping experiment names to masks.
+    """
+    # Step 1: Get multiple model datasets
+    model_datasets, model_masks = get_multiple_model_data(variable, experiments)
+
+    # Step 2: Get reference data
+    ref_ds = get_reference_data(dataset_name, filename)
+
+    # Step 3: Conform each model dataset with reference
+    conformed_models = {}
+    for exp_name, model_ds in model_datasets.items():
+        model_conformed, ref_conformed = conform_datasets(model_ds.copy(), ref_ds.copy(), variable)
+        conformed_models[exp_name] = model_conformed
+        # Keep the last conformed ref (they should all be the same)
+        ref_ds_conformed = ref_conformed
+
+    # Step 4: Get region mask
+    region_mask = get_region_mask()
+
+    return conformed_models, ref_ds_conformed, region_mask, model_masks
+
+
 def temporal_analysis(
-    model_ds: xr.Dataset,
+    model_datasets: Dict[str, xr.Dataset],
     ref_ds: xr.Dataset,
     variable: str,
     region: str = "pana",
     output_dir: Path | None = None
 ) -> Dict[str, Any]:
-    """Perform comprehensive temporal analysis between model and reference datasets.
+    """Perform comprehensive temporal analysis between multiple model experiments and reference.
 
     This function applies ILAMB3 analysis methods to compare temporal characteristics
-    of model output against reference data, including bias, seasonal cycle, and
-    time series analysis.
+    of multiple model outputs against a single reference dataset, including bias,
+    seasonal cycle, and time series analysis.
 
     Args:
-        model_ds: Model dataset (CAETE output).
+        model_datasets: Dict mapping experiment names to model datasets.
         ref_ds: Reference dataset (observations).
         variable: Variable name to analyze (e.g., "gpp", "et").
         region: Region label for analysis. Default is "pana" (Pan Amazon).
@@ -283,28 +390,33 @@ def temporal_analysis(
 
     Returns:
         dict: Dictionary containing:
-            - 'scalars': pd.DataFrame with scalar metrics and scores
+            - 'scalars': pd.DataFrame with scalar metrics and scores (includes 'experiment' column)
             - 'ref_gridded': xr.Dataset with reference gridded outputs
-            - 'com_gridded': xr.Dataset with comparison gridded outputs
+            - 'com_gridded': Dict[str, xr.Dataset] with comparison gridded outputs per experiment
             - 'figures': dict of matplotlib Figure objects
     """
+    experiment_names = list(model_datasets.keys())
+    n_experiments = len(experiment_names)
+
     results = {
         'scalars': pd.DataFrame(),
         'ref_gridded': xr.Dataset(),
-        'com_gridded': xr.Dataset(),
+        'com_gridded': {exp: xr.Dataset() for exp in experiment_names},
         'figures': {}
     }
 
     # Ensure units attribute exists
     if 'units' not in ref_ds[variable].attrs:
         ref_ds[variable].attrs['units'] = '1'
-    if 'units' not in model_ds[variable].attrs:
-        model_ds[variable].attrs['units'] = ref_ds[variable].attrs['units']
+    for exp_name, model_ds in model_datasets.items():
+        if 'units' not in model_ds[variable].attrs:
+            model_ds[variable].attrs['units'] = ref_ds[variable].attrs['units']
 
     # =========================================================================
-    # 1. BIAS ANALYSIS
+    # 1. BIAS ANALYSIS (per experiment)
     # =========================================================================
-    print("Running bias analysis...")
+    print(f"Running bias analysis for {n_experiments} experiment(s)...")
+    bias_data_per_exp = {}
     try:
         bias_analyzer = bias_analysis(
             required_variable=variable,
@@ -312,19 +424,28 @@ def temporal_analysis(
             use_uncertainty=False,
             mass_weighting=False
         )
-        bias_df, bias_ref, bias_com = bias_analyzer(ref_ds, model_ds)
-        results['scalars'] = pd.concat([results['scalars'], bias_df], ignore_index=True)
 
-        # Store gridded outputs
-        for var in bias_ref.data_vars:
-            results['ref_gridded'][f'bias_{var}'] = bias_ref[var]
-        for var in bias_com.data_vars:
-            results['com_gridded'][f'bias_{var}'] = bias_com[var]
+        for exp_name, model_ds in model_datasets.items():
+            bias_df, bias_ref, bias_com = bias_analyzer(ref_ds, model_ds)
+            # Add experiment column
+            bias_df['experiment'] = exp_name
+            results['scalars'] = pd.concat([results['scalars'], bias_df], ignore_index=True)
 
-        # Create bias map figure
-        if 'bias' in bias_com:
-            fig_bias = _plot_bias_map(
-                bias_com['bias'],
+            # Store gridded outputs (only ref once)
+            if not results['ref_gridded'].data_vars:
+                for var in bias_ref.data_vars:
+                    results['ref_gridded'][f'bias_{var}'] = bias_ref[var]
+
+            for var in bias_com.data_vars:
+                results['com_gridded'][exp_name][f'bias_{var}'] = bias_com[var]
+
+            if 'bias' in bias_com:
+                bias_data_per_exp[exp_name] = bias_com['bias']
+
+        # Create multi-experiment bias map figure
+        if bias_data_per_exp:
+            fig_bias = _plot_multi_experiment_bias_maps(
+                bias_data_per_exp,
                 title=f'{variable.upper()} Bias (Model - Reference)',
                 region=region
             )
@@ -334,187 +455,223 @@ def temporal_analysis(
         print(f"Bias analysis failed: {e}")
 
     # =========================================================================
-    # 2. SEASONAL CYCLE ANALYSIS
+    # 2. SEASONAL CYCLE ANALYSIS (per experiment)
     # =========================================================================
-    print("Running seasonal cycle analysis...")
+    print(f"Running seasonal cycle analysis for {n_experiments} experiment(s)...")
+    cycle_data_per_exp = {}
+    ref_cycle_data = None
     try:
         cycle_analyzer = cycle_analysis(
             required_variable=variable,
             regions=[region]
         )
-        cycle_df, cycle_ref, cycle_com = cycle_analyzer(ref_ds, model_ds)
-        results['scalars'] = pd.concat([results['scalars'], cycle_df], ignore_index=True)
 
-        # Store gridded outputs
-        for var in cycle_ref.data_vars:
-            results['ref_gridded'][f'cycle_{var}'] = cycle_ref[var]
-        for var in cycle_com.data_vars:
-            results['com_gridded'][f'cycle_{var}'] = cycle_com[var]
+        for exp_name, model_ds in model_datasets.items():
+            cycle_df, cycle_ref, cycle_com = cycle_analyzer(ref_ds, model_ds)
+            cycle_df['experiment'] = exp_name
+            results['scalars'] = pd.concat([results['scalars'], cycle_df], ignore_index=True)
 
-        # Create seasonal cycle figure
-        ref_cycle_var = f'cycle_{region}'
-        if ref_cycle_var in cycle_ref and ref_cycle_var in cycle_com:
-            fig_cycle = _plot_seasonal_cycle(
-                cycle_ref[ref_cycle_var],
-                cycle_com[ref_cycle_var],
+            # Store gridded outputs
+            if not any('cycle_' in str(v) for v in results['ref_gridded'].data_vars):
+                for var in cycle_ref.data_vars:
+                    results['ref_gridded'][f'cycle_{var}'] = cycle_ref[var]
+
+            for var in cycle_com.data_vars:
+                results['com_gridded'][exp_name][f'cycle_{var}'] = cycle_com[var]
+
+            ref_cycle_var = f'cycle_{region}'
+            if ref_cycle_var in cycle_com:
+                cycle_data_per_exp[exp_name] = cycle_com[ref_cycle_var]
+            if ref_cycle_var in cycle_ref and ref_cycle_data is None:
+                ref_cycle_data = cycle_ref[ref_cycle_var]
+
+        # Create multi-experiment seasonal cycle figure
+        if cycle_data_per_exp and ref_cycle_data is not None:
+            fig_cycle = _plot_multi_experiment_seasonal_cycle(
+                ref_cycle_data,
+                cycle_data_per_exp,
                 variable=variable,
                 region=region
             )
             results['figures']['seasonal_cycle'] = fig_cycle
 
-        # Create phase shift map
-        if 'shift' in cycle_com:
-            fig_phase = _plot_phase_shift_map(
-                cycle_com['shift'],
-                title=f'{variable.upper()} Phase Shift',
-                region=region
-            )
-            results['figures']['phase_shift'] = fig_phase
-
     except Exception as e:
         print(f"Seasonal cycle analysis failed: {e}")
 
     # =========================================================================
-    # 3. TIME SERIES ANALYSIS
+    # 3. TIME SERIES ANALYSIS (per experiment)
     # =========================================================================
-    print("Running time series analysis...")
+    print(f"Running time series analysis for {n_experiments} experiment(s)...")
+    ts_data_per_exp = {}
+    ref_ts_data = None
+    ts_metrics_per_exp = {}
     try:
-        # Compute area-weighted time series for the region
-        ref_ts, model_ts = _compute_regional_timeseries(ref_ds, model_ds, variable, region)
+        for exp_name, model_ds in model_datasets.items():
+            ref_ts, model_ts = _compute_regional_timeseries(ref_ds, model_ds, variable, region)
+            ts_metrics = _compute_timeseries_metrics(ref_ts, model_ts)
 
-        # Compute time series metrics
-        ts_metrics = _compute_timeseries_metrics(ref_ts, model_ts)
+            if ref_ts_data is None:
+                ref_ts_data = ref_ts
 
-        # Add to scalars
-        ts_df = pd.DataFrame([
-            {
-                'source': 'Reference',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Period Mean',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': ts_metrics['ref_mean']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Period Mean',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': ts_metrics['com_mean']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Bias',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': ts_metrics['bias']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'RMSE',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': ts_metrics['rmse']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Correlation',
-                'type': 'scalar',
-                'units': '1',
-                'value': ts_metrics['correlation']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Normalized Std Dev',
-                'type': 'scalar',
-                'units': '1',
-                'value': ts_metrics['norm_std']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Time Series',
-                'name': 'Taylor Score',
-                'type': 'score',
-                'units': '1',
-                'value': ts_metrics['taylor_score']
-            },
-        ])
-        results['scalars'] = pd.concat([results['scalars'], ts_df], ignore_index=True)
+            ts_data_per_exp[exp_name] = model_ts
+            ts_metrics_per_exp[exp_name] = ts_metrics
 
-        # Store time series
-        results['ref_gridded']['timeseries'] = ref_ts
-        results['com_gridded']['timeseries'] = model_ts
+            # Add to scalars with experiment column
+            ts_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': 'Reference',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Period Mean',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': ts_metrics['ref_mean']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Period Mean',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': ts_metrics['com_mean']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Bias',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': ts_metrics['bias']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'RMSE',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': ts_metrics['rmse']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Correlation',
+                    'type': 'scalar',
+                    'units': '1',
+                    'value': ts_metrics['correlation']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Normalized Std Dev',
+                    'type': 'scalar',
+                    'units': '1',
+                    'value': ts_metrics['norm_std']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Time Series',
+                    'name': 'Taylor Score',
+                    'type': 'score',
+                    'units': '1',
+                    'value': ts_metrics['taylor_score']
+                },
+            ])
+            results['scalars'] = pd.concat([results['scalars'], ts_df], ignore_index=True)
 
-        # Create time series figure
-        fig_ts = _plot_timeseries(
-            ref_ts, model_ts,
-            variable=variable,
-            region=region,
-            metrics=ts_metrics
-        )
-        results['figures']['timeseries'] = fig_ts
+            # Store time series
+            results['com_gridded'][exp_name]['timeseries'] = model_ts
+
+        results['ref_gridded']['timeseries'] = ref_ts_data
+
+        # Create multi-experiment time series figure
+        if ts_data_per_exp and ref_ts_data is not None:
+            fig_ts = _plot_multi_experiment_timeseries(
+                ref_ts_data,
+                ts_data_per_exp,
+                variable=variable,
+                region=region,
+                metrics=ts_metrics_per_exp
+            )
+            results['figures']['timeseries'] = fig_ts
 
     except Exception as e:
         print(f"Time series analysis failed: {e}")
 
     # =========================================================================
-    # 4. INTERANNUAL VARIABILITY ANALYSIS
+    # 4. INTERANNUAL VARIABILITY ANALYSIS (per experiment)
     # =========================================================================
-    print("Running interannual variability analysis...")
+    print(f"Running interannual variability analysis for {n_experiments} experiment(s)...")
+    iav_data_per_exp = {}
+    ref_annual_data = None
     try:
-        iav_results = _compute_interannual_variability(ref_ds, model_ds, variable, region)
+        for exp_name, model_ds in model_datasets.items():
+            iav_results = _compute_interannual_variability(ref_ds, model_ds, variable, region)
 
-        iav_df = pd.DataFrame([
-            {
-                'source': 'Reference',
-                'region': region,
-                'analysis': 'Interannual Variability',
-                'name': 'IAV Std Dev',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': iav_results['ref_iav_std']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Interannual Variability',
-                'name': 'IAV Std Dev',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': iav_results['com_iav_std']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Interannual Variability',
-                'name': 'IAV Score',
-                'type': 'score',
-                'units': '1',
-                'value': iav_results['iav_score']
-            },
-        ])
-        results['scalars'] = pd.concat([results['scalars'], iav_df], ignore_index=True)
+            if ref_annual_data is None:
+                ref_annual_data = iav_results['ref_annual']
 
-        # Create IAV figure
-        fig_iav = _plot_interannual_variability(
-            iav_results['ref_annual'],
-            iav_results['com_annual'],
-            variable=variable,
-            region=region
-        )
-        results['figures']['interannual_variability'] = fig_iav
+            iav_data_per_exp[exp_name] = {
+                'com_annual': iav_results['com_annual'],
+                'com_iav_std': iav_results['com_iav_std'],
+                'iav_score': iav_results['iav_score']
+            }
+
+            iav_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': 'Reference',
+                    'region': region,
+                    'analysis': 'Interannual Variability',
+                    'name': 'IAV Std Dev',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': iav_results['ref_iav_std']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Interannual Variability',
+                    'name': 'IAV Std Dev',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': iav_results['com_iav_std']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Interannual Variability',
+                    'name': 'IAV Score',
+                    'type': 'score',
+                    'units': '1',
+                    'value': iav_results['iav_score']
+                },
+            ])
+            results['scalars'] = pd.concat([results['scalars'], iav_df], ignore_index=True)
+
+        # Create multi-experiment IAV figure
+        if iav_data_per_exp and ref_annual_data is not None:
+            fig_iav = _plot_multi_experiment_iav(
+                ref_annual_data,
+                {exp: data['com_annual'] for exp, data in iav_data_per_exp.items()},
+                variable=variable,
+                region=region
+            )
+            results['figures']['interannual_variability'] = fig_iav
 
     except Exception as e:
         print(f"Interannual variability analysis failed: {e}")
@@ -648,30 +805,36 @@ def _compute_interannual_variability(
 
 
 def _print_temporal_analysis_summary(df: pd.DataFrame, variable: str, region: str):
-    """Print a summary of temporal analysis results."""
-    print("\n" + "=" * 60)
+    """Print a summary of temporal analysis results for multiple experiments."""
+    print("\n" + "=" * 70)
     print(f"TEMPORAL ANALYSIS SUMMARY: {variable.upper()} ({region})")
-    print("=" * 60)
+    print("=" * 70)
 
-    # Filter for scores
-    scores = df[df['type'] == 'score']
-    if not scores.empty:
-        print("\nSCORES (0-1, higher is better):")
-        print("-" * 40)
-        for _, row in scores.iterrows():
-            print(f"  {row['analysis']:25s} | {row['name']:20s}: {row['value']:.3f}")
+    # Get experiment list
+    experiments = df['experiment'].unique() if 'experiment' in df.columns else ['default']
 
-    # Key scalars
-    print("\nKEY METRICS:")
-    print("-" * 40)
-    scalars = df[df['type'] == 'scalar']
-    for analysis in scalars['analysis'].unique():
-        analysis_df = scalars[scalars['analysis'] == analysis]
-        print(f"\n  {analysis}:")
-        for _, row in analysis_df.iterrows():
-            print(f"    {row['source']:12s} {row['name']:20s}: {row['value']:10.4f} {row['units']}")
+    for exp in experiments:
+        exp_df = df[df['experiment'] == exp] if 'experiment' in df.columns else df
+        print(f"\n>>> Experiment: {exp}")
+        print("-" * 60)
 
-    print("\n" + "=" * 60)
+        # Filter for scores
+        scores = exp_df[exp_df['type'] == 'score']
+        if not scores.empty:
+            print("\n  SCORES (0-1, higher is better):")
+            for _, row in scores.iterrows():
+                print(f"    {row['analysis']:25s} | {row['name']:20s}: {row['value']:.3f}")
+
+        # Key scalars
+        print("\n  KEY METRICS:")
+        scalars = exp_df[exp_df['type'] == 'scalar']
+        for analysis in scalars['analysis'].unique():
+            analysis_df = scalars[scalars['analysis'] == analysis]
+            print(f"\n    {analysis}:")
+            for _, row in analysis_df.iterrows():
+                print(f"      {row['source']:12s} {row['name']:20s}: {row['value']:10.4f} {row['units']}")
+
+    print("\n" + "=" * 70)
 
 
 # =============================================================================
@@ -855,21 +1018,187 @@ def _plot_interannual_variability(
     return fig
 
 
+# =============================================================================
+# MULTI-EXPERIMENT PLOTTING FUNCTIONS
+# =============================================================================
+
+def _plot_multi_experiment_bias_maps(
+    bias_data_per_exp: Dict[str, xr.DataArray],
+    title: str,
+    region: str
+) -> plt.Figure:
+    """Plot bias maps for multiple experiments in a grid layout."""
+    n_exp = len(bias_data_per_exp)
+    ncols = min(3, n_exp)
+    nrows = (n_exp + ncols - 1) // ncols
+
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=(6 * ncols, 5 * nrows),
+        subplot_kw={'projection': ccrs.PlateCarree()},
+        squeeze=False
+    )
+
+    # Find common colorbar limits across all experiments
+    all_bias = [Regions.restrict_to_region(b, region) for b in bias_data_per_exp.values()]
+    vmax = max(float(np.abs(b).quantile(0.95)) for b in all_bias)
+    vmin = -vmax
+
+    for idx, (exp_name, bias_data) in enumerate(bias_data_per_exp.items()):
+        row, col = idx // ncols, idx % ncols
+        ax = axes[row, col]
+
+        bias_regional = Regions.restrict_to_region(bias_data, region)
+        im = bias_regional.plot(
+            ax=ax,
+            transform=ccrs.PlateCarree(),
+            cmap='RdBu_r',
+            vmin=vmin,
+            vmax=vmax,
+            add_colorbar=True,
+            cbar_kwargs={'label': bias_data.attrs.get('units', ''), 'shrink': 0.8}
+        )
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
+        ax.set_title(f'{exp_name}', fontsize=12, fontweight='bold')
+
+    # Hide unused subplots
+    for idx in range(n_exp, nrows * ncols):
+        row, col = idx // ncols, idx % ncols
+        axes[row, col].set_visible(False)
+
+    fig.suptitle(title, fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_seasonal_cycle(
+    ref_cycle: xr.DataArray,
+    cycle_per_exp: Dict[str, xr.DataArray],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot seasonal cycle comparison for multiple experiments."""
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    months = np.arange(1, 13)
+    month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    # Plot reference
+    ax.plot(months, ref_cycle.values, 'o-', color='black', linewidth=3,
+            markersize=10, label='Reference', zorder=10)
+
+    # Plot each experiment
+    for idx, (exp_name, com_cycle) in enumerate(cycle_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        ax.plot(months, com_cycle.values, 's--', color=color, linewidth=2,
+                markersize=7, label=exp_name, alpha=0.8)
+
+    ax.set_xticks(months)
+    ax.set_xticklabels(month_labels)
+    ax.set_xlabel('Month', fontsize=12)
+    ax.set_ylabel(f'{variable.upper()} ({ref_cycle.attrs.get("units", "")})', fontsize=12)
+    ax.set_title(f'Seasonal Cycle: {variable.upper()} ({region})', fontsize=14, fontweight='bold')
+    ax.legend(loc='best', fontsize=10, ncol=2)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_timeseries(
+    ref_ts: xr.DataArray,
+    ts_per_exp: Dict[str, xr.DataArray],
+    variable: str,
+    region: str,
+    metrics: Dict[str, Dict[str, float]]
+) -> plt.Figure:
+    """Plot time series comparison for multiple experiments."""
+    fig, ax = plt.subplots(figsize=(16, 7))
+
+    # Plot reference
+    ref_ts.plot(ax=ax, color='black', linewidth=2, label='Reference', alpha=0.9)
+
+    # Plot each experiment
+    for idx, (exp_name, model_ts) in enumerate(ts_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        model_ts.plot(ax=ax, color=color, linewidth=1.5, label=exp_name, alpha=0.7)
+
+    ax.set_xlabel('Time', fontsize=12)
+    ax.set_ylabel(f'{variable.upper()} ({ref_ts.attrs.get("units", "")})', fontsize=12)
+    ax.set_title(f'Time Series: {variable.upper()} ({region})', fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=10, ncol=2)
+    ax.grid(True, alpha=0.3)
+
+    # Add metrics summary text box
+    lines = []
+    for exp_name, exp_metrics in metrics.items():
+        lines.append(f"{exp_name}: R={exp_metrics['correlation']:.2f}, "
+                    f"RMSE={exp_metrics['rmse']:.3f}, Score={exp_metrics['taylor_score']:.2f}")
+    textstr = '\n'.join(lines)
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+    ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=9,
+            verticalalignment='top', bbox=props)
+
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_iav(
+    ref_annual: xr.DataArray,
+    annual_per_exp: Dict[str, xr.DataArray],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot interannual variability comparison for multiple experiments."""
+    n_exp = len(annual_per_exp)
+    fig, ax = plt.subplots(figsize=(14, 7))
+
+    years = ref_annual['year'].values
+    n_years = len(years)
+
+    # Width of bars
+    total_width = 0.8
+    bar_width = total_width / (n_exp + 1)
+
+    # Plot reference
+    positions = years - total_width/2 + bar_width/2
+    ax.bar(positions, ref_annual.values, width=bar_width, color='black',
+           alpha=0.7, label='Reference')
+
+    # Plot each experiment
+    for idx, (exp_name, com_annual) in enumerate(annual_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        positions = years - total_width/2 + bar_width * (idx + 1.5)
+        ax.bar(positions, com_annual.values, width=bar_width, color=color,
+               alpha=0.7, label=exp_name)
+
+    ax.set_xlabel('Year', fontsize=12)
+    ax.set_ylabel(f'{variable.upper()} ({ref_annual.attrs.get("units", "")})', fontsize=12)
+    ax.set_title(f'Interannual Variability: {variable.upper()} ({region})',
+                 fontsize=14, fontweight='bold')
+    ax.legend(loc='best', fontsize=10, ncol=2)
+    ax.grid(True, alpha=0.3, axis='y')
+
+    plt.tight_layout()
+    return fig
+
+
 def spatial_analysis(
-    model_ds: xr.Dataset,
+    model_datasets: Dict[str, xr.Dataset],
     ref_ds: xr.Dataset,
     variable: str,
     region: str = "pana",
     output_dir: Path | None = None
 ) -> Dict[str, Any]:
-    """Perform comprehensive spatial analysis between model and reference datasets.
+    """Perform comprehensive spatial analysis between multiple model experiments and reference.
 
     This function applies ILAMB3 analysis methods and custom metrics to compare
-    spatial characteristics of model output against reference data, including
-    spatial distribution, pattern correlation, RMSE maps, and spatial statistics.
+    spatial characteristics of multiple model outputs against a single reference dataset.
 
     Args:
-        model_ds: Model dataset (CAETE output).
+        model_datasets: Dict mapping experiment names to model datasets.
         ref_ds: Reference dataset (observations).
         variable: Variable name to analyze (e.g., "gpp", "et").
         region: Region label for analysis. Default is "pana" (Pan Amazon).
@@ -877,315 +1206,354 @@ def spatial_analysis(
 
     Returns:
         dict: Dictionary containing:
-            - 'scalars': pd.DataFrame with scalar metrics and scores
+            - 'scalars': pd.DataFrame with scalar metrics and scores (includes 'experiment' column)
             - 'ref_gridded': xr.Dataset with reference gridded outputs
-            - 'com_gridded': xr.Dataset with comparison gridded outputs
+            - 'com_gridded': Dict[str, xr.Dataset] with comparison gridded outputs per experiment
             - 'figures': dict of matplotlib Figure objects
     """
+    experiment_names = list(model_datasets.keys())
+    n_experiments = len(experiment_names)
+
     results = {
         'scalars': pd.DataFrame(),
         'ref_gridded': xr.Dataset(),
-        'com_gridded': xr.Dataset(),
+        'com_gridded': {exp: xr.Dataset() for exp in experiment_names},
         'figures': {}
     }
 
     # Ensure units attribute exists
     if 'units' not in ref_ds[variable].attrs:
         ref_ds[variable].attrs['units'] = '1'
-    if 'units' not in model_ds[variable].attrs:
-        model_ds[variable].attrs['units'] = ref_ds[variable].attrs['units']
+    for exp_name, model_ds in model_datasets.items():
+        if 'units' not in model_ds[variable].attrs:
+            model_ds[variable].attrs['units'] = ref_ds[variable].attrs['units']
 
     # =========================================================================
     # 1. COMPUTE TEMPORAL MEANS FOR SPATIAL ANALYSIS
     # =========================================================================
-    print("Computing temporal means...")
+    print(f"Computing temporal means for {n_experiments} experiment(s)...")
+    mean_fields_per_exp = {}
+    ref_mean = None
     try:
-        # Compute time-mean fields
         ref_mean = ref_ds[variable].mean(dim='time')
-        model_mean = model_ds[variable].mean(dim='time')
-
-        # Store in results
         results['ref_gridded']['mean'] = ref_mean
-        results['com_gridded']['mean'] = model_mean
 
-        # Create mean field comparison figure
-        fig_mean = _plot_mean_field_comparison(
-            ref_mean, model_mean,
-            variable=variable,
-            region=region
-        )
-        results['figures']['mean_field_comparison'] = fig_mean
+        for exp_name, model_ds in model_datasets.items():
+            model_mean = model_ds[variable].mean(dim='time')
+            results['com_gridded'][exp_name]['mean'] = model_mean
+            mean_fields_per_exp[exp_name] = model_mean
+
+        # Create multi-experiment mean field comparison figure
+        if mean_fields_per_exp and ref_mean is not None:
+            fig_mean = _plot_multi_experiment_mean_fields(
+                ref_mean,
+                mean_fields_per_exp,
+                variable=variable,
+                region=region
+            )
+            results['figures']['mean_field_comparison'] = fig_mean
 
     except Exception as e:
         print(f"Mean field computation failed: {e}")
 
     # =========================================================================
-    # 2. SPATIAL DISTRIBUTION ANALYSIS (using ilamb3)
+    # 2. SPATIAL DISTRIBUTION ANALYSIS (per experiment) + TAYLOR DIAGRAM
     # =========================================================================
-    print("Running spatial distribution analysis...")
+    print(f"Running spatial distribution analysis for {n_experiments} experiment(s)...")
+    taylor_metrics_per_exp = {}
     try:
         spatial_analyzer = spatial_distribution_analysis(
             required_variable=variable,
             regions=[region]
         )
-        spatial_df, spatial_ref, spatial_com = spatial_analyzer(ref_ds, model_ds)
-        results['scalars'] = pd.concat([results['scalars'], spatial_df], ignore_index=True)
 
-        # Create Taylor diagram for spatial distribution
-        fig_taylor_spatial = _plot_spatial_taylor_diagram(
-            spatial_df[spatial_df['region'] == region],
-            variable=variable,
-            region=region
-        )
-        results['figures']['spatial_taylor_diagram'] = fig_taylor_spatial
+        for exp_name, model_ds in model_datasets.items():
+            spatial_df, spatial_ref, spatial_com = spatial_analyzer(ref_ds, model_ds)
+            spatial_df['experiment'] = exp_name
+            results['scalars'] = pd.concat([results['scalars'], spatial_df], ignore_index=True)
+
+            # Extract Taylor diagram metrics for this experiment
+            exp_region_df = spatial_df[spatial_df['region'] == region]
+            try:
+                norm_std = float(exp_region_df[exp_region_df['name'] == 'Normalized Standard Deviation']['value'].iloc[0])
+                corr = float(exp_region_df[exp_region_df['name'] == 'Correlation']['value'].iloc[0])
+                taylor_metrics_per_exp[exp_name] = {'norm_std': norm_std, 'correlation': corr}
+            except (IndexError, KeyError):
+                pass
+
+        # Create multi-experiment Taylor diagram
+        if taylor_metrics_per_exp:
+            fig_taylor = _plot_multi_experiment_taylor_diagram(
+                taylor_metrics_per_exp,
+                variable=variable,
+                region=region
+            )
+            results['figures']['spatial_taylor_diagram'] = fig_taylor
 
     except Exception as e:
         print(f"Spatial distribution analysis failed: {e}")
 
     # =========================================================================
-    # 3. SPATIAL BIAS ANALYSIS
+    # 3. SPATIAL BIAS ANALYSIS (per experiment)
     # =========================================================================
-    print("Running spatial bias analysis...")
+    print(f"Running spatial bias analysis for {n_experiments} experiment(s)...")
+    spatial_bias_per_exp = {}
     try:
-        # Compute spatial bias (model - reference)
         ref_mean = ref_ds[variable].mean(dim='time')
-        model_mean = model_ds[variable].mean(dim='time')
 
-        # Nest grids for comparison
-        ref_nested, model_nested = cmp.nest_spatial_grids(ref_mean, model_mean)
-        spatial_bias = model_nested - ref_nested
+        for exp_name, model_ds in model_datasets.items():
+            model_mean = model_ds[variable].mean(dim='time')
 
-        # Store gridded outputs
-        results['com_gridded']['spatial_bias'] = spatial_bias
+            ref_nested, model_nested = cmp.nest_spatial_grids(ref_mean, model_mean)
+            spatial_bias = model_nested - ref_nested
 
-        # Compute spatial bias statistics
-        spatial_bias_metrics = _compute_spatial_bias_metrics(
-            ref_nested, model_nested, spatial_bias, region
-        )
+            results['com_gridded'][exp_name]['spatial_bias'] = spatial_bias
+            spatial_bias_per_exp[exp_name] = spatial_bias
 
-        # Add to scalars
-        bias_df = pd.DataFrame([
-            {
-                'source': 'Reference',
-                'region': region,
-                'analysis': 'Spatial Bias',
-                'name': 'Spatial Mean',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': spatial_bias_metrics['ref_spatial_mean']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial Bias',
-                'name': 'Spatial Mean',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': spatial_bias_metrics['com_spatial_mean']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial Bias',
-                'name': 'Mean Bias',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': spatial_bias_metrics['mean_bias']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial Bias',
-                'name': 'Bias RMSE',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': spatial_bias_metrics['bias_rmse']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial Bias',
-                'name': 'Relative Bias (%)',
-                'type': 'scalar',
-                'units': '%',
-                'value': spatial_bias_metrics['relative_bias_pct']
-            },
-        ])
-        results['scalars'] = pd.concat([results['scalars'], bias_df], ignore_index=True)
+            # Compute spatial bias statistics
+            spatial_bias_metrics = _compute_spatial_bias_metrics(
+                ref_nested, model_nested, spatial_bias, region
+            )
 
-        # Create spatial bias map
-        fig_spatial_bias = _plot_spatial_bias_map(
-            spatial_bias,
-            title=f'{variable.upper()} Spatial Bias (Model - Reference)',
-            region=region,
-            units=ref_ds[variable].attrs.get('units', '')
-        )
-        results['figures']['spatial_bias_map'] = fig_spatial_bias
+            bias_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': 'Reference',
+                    'region': region,
+                    'analysis': 'Spatial Bias',
+                    'name': 'Spatial Mean',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': spatial_bias_metrics['ref_spatial_mean']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial Bias',
+                    'name': 'Spatial Mean',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': spatial_bias_metrics['com_spatial_mean']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial Bias',
+                    'name': 'Mean Bias',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': spatial_bias_metrics['mean_bias']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial Bias',
+                    'name': 'Bias RMSE',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': spatial_bias_metrics['bias_rmse']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial Bias',
+                    'name': 'Relative Bias (%)',
+                    'type': 'scalar',
+                    'units': '%',
+                    'value': spatial_bias_metrics['relative_bias_pct']
+                },
+            ])
+            results['scalars'] = pd.concat([results['scalars'], bias_df], ignore_index=True)
+
+        # Create multi-experiment spatial bias map
+        if spatial_bias_per_exp:
+            fig_spatial_bias = _plot_multi_experiment_bias_maps(
+                spatial_bias_per_exp,
+                title=f'{variable.upper()} Spatial Bias (Model - Reference)',
+                region=region
+            )
+            results['figures']['spatial_bias_map'] = fig_spatial_bias
 
     except Exception as e:
         print(f"Spatial bias analysis failed: {e}")
 
     # =========================================================================
-    # 4. PATTERN CORRELATION ANALYSIS
+    # 4. PATTERN CORRELATION ANALYSIS (per experiment)
     # =========================================================================
-    print("Running pattern correlation analysis...")
+    print(f"Running pattern correlation analysis for {n_experiments} experiment(s)...")
+    pattern_per_exp = {}
     try:
-        pattern_metrics = _compute_pattern_correlation(ref_ds, model_ds, variable, region)
+        for exp_name, model_ds in model_datasets.items():
+            pattern_metrics = _compute_pattern_correlation(ref_ds, model_ds, variable, region)
+            pattern_per_exp[exp_name] = pattern_metrics
 
-        pattern_df = pd.DataFrame([
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Pattern Correlation',
-                'name': 'Spatial Correlation',
-                'type': 'scalar',
-                'units': '1',
-                'value': pattern_metrics['spatial_correlation']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Pattern Correlation',
-                'name': 'Centered RMSE',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': pattern_metrics['centered_rmse']
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Pattern Correlation',
-                'name': 'Pattern Score',
-                'type': 'score',
-                'units': '1',
-                'value': pattern_metrics['pattern_score']
-            },
-        ])
-        results['scalars'] = pd.concat([results['scalars'], pattern_df], ignore_index=True)
+            pattern_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Pattern Correlation',
+                    'name': 'Spatial Correlation',
+                    'type': 'scalar',
+                    'units': '1',
+                    'value': pattern_metrics['spatial_correlation']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Pattern Correlation',
+                    'name': 'Centered RMSE',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': pattern_metrics['centered_rmse']
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Pattern Correlation',
+                    'name': 'Pattern Score',
+                    'type': 'score',
+                    'units': '1',
+                    'value': pattern_metrics['pattern_score']
+                },
+            ])
+            results['scalars'] = pd.concat([results['scalars'], pattern_df], ignore_index=True)
 
-        # Create scatter plot
-        fig_scatter = _plot_spatial_scatter(
-            pattern_metrics['ref_values'],
-            pattern_metrics['com_values'],
-            variable=variable,
-            region=region,
-            metrics=pattern_metrics
-        )
-        results['figures']['spatial_scatter'] = fig_scatter
+        # Create multi-experiment scatter plot
+        if pattern_per_exp:
+            fig_scatter = _plot_multi_experiment_scatter(
+                pattern_per_exp,
+                variable=variable,
+                region=region
+            )
+            results['figures']['spatial_scatter'] = fig_scatter
 
     except Exception as e:
         print(f"Pattern correlation analysis failed: {e}")
 
     # =========================================================================
-    # 5. SPATIAL RMSE ANALYSIS
+    # 5. SPATIAL RMSE ANALYSIS (per experiment)
     # =========================================================================
-    print("Running spatial RMSE analysis...")
+    print(f"Running spatial RMSE analysis for {n_experiments} experiment(s)...")
     try:
-        # Compute RMSE at each grid point (temporal RMSE)
-        ref_trimmed, model_trimmed = cmp.trim_time(ref_ds, model_ds)
-        ref_var = ref_trimmed[variable]
-        model_var = model_trimmed[variable]
+        for exp_name, model_ds in model_datasets.items():
+            ref_trimmed, model_trimmed = cmp.trim_time(ref_ds, model_ds)
+            ref_var = ref_trimmed[variable]
+            model_var = model_trimmed[variable]
 
-        # Nest grids
-        ref_nested, model_nested = cmp.nest_spatial_grids(ref_var, model_var)
+            ref_nested, model_nested = cmp.nest_spatial_grids(ref_var, model_var)
 
-        # Compute temporal RMSE at each point
-        rmse_map = np.sqrt(((model_nested - ref_nested) ** 2).mean(dim='time'))
-        results['com_gridded']['rmse_map'] = rmse_map
+            rmse_map = np.sqrt(((model_nested - ref_nested) ** 2).mean(dim='time'))
+            results['com_gridded'][exp_name]['rmse_map'] = rmse_map
 
-        # Compute RMSE statistics
-        rmse_regional = Regions.restrict_to_region(rmse_map, region)
-        mean_rmse = float(rmse_regional.mean())
-        max_rmse = float(rmse_regional.max())
+            rmse_regional = Regions.restrict_to_region(rmse_map, region)
+            mean_rmse = float(rmse_regional.mean())
+            max_rmse = float(rmse_regional.max())
 
-        rmse_df = pd.DataFrame([
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial RMSE',
-                'name': 'Mean RMSE',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': mean_rmse
-            },
-            {
-                'source': 'Comparison',
-                'region': region,
-                'analysis': 'Spatial RMSE',
-                'name': 'Max RMSE',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': max_rmse
-            },
-        ])
-        results['scalars'] = pd.concat([results['scalars'], rmse_df], ignore_index=True)
-
-        # Create RMSE map
-        fig_rmse = _plot_rmse_map(
-            rmse_map,
-            title=f'{variable.upper()} RMSE Map',
-            region=region,
-            units=ref_ds[variable].attrs.get('units', '')
-        )
-        results['figures']['rmse_map'] = fig_rmse
+            rmse_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial RMSE',
+                    'name': 'Mean RMSE',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': mean_rmse
+                },
+                {
+                    'experiment': exp_name,
+                    'source': 'Comparison',
+                    'region': region,
+                    'analysis': 'Spatial RMSE',
+                    'name': 'Max RMSE',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': max_rmse
+                },
+            ])
+            results['scalars'] = pd.concat([results['scalars'], rmse_df], ignore_index=True)
 
     except Exception as e:
         print(f"Spatial RMSE analysis failed: {e}")
 
     # =========================================================================
-    # 6. ZONAL MEAN ANALYSIS
+    # 6. ZONAL MEAN ANALYSIS (per experiment)
     # =========================================================================
-    print("Running zonal mean analysis...")
+    print(f"Running zonal mean analysis for {n_experiments} experiment(s)...")
+    zonal_per_exp = {}
+    ref_zonal = None
     try:
-        zonal_metrics = _compute_zonal_means(ref_ds, model_ds, variable, region)
+        for exp_name, model_ds in model_datasets.items():
+            zonal_metrics = _compute_zonal_means(ref_ds, model_ds, variable, region)
 
-        # Store zonal means
-        results['ref_gridded']['zonal_mean'] = zonal_metrics['ref_zonal']
-        results['com_gridded']['zonal_mean'] = zonal_metrics['com_zonal']
+            if ref_zonal is None:
+                ref_zonal = zonal_metrics['ref_zonal']
+                results['ref_gridded']['zonal_mean'] = ref_zonal
 
-        # Create zonal mean figure
-        fig_zonal = _plot_zonal_means(
-            zonal_metrics['ref_zonal'],
-            zonal_metrics['com_zonal'],
-            variable=variable,
-            region=region
-        )
-        results['figures']['zonal_means'] = fig_zonal
+            results['com_gridded'][exp_name]['zonal_mean'] = zonal_metrics['com_zonal']
+            zonal_per_exp[exp_name] = zonal_metrics['com_zonal']
+
+        # Create multi-experiment zonal mean figure
+        if zonal_per_exp and ref_zonal is not None:
+            fig_zonal = _plot_multi_experiment_zonal_means(
+                ref_zonal,
+                zonal_per_exp,
+                variable=variable,
+                region=region
+            )
+            results['figures']['zonal_means'] = fig_zonal
 
     except Exception as e:
         print(f"Zonal mean analysis failed: {e}")
 
     # =========================================================================
-    # 7. SPATIAL QUANTILE ANALYSIS
+    # 7. SPATIAL QUANTILE ANALYSIS (per experiment) + Q-Q PLOT
     # =========================================================================
-    print("Running spatial quantile analysis...")
+    print(f"Running spatial quantile analysis for {n_experiments} experiment(s)...")
+    quantiles_per_exp = {}
+    ref_quantiles_data = None
     try:
-        quantile_metrics = _compute_spatial_quantiles(ref_ds, model_ds, variable, region)
+        for exp_name, model_ds in model_datasets.items():
+            quantile_metrics = _compute_spatial_quantiles(ref_ds, model_ds, variable, region)
 
-        quantile_df = pd.DataFrame([
-            {
-                'source': src,
-                'region': region,
-                'analysis': 'Spatial Quantiles',
-                'name': f'Q{int(q*100)}',
-                'type': 'scalar',
-                'units': ref_ds[variable].attrs.get('units', '1'),
-                'value': val
-            }
-            for src, qvals in [('Reference', quantile_metrics['ref_quantiles']),
-                               ('Comparison', quantile_metrics['com_quantiles'])]
-            for q, val in qvals.items()
-        ])
-        results['scalars'] = pd.concat([results['scalars'], quantile_df], ignore_index=True)
+            if ref_quantiles_data is None:
+                ref_quantiles_data = quantile_metrics['ref_quantiles']
 
-        # Create quantile-quantile plot
-        fig_qq = _plot_qq_diagram(
-            quantile_metrics['ref_quantiles'],
-            quantile_metrics['com_quantiles'],
-            variable=variable,
-            region=region
-        )
-        results['figures']['qq_plot'] = fig_qq
+            quantiles_per_exp[exp_name] = quantile_metrics['com_quantiles']
+
+            quantile_df = pd.DataFrame([
+                {
+                    'experiment': exp_name,
+                    'source': src,
+                    'region': region,
+                    'analysis': 'Spatial Quantiles',
+                    'name': f'Q{int(q*100)}',
+                    'type': 'scalar',
+                    'units': ref_ds[variable].attrs.get('units', '1'),
+                    'value': val
+                }
+                for src, qvals in [('Reference', quantile_metrics['ref_quantiles']),
+                                   ('Comparison', quantile_metrics['com_quantiles'])]
+                for q, val in qvals.items()
+            ])
+            results['scalars'] = pd.concat([results['scalars'], quantile_df], ignore_index=True)
+
+        # Create multi-experiment Q-Q plot
+        if quantiles_per_exp and ref_quantiles_data is not None:
+            fig_qq = _plot_multi_experiment_qq(
+                ref_quantiles_data,
+                quantiles_per_exp,
+                variable=variable,
+                region=region
+            )
+            results['figures']['qq_plot'] = fig_qq
 
     except Exception as e:
         print(f"Spatial quantile analysis failed: {e}")
@@ -1371,30 +1739,36 @@ def _compute_spatial_quantiles(
 
 
 def _print_spatial_analysis_summary(df: pd.DataFrame, variable: str, region: str):
-    """Print a summary of spatial analysis results."""
-    print("\n" + "=" * 60)
+    """Print a summary of spatial analysis results for multiple experiments."""
+    print("\n" + "=" * 70)
     print(f"SPATIAL ANALYSIS SUMMARY: {variable.upper()} ({region})")
-    print("=" * 60)
+    print("=" * 70)
 
-    # Filter for scores
-    scores = df[df['type'] == 'score']
-    if not scores.empty:
-        print("\nSCORES (0-1, higher is better):")
-        print("-" * 40)
-        for _, row in scores.iterrows():
-            print(f"  {row['analysis']:25s} | {row['name']:20s}: {row['value']:.3f}")
+    # Get experiment list
+    experiments = df['experiment'].unique() if 'experiment' in df.columns else ['default']
 
-    # Key scalars by analysis
-    print("\nKEY METRICS:")
-    print("-" * 40)
-    scalars = df[df['type'] == 'scalar']
-    for analysis in scalars['analysis'].unique():
-        analysis_df = scalars[scalars['analysis'] == analysis]
-        print(f"\n  {analysis}:")
-        for _, row in analysis_df.iterrows():
-            print(f"    {row['source']:12s} {row['name']:20s}: {row['value']:10.4f} {row['units']}")
+    for exp in experiments:
+        exp_df = df[df['experiment'] == exp] if 'experiment' in df.columns else df
+        print(f"\n>>> Experiment: {exp}")
+        print("-" * 60)
 
-    print("\n" + "=" * 60)
+        # Filter for scores
+        scores = exp_df[exp_df['type'] == 'score']
+        if not scores.empty:
+            print("\n  SCORES (0-1, higher is better):")
+            for _, row in scores.iterrows():
+                print(f"    {row['analysis']:25s} | {row['name']:20s}: {row['value']:.3f}")
+
+        # Key scalars by analysis
+        print("\n  KEY METRICS:")
+        scalars = exp_df[exp_df['type'] == 'scalar']
+        for analysis in scalars['analysis'].unique():
+            analysis_df = scalars[scalars['analysis'] == analysis]
+            print(f"\n    {analysis}:")
+            for _, row in analysis_df.iterrows():
+                print(f"      {row['source']:12s} {row['name']:20s}: {row['value']:10.4f} {row['units']}")
+
+    print("\n" + "=" * 70)
 
 
 # =============================================================================
@@ -1676,38 +2050,360 @@ def _plot_spatial_taylor_diagram(
     return fig
 
 
+# =============================================================================
+# MULTI-EXPERIMENT SPATIAL PLOTTING FUNCTIONS
+# =============================================================================
+
+def _plot_multi_experiment_taylor_diagram(
+    taylor_metrics_per_exp: Dict[str, Dict[str, float]],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot Taylor diagram for multiple experiments.
+
+    The Taylor diagram shows how well model patterns match the reference
+    in terms of correlation (angle) and normalized standard deviation (radius).
+    The reference is at (0, 1) - perfect correlation and matching variability.
+
+    Args:
+        taylor_metrics_per_exp: Dict mapping experiment names to metrics dict
+            containing 'norm_std' and 'correlation' keys.
+        variable: Variable name for title.
+        region: Region name for title.
+
+    Returns:
+        matplotlib Figure with Taylor diagram.
+    """
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, polar=True)
+
+    # Reference point (correlation=1, normalized std=1)
+    ax.plot(0, 1, 'ko', markersize=15, label='Reference', zorder=10)
+
+    # Plot each experiment
+    for idx, (exp_name, metrics) in enumerate(taylor_metrics_per_exp.items()):
+        norm_std = metrics['norm_std']
+        corr = metrics['correlation']
+
+        if not np.isnan(corr) and not np.isnan(norm_std):
+            # Convert correlation to angle (theta = arccos(correlation))
+            theta = np.arccos(np.clip(corr, -1, 1))
+            color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+            ax.plot(theta, norm_std, 's', color=color, markersize=12,
+                    label=f'{exp_name} (R={corr:.2f}, σ={norm_std:.2f})', zorder=5)
+
+    # Add reference circles for RMSE (centered on reference point)
+    # RMSE contours: E' = sqrt(1 + σ² - 2σR) where σ is norm_std and R is correlation
+    angles = np.linspace(0, np.pi/2, 100)
+    for rmse in [0.25, 0.5, 0.75, 1.0, 1.25]:
+        # For each angle (correlation), compute the radius (norm_std) that gives this RMSE
+        # RMSE² = 1 + σ² - 2σcos(θ)
+        # This is a circle centered at (0, 1) with radius = RMSE
+        rs = []
+        for angle in angles:
+            corr_val = np.cos(angle)
+            # Solve: rmse² = 1 + σ² - 2σ*corr for σ
+            # σ² - 2*corr*σ + (1 - rmse²) = 0
+            # σ = corr ± sqrt(corr² - 1 + rmse²)
+            discriminant = corr_val**2 - 1 + rmse**2
+            if discriminant >= 0:
+                sigma = corr_val + np.sqrt(discriminant)
+                if sigma > 0:
+                    rs.append(sigma)
+                else:
+                    rs.append(np.nan)
+            else:
+                rs.append(np.nan)
+        ax.plot(angles, rs, 'k:', linewidth=0.5, alpha=0.5)
+
+    # Add correlation arc labels
+    corr_labels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+    for corr_val in corr_labels:
+        angle = np.arccos(corr_val)
+        ax.annotate(f'{corr_val}', xy=(angle, ax.get_ylim()[1]),
+                   fontsize=8, ha='center', va='bottom')
+
+    # Configure axes
+    ax.set_thetamin(0)
+    ax.set_thetamax(90)
+    ax.set_theta_direction(-1)
+    ax.set_theta_zero_location('E')
+    ax.set_rlabel_position(0)
+
+    # Set reasonable radial limits
+    max_std = max((m['norm_std'] for m in taylor_metrics_per_exp.values() if not np.isnan(m['norm_std'])), default=2.0)
+    ax.set_ylim(0, max(2.0, max_std * 1.2))
+    ax.set_rticks([0.5, 1.0, 1.5, 2.0])
+
+    # Labels
+    ax.set_xlabel('Normalized Standard Deviation', fontsize=12, labelpad=20)
+    ax.text(np.pi/4, ax.get_ylim()[1] * 1.15, 'Correlation', fontsize=12,
+            ha='center', va='bottom', rotation=-45)
+
+    ax.set_title(f'Taylor Diagram: {variable.upper()} ({region})',
+                 fontsize=14, fontweight='bold', pad=20)
+    ax.legend(loc='upper right', bbox_to_anchor=(1.4, 1.0), fontsize=10)
+
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_mean_fields(
+    ref_mean: xr.DataArray,
+    mean_fields_per_exp: Dict[str, xr.DataArray],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot mean field comparison for multiple experiments."""
+    n_exp = len(mean_fields_per_exp)
+    ncols = min(3, n_exp + 1)  # +1 for reference
+    nrows = (n_exp + 1 + ncols - 1) // ncols
+
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=(6 * ncols, 5 * nrows),
+        subplot_kw={'projection': ccrs.PlateCarree()},
+        squeeze=False
+    )
+
+    # Find common colorbar limits
+    ref_regional = Regions.restrict_to_region(ref_mean, region)
+    all_means = [ref_regional] + [Regions.restrict_to_region(m, region) for m in mean_fields_per_exp.values()]
+    vmin = min(float(m.min()) for m in all_means)
+    vmax = max(float(m.max()) for m in all_means)
+
+    # Plot reference
+    ax = axes[0, 0]
+    ref_regional.plot(
+        ax=ax,
+        transform=ccrs.PlateCarree(),
+        cmap='viridis',
+        vmin=vmin,
+        vmax=vmax,
+        add_colorbar=True,
+        cbar_kwargs={'label': ref_mean.attrs.get('units', ''), 'shrink': 0.8}
+    )
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
+    ax.set_title('Reference', fontsize=12, fontweight='bold')
+
+    # Plot each experiment
+    for idx, (exp_name, model_mean) in enumerate(mean_fields_per_exp.items()):
+        plot_idx = idx + 1
+        row, col = plot_idx // ncols, plot_idx % ncols
+        ax = axes[row, col]
+
+        model_regional = Regions.restrict_to_region(model_mean, region)
+        model_regional.plot(
+            ax=ax,
+            transform=ccrs.PlateCarree(),
+            cmap='viridis',
+            vmin=vmin,
+            vmax=vmax,
+            add_colorbar=True,
+            cbar_kwargs={'label': model_mean.attrs.get('units', ''), 'shrink': 0.8}
+        )
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
+        ax.set_title(f'{exp_name}', fontsize=12, fontweight='bold')
+
+    # Hide unused subplots
+    for idx in range(n_exp + 1, nrows * ncols):
+        row, col = idx // ncols, idx % ncols
+        axes[row, col].set_visible(False)
+
+    fig.suptitle(f'Mean {variable.upper()} Comparison', fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_scatter(
+    pattern_per_exp: Dict[str, Dict[str, Any]],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot spatial scatter for multiple experiments."""
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Find global limits
+    all_ref = []
+    all_com = []
+    for metrics in pattern_per_exp.values():
+        all_ref.extend(metrics['ref_values'])
+        all_com.extend(metrics['com_values'])
+
+    lims = [min(min(all_ref), min(all_com)), max(max(all_ref), max(all_com))]
+
+    # Plot 1:1 line
+    ax.plot(lims, lims, 'k--', linewidth=2, label='1:1 line', zorder=1)
+
+    # Plot each experiment
+    for idx, (exp_name, metrics) in enumerate(pattern_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        ax.scatter(
+            metrics['ref_values'],
+            metrics['com_values'],
+            alpha=0.3,
+            s=10,
+            c=color,
+            edgecolors='none',
+            label=f"{exp_name} (R={metrics['spatial_correlation']:.2f})"
+        )
+
+    ax.set_xlabel(f'Reference {variable.upper()}', fontsize=12)
+    ax.set_ylabel(f'Model {variable.upper()}', fontsize=12)
+    ax.set_title(f'Spatial Scatter: {variable.upper()} ({region})',
+                 fontsize=14, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal', adjustable='box')
+
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_zonal_means(
+    ref_zonal: xr.DataArray,
+    zonal_per_exp: Dict[str, xr.DataArray],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot zonal mean profiles for multiple experiments."""
+    fig, ax = plt.subplots(figsize=(10, 12))
+
+    ref_lats = ref_zonal['lat'].values
+    ref_vals = ref_zonal.values
+
+    # Plot reference
+    ax.plot(ref_vals, ref_lats, 'k-', linewidth=3, label='Reference', zorder=10)
+
+    # Plot each experiment
+    for idx, (exp_name, com_zonal) in enumerate(zonal_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        com_lats = com_zonal['lat'].values
+        com_vals = com_zonal.values
+        ax.plot(com_vals, com_lats, '--', color=color, linewidth=2, label=exp_name, alpha=0.8)
+
+    ax.set_xlabel(f'{variable.upper()} ({ref_zonal.attrs.get("units", "")})', fontsize=12)
+    ax.set_ylabel('Latitude', fontsize=12)
+    ax.set_title(f'Zonal Mean: {variable.upper()} ({region})',
+                 fontsize=14, fontweight='bold')
+    ax.legend(loc='best', fontsize=10, ncol=2)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    return fig
+
+
+def _plot_multi_experiment_qq(
+    ref_quantiles: Dict[float, float],
+    quantiles_per_exp: Dict[str, Dict[float, float]],
+    variable: str,
+    region: str
+) -> plt.Figure:
+    """Plot Q-Q diagram for multiple experiments.
+
+    Compares quantile distributions of each experiment against the reference.
+    Points on the 1:1 line indicate perfect agreement.
+
+    Args:
+        ref_quantiles: Dict mapping quantile values (0-1) to reference values.
+        quantiles_per_exp: Dict mapping experiment names to their quantile dicts.
+        variable: Variable name for title.
+        region: Region name for title.
+
+    Returns:
+        matplotlib Figure with multi-experiment Q-Q plot.
+    """
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    quantile_keys = list(ref_quantiles.keys())
+    ref_vals = [ref_quantiles[q] for q in quantile_keys]
+
+    # Find global limits
+    all_vals = list(ref_vals)
+    for exp_quantiles in quantiles_per_exp.values():
+        all_vals.extend([exp_quantiles[q] for q in quantile_keys])
+    lims = [min(all_vals), max(all_vals)]
+
+    # 1:1 line
+    ax.plot(lims, lims, 'k--', linewidth=2, label='1:1 line', zorder=1)
+
+    # Plot each experiment
+    for idx, (exp_name, exp_quantiles) in enumerate(quantiles_per_exp.items()):
+        color = EXPERIMENT_COLORS[idx % len(EXPERIMENT_COLORS)]
+        exp_vals = [exp_quantiles[q] for q in quantile_keys]
+
+        ax.scatter(ref_vals, exp_vals, s=100, c=color, edgecolors='black',
+                   label=exp_name, zorder=3, alpha=0.8)
+
+        # Connect points with lines for this experiment
+        ax.plot(ref_vals, exp_vals, '-', color=color, linewidth=1.5, alpha=0.5, zorder=2)
+
+    # Label quantile points (only once, using first experiment position)
+    first_exp = list(quantiles_per_exp.keys())[0]
+    first_exp_vals = [quantiles_per_exp[first_exp][q] for q in quantile_keys]
+    for q, rx, cx in zip(quantile_keys, ref_vals, first_exp_vals):
+        ax.annotate(f'Q{int(q*100)}', (rx, cx), textcoords="offset points",
+                    xytext=(8, 8), fontsize=9, alpha=0.7)
+
+    ax.set_xlabel(f'Reference Quantiles ({variable.upper()})', fontsize=12)
+    ax.set_ylabel(f'Model Quantiles ({variable.upper()})', fontsize=12)
+    ax.set_title(f'Q-Q Plot: {variable.upper()} ({region})',
+                 fontsize=14, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal', adjustable='box')
+
+    plt.tight_layout()
+    return fig
+
+
 def run_benchmark(
     variable: str = "gpp",
     dataset_name: str = "GOSIF",
     filename: str = "gpp_GOSIF_2000-2024.nc",
-    experiment: str | None = None,
+    experiments: List[str] | None = None,
     output_dir: str | None = None
 ) -> Dict[str, Any]:
-    """Run complete benchmark for a variable.
+    """Run complete benchmark for a variable comparing multiple experiments against one reference.
+
+    This is the main entry point for benchmarking CAETE model outputs against
+    reference datasets. It supports comparing multiple experiments in the same
+    benchmark run.
 
     Args:
         variable: Variable to benchmark (e.g., "gpp", "et").
         dataset_name: Reference dataset name.
         filename: Reference dataset filename.
-        experiment: Experiment name. If None, uses the first available experiment.
+        experiments: List of experiment names. If None, uses all available experiments.
         output_dir: Optional directory to save outputs.
 
     Returns:
-        Dictionary with benchmark results.
+        Dictionary with benchmark results including:
+            - 'experiments': list of experiment names
+            - 'variable': variable name
+            - 'temporal_results': temporal analysis results
+            - 'spatial_results': spatial analysis results
+            - 'all_scalars': combined DataFrame with all metrics
+            - 'model_datasets': Dict of model datasets
+            - 'ref_ds': reference dataset
     """
-    print(f"\n{'='*60}")
-    print(f"RUNNING BENCHMARK: {variable.upper()}")
+    print(f"\n{'='*70}")
+    print(f"RUNNING MULTI-EXPERIMENT BENCHMARK: {variable.upper()}")
     print(f"Reference: {dataset_name}/{filename}")
-    print(f"{'='*60}\n")
+    print(f"{'='*70}\n")
 
-    # Load and prepare data
-    model_ds, ref_ds, experiment, region_mask, model_mask = get_model_and_ref(
+    # Load and prepare data for multiple experiments
+    model_datasets, ref_ds, region_mask, model_masks = get_models_and_ref(
         variable=variable,
         dataset_name=dataset_name,
         filename=filename,
-        experiment=experiment
+        experiments=experiments
     )
-    print(f"Experiment: {experiment}")
+
+    experiment_names = list(model_datasets.keys())
+    print(f"Experiments: {experiment_names}")
 
     # Create output directory if specified
     if output_dir:
@@ -1715,24 +2411,24 @@ def run_benchmark(
     else:
         output_path = None
 
-    # Run temporal analysis
-    print("\n" + "-"*60)
-    print("TEMPORAL ANALYSIS")
-    print("-"*60)
+    # Run temporal analysis (multi-experiment)
+    print("\n" + "-"*70)
+    print("TEMPORAL ANALYSIS (Multi-Experiment)")
+    print("-"*70)
     temporal_results = temporal_analysis(
-        model_ds=model_ds,
+        model_datasets=model_datasets,
         ref_ds=ref_ds,
         variable=variable,
         region="pana",
         output_dir=output_path
     )
 
-    # Run spatial analysis
-    print("\n" + "-"*60)
-    print("SPATIAL ANALYSIS")
-    print("-"*60)
+    # Run spatial analysis (multi-experiment)
+    print("\n" + "-"*70)
+    print("SPATIAL ANALYSIS (Multi-Experiment)")
+    print("-"*70)
     spatial_results = spatial_analysis(
-        model_ds=model_ds,
+        model_datasets=model_datasets,
         ref_ds=ref_ds,
         variable=variable,
         region="pana",
@@ -1746,56 +2442,75 @@ def run_benchmark(
     ], ignore_index=True)
 
     # Print overall summary
-    _print_overall_benchmark_summary(all_scalars, variable, experiment)
+    _print_overall_benchmark_summary(all_scalars, variable, experiment_names)
 
     return {
-        'experiment': experiment,
+        'experiments': experiment_names,
         'variable': variable,
         'temporal_results': temporal_results,
         'spatial_results': spatial_results,
         'all_scalars': all_scalars,
-        'model_ds': model_ds,
+        'model_datasets': model_datasets,
         'ref_ds': ref_ds
     }
 
 
-def _print_overall_benchmark_summary(df: pd.DataFrame, variable: str, experiment: str):
-    """Print overall benchmark summary with all scores."""
-    print("\n" + "=" * 70)
+def _print_overall_benchmark_summary(df: pd.DataFrame, variable: str, experiments: List[str]):
+    """Print overall benchmark summary with all scores for multiple experiments."""
+    print("\n" + "=" * 80)
     print(f"OVERALL BENCHMARK SUMMARY: {variable.upper()}")
-    print(f"Experiment: {experiment}")
-    print("=" * 70)
+    print(f"Experiments: {experiments}")
+    print("=" * 80)
 
-    # All scores
-    scores = df[df['type'] == 'score']
-    if not scores.empty:
-        print("\nALL SCORES (0-1, higher is better):")
-        print("-" * 50)
-        for _, row in scores.iterrows():
-            print(f"  {row['analysis']:30s} | {row['name']:25s}: {row['value']:.3f}")
+    for exp in experiments:
+        exp_df = df[df['experiment'] == exp] if 'experiment' in df.columns else df
+        print(f"\n>>> Experiment: {exp}")
+        print("-" * 70)
 
-        # Overall score (mean of all scores)
-        mean_score = scores['value'].mean()
-        print("-" * 50)
-        print(f"  {'OVERALL MEAN SCORE':30s} | {'':25s}: {mean_score:.3f}")
+        # All scores for this experiment
+        scores = exp_df[exp_df['type'] == 'score']
+        if not scores.empty:
+            print("\n  SCORES (0-1, higher is better):")
+            for _, row in scores.iterrows():
+                print(f"    {row['analysis']:30s} | {row['name']:25s}: {row['value']:.3f}")
 
-    print("\n" + "=" * 70)
+            # Overall score (mean of all scores)
+            mean_score = scores['value'].mean()
+            print("-" * 60)
+            print(f"    {'OVERALL MEAN SCORE':30s} | {'':25s}: {mean_score:.3f}")
+
+    # Compare experiments if multiple
+    if len(experiments) > 1:
+        print("\n" + "=" * 80)
+        print("EXPERIMENT COMPARISON")
+        print("=" * 80)
+        print("\n  Mean Scores by Experiment:")
+        for exp in experiments:
+            exp_df = df[df['experiment'] == exp] if 'experiment' in df.columns else df
+            scores = exp_df[exp_df['type'] == 'score']
+            if not scores.empty:
+                mean_score = scores['value'].mean()
+                print(f"    {exp:40s}: {mean_score:.3f}")
+
+    print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":
-    # Run benchmark for ET variable
+    # Run multi-experiment benchmark for ET variable
     et_results = run_benchmark(
         variable="et",
         dataset_name="GLEAMv4.2b",
         filename="et_GLEAM_2003-2024.nc",
+        experiments=None,  # Use all available experiments
         output_dir="../outputs/benchmark_results"
     )
 
-    # Run benchmark for GPP variable
+    # Run multi-experiment benchmark for GPP variable
     gpp_results = run_benchmark(
         variable="gpp",
         dataset_name="GOSIF",
         filename="gpp_GOSIF_2000-2024.nc",
+        experiments=None,  # Use all available experiments
         output_dir="../outputs/benchmark_results"
     )
 

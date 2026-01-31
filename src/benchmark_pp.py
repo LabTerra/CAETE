@@ -56,6 +56,9 @@ def get_dataset(ref_datasets, dataset, filename):
     Returns:
         a Path to the dataset file.
 
+    Raises:
+        ValueError: If the dataset or filename is not found.
+
     """
     if dataset not in ref_datasets:
         raise ValueError(f"Dataset '{dataset}' not found in reference datasets.")
