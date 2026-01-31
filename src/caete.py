@@ -141,7 +141,6 @@ from caete_jit import inflate_array, masked_mean, masked_mean_2D, cw_mean
 from caete_jit import shannon_entropy, shannon_evenness, shannon_diversity
 from caete_jit import pft_area_frac64
 
-
 # This code is only relevant in Windows systems. It adds the fortran compiler dlls to the PATH
 # so the shared library can find the fortran runtime libraries of the intel one API compiler (ifx)
 # Note: This is only necessary in Windows systems
@@ -155,10 +154,15 @@ from caete_module import budget as model # type: ignore
 from caete_module import soil_dec        # type: ignore
 from caete_module import water as st     # type: ignore
 
-#from memory_profiler import profile
 
 # logging.basicConfig(filename='execution.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 # logger = logging.getLogger(__name__)
+
+
+# Add the @profile decorator to functions you want to profile
+PROF_M = True
+if PROF_M:
+    from memory_profiler import profile
 
 # Output file extension
 out_ext = ".pkz"
@@ -368,7 +372,7 @@ class state_zero:
         # Files & IO
         self.xyname = f"{self.y}-{self.x}"
 
-        self.input_fname = f"input_data_{self.xyname}.pbz2"
+        self.input_fname = f"input_data_{self.xyname}.pbz2" #For the legacy input method
         self.station_name = f"station_{self.xyname}" # station name for the gridcell, used to fetch the climate data
         self.input_fpath = None
         self.data = None
@@ -1006,7 +1010,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
 
         return None
 
-    # @profile
+    @profile
     # @timer
     def run_gridcell(self,
                   start_date: str,
@@ -1158,8 +1162,8 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
         daily_output = DailyBudget()
 
         # Start loops
-        # THis outer loop is used to run the model for a number
-        # of times defined by the spinup argument. THe model is
+        # This outer loop is used to run the model for a number
+        # of times defined by the spinup argument. The model is
         # executed repeatedly between the start and end dates
         # provided in the arguments
 
@@ -1274,14 +1278,14 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                     # Update the community status
                     community.update_lsid(daily_output.ocpavg)
 
+                    # Abort community if no PLSs are left while saving the spin
                     if community.masked and save:
                         continue
 
                     community.ls = community.vp_lsid.size
-                    # # Restore or seed PLS TODO: Error here need to be fixed ()
+                    # # Restore or seed PLS
                     if env_filter and (community.ls < self.metacomm.comm_npls) and not save:
                         if julian_day in self.doy_months:
-                        # if julian_day % 2 == 0:  # For testing purposes we add a new PLS every 2 days
                             new_id, new_PLS = community.get_unique_pls(self.get_from_main_array)
                             community.seed_pls(new_id, new_PLS, daily_output.cleafavg_pft,
                                                daily_output.cfrootavg_pft, daily_output.cawoodavg_pft)
@@ -1953,9 +1957,30 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                 print(f"Period {i + 1}: {period[0]} - {period[1]}")
         return i + 1
 
+def task1(gridcell):
+    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=2, fixed_co2_atm_conc="1901",
+                                    save=False, nutri_cycle=False, reset_community=True, env_filter=True)
+
+    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc="1901",
+                                    save=False, nutri_cycle=True, reset_community=True)
+
+    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
+                    save=True, nutri_cycle=True, reset_community=True)
+
+    return gridcell
+
+
+def task2(gridcell):
+    gridcell.run_gridcell("2015-01-01", "2030-12-31", spinup=4, fixed_co2_atm_conc=None,
+                                        save=True, nutri_cycle=True)
+
+    return gridcell
 
 if __name__ == '__main__':
     # Short example of how to run the new version of the model. Also used to do some profiling
+
+    # If pass is provided as argument, the model run is skipped. Only loads module. This is useful for running the module in a shell like ipython
+    # In this scenario, the model is not run but the functionality of caete.py can be tested interactively
     skip = False
     try:
         skip = sys.argv[1] == "pass"
@@ -1965,18 +1990,43 @@ if __name__ == '__main__':
     if skip:
         # Skip all
         pass
+    # Following code has the purpose of testing and profiling the model. It is not intended to be a full example of how to run the model,
+    # however, it can be used as a starting point for understanding how to run the model and set up a driver script.
     else:
-        from metacommunity import pls_table
-        from parameters import *
-        from region import region
-        import polars as pl
+        # Import necessary functionality to run caete
+        from metacommunity import pls_table # pls_table is a class that handles the main PLS table
+        from parameters import * # Import soil parameters
+        from region import region # region is a class that handles the region of gridcells
+        import polars as pl # polars is used to read csv files only
 
-        ## Working with gridcells in memory. In the parallel runs of the region, the gridcells are stored in files.
+        ## Paths to input data
         co2_path = Path("../input/co2/historical_CO2_annual_1765-2024.csv")
         co2_path_ssp370 = Path("../input/co2/ssp370_CO2_annual_2015-2100.csv")
-        main_table = pls_table.read_pls_table(Path("./PLS_MAIN/pls_attrs-9999.csv"))
+        main_table = pls_table.read_pls_table(Path("./PLS_MAIN/pls_attrs-5000.csv"))
         gridlist = pl.read_csv("../grd/gridlist_test.csv")
 
+        # Memory profiling. Set to True to enable memory profiling with memory_profiler. Add @profile decorator to the methods to be profiled (run_gridcell method for the entire functionality)
+        if PROF_M:
+            def run_model():
+                r = region("region_test_mprof",
+                            "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
+                            (tsoil, ssoil, hsoil),
+                            co2_path,
+                            main_table,
+                            gridlist)
+
+                # Perform common region tasks
+                r.run_region_map(task1)
+                r.update_dump_directory("test_new_region")
+                r.update_input("../input/MPI-ESM1-2-HR/ssp370/caete_input_MPI-ESM1-2-HR_ssp370.nc", co2 = co2_path_ssp370)
+                r.save_state("state1.z", new_state=True)
+                r.run_region_map(task2)
+                r.clean_model_state_fast()
+                r.save_state("state2.z")
+            # Start memory profiler
+            run_model()
+            # Halt execution
+            sys.exit(0)
 
         r = region("region_test",
                     "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
@@ -1995,11 +2045,13 @@ if __name__ == '__main__':
             prof = sys.argv[1] == "cprof"
         except:
             prof = False
+
         if prof:
             import cProfile
             command = "gridcell.run_gridcell('1901-01-01', '1950-12-31', spinup=2, fixed_co2_atm_conc=1901, save=False, nutri_cycle=True, reset_community=True)"
             cProfile.run(command, sort="cumulative", filename="profile.prof")
-        else:
+
+        elif not PROF_M:
         # Run the model for one gridcell to test the functionality
             start = tm.time()
             # test model functionality
@@ -2022,4 +2074,6 @@ if __name__ == '__main__':
             print("collcted objects:", n)
             end = tm.time()
             print(f"Run time: {end - start:.2f} seconds")
+
+
 
