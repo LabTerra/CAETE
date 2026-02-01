@@ -155,7 +155,7 @@ from caete_module import soil_dec        # type: ignore
 from caete_module import water as st     # type: ignore
 
 # The @profile decorator is used in the run_gridcell method for memory profiling
-PROF_M = True # Set to True to enable memory profiling
+PROF_M = False # Set to True to enable memory profiling
 if PROF_M:
     from memory_profiler import profile
 else:
@@ -2020,9 +2020,11 @@ if __name__ == '__main__':
         gridlist = pl.read_csv("../grd/gridlist_profile.csv")
 
         # Memory profiling
+        # Set PROF_M to True (in the header of this script) to
+        # enable memory profiling with memory_profiler. Keep PROF_M = False to disable memory profiling.
         if PROF_M:
             def run_model():
-                # Complete set of model operations for a region. There is no meaningful order in the operations below.
+                # Complete set of model operations for a region (from creation to writing of serialized outputs).
                 # Create region object
                 r = region("region_test_mprof_historical",
                             "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
@@ -2071,7 +2073,7 @@ if __name__ == '__main__':
             run_model()
             # Halt execution.
             sys.exit(0)
-        # End memory profiling
+        # End of memory profiling: exit
 
         # Create region object.
         r = region("region_test",
