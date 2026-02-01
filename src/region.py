@@ -164,9 +164,7 @@ class region:
             self.grid_mask[int(y), int(x)] = False
 
         # create the output folder structure
-        # This is the output path for the regions, Create it if it does not exist
-        # output_path is a global defined in parameters.py. The region object will
-        # create the internal output folder structure into this directory
+        # This is the output path for the regions, Create it if it does not existis
         os.makedirs(self.config.output.output_dir, exist_ok=True)
 
         # This is the output path for this region
@@ -599,7 +597,7 @@ class region:
 
     def set_gridcells(self):
         """Method to set gridcells for a region. Only used in testing contexts.
-        The constructions of gridcells for parallel runs is managed by the run_region_map method.
+        The construction of gridcells for parallel runs is managed by the run_region_map method.
         """
         print("Starting gridcells")
         if input_handler is not None:

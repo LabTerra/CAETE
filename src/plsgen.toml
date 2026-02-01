@@ -1,5 +1,6 @@
 title = "Parameters to create Plant life strategies"
-author = "João Paulo Darela Filho"
+
+# TODO: Document all parameters
 
 dirichlet_alpha = 1.0
 

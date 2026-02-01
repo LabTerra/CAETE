@@ -8,6 +8,7 @@ pyproj
 polars
 netCDF4
 pydantic
+memory_profiler
 
 # Compressors for joblib. Needed if you choose lz4 as the compressor for joblib.
 # See the section [compression] in the config file (src/caete.toml).
@@ -25,4 +26,5 @@ ninja
 ## Optional requirements - Cython will be used in the future to speed up some parts of the code.
 ## See the makefiles
 # cython
+ipython
 

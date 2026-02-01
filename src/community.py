@@ -145,24 +145,24 @@ class community:
 
 
     def __init__(self, pls_data:Tuple[NDArray[np.int32], NDArray[np.float32]]) -> None:
-        #TODO: Move thhese initial biomass values to a configuration file (caete.toml) or parameterize a better way to set them.
-        # These initial values set the initial conditions of the PLSs in the community.
+
+        #TODO: Move these initial biomass values to a configuration file (caete.toml) or exclude them.
+        # These initial values set the initial conditions of the PLSs in the community if the file global UNIFORM_INIT_BIOMASS is True
         # They can have a significant impact on the model behavior during the first years of simulation.
         # They should be set based on empirical data or sensitivity analysis.
-
         # These values are currently hardcoded in that way to allow the model to run without crashing during the first years.
         # We set leaves and roots initial biomass to 0.125 kg m⁻² and wood to 0.01 kg m⁻².
 
-        # This enable the PLSs to have enough biomass to survive the first years of simulation.
-        # However, this is not a realistic representation of the initial biomass of PLSs in a community.
-        #
+        # Currently we use spinup3 and a low value of NPP is used to estimate the initial biomass
+        # We could use NPP values based on remote sensing data (NTSG) to run this initial spinup.
 
-        # One idea: use spinup3 and a NPP value based on remote sensing data (NTSG) to set these initial biomass values.
-        # Call spinup3 with the allocation and residence time values of each PLS in the community to get a more realistic initial biomass.
-        # Or Add cleaf cwood and croot initial biomass values based on the output of spinup3 in a lookup table during community initialization.
-        # Use the table at runtime to set the initial biomass values of the PLSs in the community.
+
+        # WARINING: THese values are only used if UNIFORM_INIT_BIOMASS = True
         self.bm_lr0 = 0.2 # Initial leaf and root biomass (kg m⁻²)
         self.bm_w0  = 0.2 # Initial wood biomass (kg m⁻²)
+
+        # NPP initial value used in spinup3 to set initial biomass values.
+        # TODO: This value could be set based on remote sensing data (e.g. NTSG-NPP) to have a more realistic initial biomass.
         self.npp_init = 0.1 # kg/m2/year - Initial NPP value to use in spinup3 to set initial biomass values.
 
         self._reset(pls_data)
@@ -277,9 +277,9 @@ class community:
         self.id[pos] = pls_id
         self.pls_array[:, pos] = pls
         cl, cr, cw = m.spinup3(self.npp_init, pls[2:8])
-        cleaf[pos] = cl  
-        croot[pos] = cr 
-        cwood[pos] = cw 
+        cleaf[pos] = cl
+        croot[pos] = cr
+        cwood[pos] = cw
         if pls[3] == 0:
             cwood[pos] = 0.0
 

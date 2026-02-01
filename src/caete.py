@@ -154,15 +154,14 @@ from caete_module import budget as model # type: ignore
 from caete_module import soil_dec        # type: ignore
 from caete_module import water as st     # type: ignore
 
-
-# logging.basicConfig(filename='execution.log', level=logging.INFO, format='%(asctime)s - %(message)s')
-# logger = logging.getLogger(__name__)
-
-
-# Add the @profile decorator to functions you want to profile
-PROF_M = True
+# The @profile decorator is used in the run_gridcell method for memory profiling
+PROF_M = True # Set to True to enable memory profiling
 if PROF_M:
     from memory_profiler import profile
+else:
+    # Set a no-op profile decorator
+    def profile(func):
+        return func  # No-op decorator when not profiling
 
 # Output file extension
 out_ext = ".pkz"
@@ -1011,7 +1010,6 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
         return None
 
     @profile
-    # @timer
     def run_gridcell(self,
                   start_date: str,
                   end_date: str,
@@ -1957,30 +1955,46 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                 print(f"Period {i + 1}: {period[0]} - {period[1]}")
         return i + 1
 
-def task1(gridcell):
-    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=2, fixed_co2_atm_conc="1901",
-                                    save=False, nutri_cycle=False, reset_community=True, env_filter=True)
 
+# Example tasks to be run in a region. The region has methods to run tasks in all gridcells in parallel.
+# Those methods use multiprocessing, so the tasks must be defined in the main module.
+# These tasks must be in the main module to be pickled correctly during multiprocessing.
+# Important: each task must accept a gridcell object as an argument and return the gridcell object
+# after running the operations.
+
+# These task functions could be defined in a separate module and imported here.
+# The worker module (worker.py) has some predefined tasks as well (those used in the caete_driver.py script).
+
+def task1(gridcell:grd_mt) -> grd_mt:
+    # Accept a gridcell object and run operations on it.
+
+    # "spinup"
+    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc="1901",
+                                    save=False, nutri_cycle=False, reset_community=True, env_filter=True)
     gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc="1901",
                                     save=False, nutri_cycle=True, reset_community=True)
 
-    gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
-                    save=True, nutri_cycle=True, reset_community=True)
+    # "run"
+    gridcell.run_gridcell("1950-01-01", "2014-12-31", spinup=1, fixed_co2_atm_conc=None,
+                    save=True, nutri_cycle=True)
 
-    return gridcell
+    return gridcell # Return the gridcell object
 
 
-def task2(gridcell):
-    gridcell.run_gridcell("2015-01-01", "2030-12-31", spinup=4, fixed_co2_atm_conc=None,
+def task2(gridcell:grd_mt) -> grd_mt:
+    # "scenario run"
+    gridcell.run_gridcell("2015-01-01", "2050-12-31", spinup=1, fixed_co2_atm_conc=None,
                                         save=True, nutri_cycle=True)
-
     return gridcell
+
 
 if __name__ == '__main__':
-    # Short example of how to run the new version of the model. Also used to do some profiling
 
-    # If pass is provided as argument, the model run is skipped. Only loads module. This is useful for running the module in a shell like ipython
-    # In this scenario, the model is not run but the functionality of caete.py can be tested interactively
+    # Short example of how to run the model. Also used to do some profiling.
+    # If pass is provided as an argument, the model run is skipped. The module is only loaded. This is useful
+    # for running the module in a shell like IPython. In this scenario, the model is not run, but the
+    # functionality of caete.py can be tested interactively.
+
     skip = False
     try:
         skip = sys.argv[1] == "pass"
@@ -1990,10 +2004,10 @@ if __name__ == '__main__':
     if skip:
         # Skip all
         pass
-    # Following code has the purpose of testing and profiling the model. It is not intended to be a full example of how to run the model,
+    # The following code is for testing and profiling the model. It is not intended to be a full example of how to run the model;
     # however, it can be used as a starting point for understanding how to run the model and set up a driver script.
     else:
-        # Import necessary functionality to run caete
+        # Import necessary functionality to run CAETE.
         from metacommunity import pls_table # pls_table is a class that handles the main PLS table
         from parameters import * # Import soil parameters
         from region import region # region is a class that handles the region of gridcells
@@ -2002,32 +2016,64 @@ if __name__ == '__main__':
         ## Paths to input data
         co2_path = Path("../input/co2/historical_CO2_annual_1765-2024.csv")
         co2_path_ssp370 = Path("../input/co2/ssp370_CO2_annual_2015-2100.csv")
-        main_table = pls_table.read_pls_table(Path("./PLS_MAIN/pls_attrs-5000.csv"))
-        gridlist = pl.read_csv("../grd/gridlist_test.csv")
+        main_table = pls_table.read_pls_table(Path("./PLS_MAIN/pls_attrs-25000.csv"))
+        gridlist = pl.read_csv("../grd/gridlist_profile.csv")
 
-        # Memory profiling. Set to True to enable memory profiling with memory_profiler. Add @profile decorator to the methods to be profiled (run_gridcell method for the entire functionality)
+        # Memory profiling
         if PROF_M:
             def run_model():
-                r = region("region_test_mprof",
+                # Complete set of model operations for a region. There is no meaningful order in the operations below.
+                # Create region object
+                r = region("region_test_mprof_historical",
                             "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
                             (tsoil, ssoil, hsoil),
                             co2_path,
                             main_table,
                             gridlist)
 
-                # Perform common region tasks
-                r.run_region_map(task1)
-                r.update_dump_directory("test_new_region")
-                r.update_input("../input/MPI-ESM1-2-HR/ssp370/caete_input_MPI-ESM1-2-HR_ssp370.nc", co2 = co2_path_ssp370)
-                r.save_state("state1.z", new_state=True)
-                r.run_region_map(task2)
-                r.clean_model_state_fast()
-                r.save_state("state2.z")
-            # Start memory profiler
-            run_model()
-            # Halt execution
-            sys.exit(0)
+                # Perform region tasks
 
+                # Apply one task function to all gridcells in the region (represents a spinup + transient run).
+                r.run_region_map(task1)
+
+                # It is possible to update region properties between tasks.
+                # In the next three operations we update the dump directory and the
+                # input data for the region using files for the ssp370 scenario.
+
+                # This updates the region dump directory (where outputs and state files are saved).
+                # This folder will be created in the outputs directory.
+                r.update_dump_directory("region_test_mprof_ssp370")
+
+                # Change input data for the region.
+                r.update_input("../input/MPI-ESM1-2-HR/ssp370/caete_input_MPI-ESM1-2-HR_ssp370.nc", co2 = co2_path_ssp370)
+
+                # Save the model state (can be used to restart the model later).
+                # Give meaningful names to the state files to identify them later.
+                # If you delete the state file, you will not be able to restart the model from that state.
+                # new_state=True creates a new state file. It leaves the saved state and starts with a copy in a different folder.
+                # We will continue using this new state in subsequent operations.
+                # You can also set a new state using the method set_new_state() of the region class.
+                r.save_state("state1.z", new_state=True)
+
+                # Now we can run the region with another task function, with different model settings.
+                # Run the region with another task function (can be a projection run or an experiment).
+                r.run_region_map(task2)
+
+                # Clean model state. This generates a lightweight version of the state file.
+                # THis lightweight object is detached from any model state and only holds filepaths to the output data of the model.
+                # These clean state files are used to post-process the model.
+                r.clean_model_state_fast()
+
+                # Save the model state again.
+                r.save_state("state2.z")
+
+            # Start memory profiler.
+            run_model()
+            # Halt execution.
+            sys.exit(0)
+        # End memory profiling
+
+        # Create region object.
         r = region("region_test",
                     "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
                     (tsoil, ssoil, hsoil),
@@ -2035,12 +2081,12 @@ if __name__ == '__main__':
                     main_table,
                     gridlist)
 
-        # Set gridcells in memory
+        # Set gridcells in memory.
         r.set_gridcells()
 
         gridcell = r[0]
 
-        # Profile with cProfile
+        # Profile with cProfile.
         try:
             prof = sys.argv[1] == "cprof"
         except:
@@ -2052,9 +2098,9 @@ if __name__ == '__main__':
             cProfile.run(command, sort="cumulative", filename="profile.prof")
 
         elif not PROF_M:
-        # Run the model for one gridcell to test the functionality
+        # Run the model for one gridcell to test the functionality.
             start = tm.time()
-            # test model functionality
+            # Test model functionality.
             gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
                                                 save=False, nutri_cycle=True, reset_community=True,
                                                 env_filter=True)
@@ -2062,16 +2108,15 @@ if __name__ == '__main__':
             gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
                                     save=True, nutri_cycle=True)
 
-            # test directory update
+            # Test directory update.
             r.update_dump_directory("test_new_region")
 
-            # test change input
+            # Test change input.
             r.update_input("../input/MPI-ESM1-2-HR/ssp370/caete_input_MPI-ESM1-2-HR_ssp370.nc", co2 = co2_path_ssp370)
 
             gridcell = r[0]
-            n =gridcell.run_gridcell("2015-01-01", "2030-12-31", spinup=1, fixed_co2_atm_conc=None,
+            gridcell.run_gridcell("2015-01-01", "2030-12-31", spinup=1, fixed_co2_atm_conc=None,
                                                 save=True, nutri_cycle=True)
-            print("collcted objects:", n)
             end = tm.time()
             print(f"Run time: {end - start:.2f} seconds")
 

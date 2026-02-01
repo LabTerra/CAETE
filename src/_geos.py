@@ -37,7 +37,7 @@ except ImportError:
 config = fetch_config()
 datum = config.crs.datum # type: ignore
 
-#TODO:  find_indices and find_coordinates should raise errors in case of improper inputs. 
+#TODO:  find_indices and find_coordinates should raise errors in case of improper inputs.
 
 # WARN: find_indices and find_coordinates precision is limited to 7 decimal places.
 
@@ -97,12 +97,12 @@ def calc_min_rounding_log(res: float) -> int:
         if res < 0.01:
             safety_margin = 6  # Very fine resolutions
         elif res < 0.1:
-            safety_margin = 5  # Fine resolutions  
+            safety_margin = 5  # Fine resolutions
         else:
             safety_margin = 4  # Standard resolutions
-            
+
         return max(2, decimal_places + safety_margin)  # +2 for safety margin
-    
+
 
 @jit(nopython=True, cache=True) # type: ignore
 def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, rounding: int = 2) -> Tuple[int, int]:
@@ -130,7 +130,7 @@ def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, 
 
     if res_y <= 0 or res_x <= 0:
         return -1, -1
-    
+
     # # Calculate minimum required rounding and use the maximum
     # min_rounding = max(calc_min_rounding_log(res_y), calc_min_rounding_log(res_x))
     # effective_rounding = max(rounding, min_rounding)
@@ -157,7 +157,7 @@ def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, 
 
     # Find indices for Yc and Xc using bisection
     # Yc is negative because our origin (90 degrees north) is in the upper left corner of the matrix.
-    # 
+    #
     Yind:int = np.searchsorted(lat, -Yc - half_res_y, side='left') #type: ignore
     Xind:int = np.searchsorted(lon, Xc - half_res_x, side='left') #type: ignore
 
@@ -188,11 +188,11 @@ def find_indices(N: float, W: float, res: float = 0.5, rounding: int = 2) -> Tup
     """
     if res <= 0:
         return -1, -1
-    
+
     # Calculate minimum required rounding and use the maximum
     min_rounding = calc_min_rounding_log(res)
     effective_rounding = max(rounding, min_rounding)
-    
+
     Yc:float = round(N, effective_rounding)
     Xc:float = round(W, effective_rounding)
     half_res:float = res / 2
@@ -325,28 +325,6 @@ def get_region(region): # type: ignore
     return region["ymin"], region["ymax"], region["xmin"], region["xmax"] # type: ignore
 
 
-# def latitude_axis(north: float | int, south: float | int, yres: float | int) -> np.ndarray: # type: ignore
-#     """
-#     Generate a latitude axis for a given region
-#     """
-#     return np.arange(north, south, -yres) + yres / 2 # type: ignore
-
-
-# def longitude_axis(west: float | int, east: float | int, xres: float | int) -> np.ndarray: # type: ignore
-#     """
-#     Generate a longitude axis for a given region
-#     """
-#     return np.arange(west, east, xres) + xres / 2 # type: ignore
-
-# def get_axis(bbox): # type: ignore
-#     """
-#     Get latitude and longitude axis for a region of interest
-#     """
-#     lat = latitude_axis(bbox["north"], bbox["south"], bbox["res_y"]) # type: ignore
-#     lon = longitude_axis(bbox["west"], bbox["east"], bbox["res_x"]) # type: ignore
-#     return lat, lon # type: ignore
-
-
 # Bbox
 pan_amazon_bbox = {"north":10.5, # type: ignore
                    "south":-21.5,
@@ -409,7 +387,7 @@ if __name__ == "__main__":
             self.assertEqual(find_indices_xy(0, 0, -1, 1), (-1, -1))
             self.assertEqual(find_indices_xy(0, 0, 1, -1), (-1, -1))
             self.assertEqual(find_indices_xy(0, 0, 0, 0), (-1, -1))
-            
+
             # XY versions must match the non-XY versions
             # find_indices and find_indices_xy should return the same values
             self.assertEqual(find_indices_xy(45, 45, 1, 1), find_indices(45, 45, 1))
@@ -419,7 +397,7 @@ if __name__ == "__main__":
             self.assertEqual(find_indices_xy(-2.63, 0, 0.5, 0.5), find_indices(-2.63, 0, 0.5))
             self.assertEqual(find_indices_xy(-2.63, 0, 1/12, 1/12), find_indices(-2.63, 0, 1/12))
             self.assertEqual(find_indices_xy(-2.63, 0, 1/1200, 1/1200), find_indices(-2.63, 0, 1/1200))
-            
+
             # the same for find_coordinates and find_coordinates_xy
             self.assertEqual(find_coordinates_xy(0, 0, 1, 1), find_coordinates(0, 0, 1))
             self.assertEqual(find_coordinates_xy(180, 45, 1, 1), find_coordinates(180, 45, 1))
@@ -427,15 +405,15 @@ if __name__ == "__main__":
             self.assertEqual(find_coordinates_xy(45, 45, 1/12, 1/12), find_coordinates(45, 45, 1/12))
             self.assertEqual(find_coordinates_xy(45, 45, 1/120, 1/120), find_coordinates(45, 45, 1/120))
             self.assertEqual(find_coordinates_xy(45, 45, 1/1200, 1/1200), find_coordinates(45, 45, 1/1200))
-            
+
             # find coordinates and find coordinates_xy cross test
             self.assertEqual(find_coordinates_xy(*find_indices_xy(0, 0, 0.5, 0.5), 0.5, 0.5),
                              find_coordinates(*find_indices(0, 0, 0.5), 0.5))
-            
+
             # find coordinates and find coordinates_xy must return the same values
             self.assertEqual(find_coordinates_xy(*find_indices_xy(45, 45, 1, 1), 1, 1),
                              find_coordinates(*find_indices(45, 45, 1), 1))
-            
+
 
             # outputs of find_coordinates feeded with the outputs of find_indices should be the same as the inputs of find_indices
             # Find coordinates snaps to cell center, so we use res/2 as delta
@@ -559,8 +537,8 @@ if __name__ == "__main__":
                 a, b = find_coordinates(y, x, res, rounding)
                 self.assertAlmostEqual(a, lat, delta=0.0000001)
                 self.assertAlmostEqual(b, lon, delta=0.0000001)
-                
-                # Test corner coordinates (bottom-right)  
+
+                # Test corner coordinates (bottom-right)
                 lat = -90 + res/2
                 lon = 180 - res/2
                 y, x = find_indices(lat, lon, res, rounding)
@@ -571,10 +549,10 @@ if __name__ == "__main__":
 
             # Test with various rectangular resolutions
             resolution_pairs = [
-                (0.1, 0.2), (0.125, 0.25), (0.2, 0.4), (0.5, 1.0), 
+                (0.1, 0.2), (0.125, 0.25), (0.2, 0.4), (0.5, 1.0),
                 (1.0, 0.5), (2.0, 1.0), (1.0, 2.0), (5.0, 2.5)
             ]
-            
+
             for yres, xres in resolution_pairs:
                 rounding = max(calc_min_rounding_log(yres), calc_min_rounding_log(xres))
                 # Test corner coordinates (top-left)
@@ -582,9 +560,9 @@ if __name__ == "__main__":
                 lon = -180 + xres/2
                 y, x = find_indices_xy(lat, lon, yres, xres, rounding)
                 self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
-                
+
                 # Test corner coordinates (bottom-right)
-                lat = -90 + yres/2  
+                lat = -90 + yres/2
                 lon = 180 - xres/2
                 y, x = find_indices_xy(lat, lon, yres, xres, rounding)
                 self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))

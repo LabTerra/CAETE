@@ -38,7 +38,11 @@ mp = false # Use MPI for reading netcdf files.
 
 # Configs for parallelization
 [multiprocessing]
-# TODO: Look at where this one is used. I forgot completely. Should be something in dataframes.py
+
+# nprocs used to post process the output data. See dataframes.py for more details.
+# This parameter is currently only used in the functions that aggregate the
+# output data (from serialized gridcells to numpy arrays and dataframes).
+# TODO: benchmark to find optimal value.
 nprocs= 64 # Threads/processes used to post process the **Output**. Not used by the model itself.
 
 # max_processes limit the number of python processes used to run the model.
@@ -117,17 +121,12 @@ rsds = 0.198
 n = 1 # Effects only in runtime, recompilation not needed.
 
 # Maximum number of PLS to be considered in each community.
-# Very large values CAN cause (>3000) stack overflow errors.
-# If you wish to use more than 3000 PLS, you should exchange the
-# budget_fixed.F90 (it allocates arrays in the stack) in
-# the Makefile_win by budget.F90 (heap allocation).
-# The budget.F90 is slower than budget_fixed.F90, but it
-# allows for larger number of PLS.
+# Very large values CAN cause (>5000) stack overflow errors.
 # The final number of slots for PLSs in the model is equal to n * npls_max.
 # Changes here and in ntraits will not be applied to the model (fortran extension module)
 # unless you recompile it. THe model will not run if you compile
 # it with a value and then run it with a different value.
-npls_max = 1000
+npls_max = 100
  # number of traits in a PLS
 ntraits = 17
 

@@ -104,7 +104,7 @@ def neighbours_index(pos: Union[List, NDArray], matrix: NDArray) -> List:
     cols = len(matrix[0]) if rows else 0
     for i in range(max(0, pos[0] - 1), min(rows, pos[0] + 2)):
         for j in range(max(0, pos[1] - 1), min(cols, pos[1] + 2)):
-            if (i, j) != pos:
+            if not (i == pos[0] and j == pos[1]):
                 neighbours.append((i, j))
     return neighbours
 
@@ -228,3 +228,166 @@ def shannon_diversity(ocp: NDArray[np.float64]) -> float:
     if np.sum(ocp) == 0:
         return -9999.0
     return np.exp(shannon_entropy(ocp))
+
+if __name__ == "__main__":
+    # Test functions
+    import unittest
+    from pathlib import Path
+    import sys
+
+    # In the first pass all functions are compiled and cached if necessary.
+    # If this runs, then the functions are correctly compiled and cached.
+    print("Testing CAETE JIT compiled functions...")
+
+    # Remove __pycache__ folder
+    # In any case, to force recompilation of the functions, delete the __pycache__ folder.
+    pycache_path = Path(__file__).parent / "__pycache__"
+    if pycache_path.exists() and pycache_path.is_dir():
+        import shutil
+        try:
+            shutil.rmtree(pycache_path)
+        except OSError:
+            print("Could not remove __pycache__ - continuing (files might be locked)", file=sys.stdout)
+    print("0 - OK ... ", file=sys.stdout)
+
+    class TestCaeteJit(unittest.TestCase):
+
+        def test_process_tuple(self):
+            strategies = np.array([1, 2, 3], dtype=np.int64)
+            days = np.array([10, 50, 40], dtype=np.float64)
+            t = (strategies, days)
+            sid, pct = process_tuple(t)
+            self.assertEqual(sid, 2)
+            self.assertEqual(pct, 50.0)
+
+        def test_process_tuples(self):
+            t1 = (np.array([1, 2], dtype=np.int64), np.array([20, 80], dtype=np.float64))
+            t2 = (np.array([3, 4], dtype=np.int64), np.array([10, 90], dtype=np.float64))
+            data = (t1, t2)
+            results = process_tuples(data)
+            self.assertEqual(len(results), 2)
+            self.assertEqual(results[0], (2, 80.0))
+            self.assertEqual(results[1], (4, 90.0))
+
+        def test_pft_area_frac(self):
+            cleaf = np.array([10, 20], dtype=np.float32)
+            cfroot = np.array([10, 20], dtype=np.float32)
+            cawood = np.array([10, 20], dtype=np.float32)
+            # Total PFT1=30, PFT2=60. Total=90.
+            # Fractions: 1/3, 2/3
+            res = pft_area_frac(cleaf, cfroot, cawood)
+            expected = np.array([1/3, 2/3], dtype=np.float32)
+            np.testing.assert_allclose(res, expected, rtol=1e-5)
+
+        def test_pft_area_frac64(self):
+            cleaf = np.array([10, 20], dtype=np.float64)
+            cfroot = np.array([10, 20], dtype=np.float64)
+            cawood = np.array([10, 20], dtype=np.float64)
+            res = pft_area_frac64(cleaf, cfroot, cawood)
+            expected = np.array([1/3, 2/3], dtype=np.float64)
+            np.testing.assert_allclose(res, expected, rtol=1e-5)
+
+        def test_neighbours_index(self):
+            matrix = np.zeros((3, 3))
+            pos = np.array([1, 1])
+            nbs = neighbours_index(pos, matrix)
+            self.assertEqual(len(nbs), 8)
+            self.assertIn((0, 0), nbs)
+            self.assertNotIn((1, 1), nbs)
+
+            pos_corner = np.array([0, 0])
+            nbs_corner = neighbours_index(pos_corner, matrix)
+            self.assertEqual(len(nbs_corner), 3)
+
+        def test_inflate_array(self):
+            nsize = 5
+            partial = np.array([10.0, 20.0], dtype=np.float32)
+            id_living = np.array([0, 4], dtype=np.intp)
+            res = inflate_array(nsize, partial, id_living)
+            expected = np.array([10.0, 0.0, 0.0, 0.0, 20.0], dtype=np.float32)
+            np.testing.assert_array_equal(res, expected)
+
+        def test_linear_func(self):
+            # temp=30, T_max=60 -> 0.5. vpd=4, VPD_max=8 -> 0.5. AVG -> 0.5
+            res = linear_func(30.0, 4.0, 60.0, 8.0)
+            self.assertAlmostEqual(res, 0.5)
+
+            res_low = linear_func(-10.0, 0.0)
+            self.assertEqual(res_low, 0.0)
+
+            res_high = linear_func(100.0, 100.0)
+            self.assertEqual(res_high, 1.0)
+
+        def test_atm_canopy_coupling(self):
+            # linear_func(30, 4) -> 0.5
+            # emaxm*0.5 + evapm*0.5
+            val = atm_canopy_coupling(10.0, 2.0, 30.0, 4.0)
+            self.assertAlmostEqual(val, 6.0)
+
+        def test_masked_mean(self):
+            mask = np.array([0, 1, 0, 0], dtype=np.int8)  # 0 is valid
+            values = np.array([10.0, 100.0, 20.0, 30.0], dtype=np.float32)
+            res = masked_mean(mask, values)
+            # valid: 10, 20, 30 -> mean 20
+            self.assertEqual(res, 20.0)
+
+            mask_all = np.array([1, 1], dtype=np.int8)
+            res_nan = masked_mean(mask_all, values[:2])
+            self.assertTrue(np.isnan(res_nan))
+
+        def test_masked_mean_2D(self):
+            mask = np.array([0, 1, 0], dtype=np.int8) # Indices 0 and 2 are valid
+            values = np.array([
+                [10, 20, 30],
+                [1,  2,  3]
+            ], dtype=np.float32)
+            # Row 0 valid: 10, 30 -> mean 20
+            # Row 1 valid: 1, 3   -> mean 2
+            res = masked_mean_2D(mask, values)
+            expected = np.array([20.0, 2.0], dtype=np.float32)
+            np.testing.assert_array_equal(res, expected)
+
+        def test_cw_mean(self):
+            ocp = np.array([0.2, 0.8], dtype=np.float64)
+            values = np.array([10.0, 20.0], dtype=np.float32)
+            res = cw_mean(ocp, values)
+            # 0.2*10 + 0.8*20 = 2 + 16 = 18
+            self.assertAlmostEqual(res, 18.0)
+
+        def test_cw_variance(self):
+            ocp = np.array([0.5, 0.5], dtype=np.float64)
+            values = np.array([10.0, 20.0], dtype=np.float32)
+            mean = 15.0
+            res = cw_variance(ocp, values, mean)
+            # 0.5*(25) + 0.5*(25) = 25
+            self.assertAlmostEqual(res, 25.0)
+
+        def test_shannon_entropy(self):
+            ocp = np.array([0.5, 0.5], dtype=np.float64)
+            res = shannon_entropy(ocp)
+            self.assertAlmostEqual(res, np.log(2))
+
+            ocp_zero = np.zeros(2, dtype=np.float64)
+            res_zero = shannon_entropy(ocp_zero)
+            self.assertEqual(res_zero, -9999.0)
+
+        def test_shannon_evenness(self):
+            ocp = np.array([0.5, 0.5], dtype=np.float64)
+            res = shannon_evenness(ocp)
+            self.assertAlmostEqual(res, 1.0)
+
+            ocp_single = np.array([1.0], dtype=np.float64)
+            # max_entropy = log(1) = 0 -> -9999.0
+            res_single = shannon_evenness(ocp_single)
+            self.assertEqual(res_single, -9999.0)
+
+        def test_shannon_diversity(self):
+            ocp = np.array([0.5, 0.5], dtype=np.float64)
+            res = shannon_diversity(ocp)
+            self.assertAlmostEqual(res, 2.0)
+
+            ocp_zero = np.zeros(2, dtype=np.float64)
+            res_zero = shannon_diversity(ocp_zero)
+            self.assertEqual(res_zero, -9999.0)
+
+    unittest.main()

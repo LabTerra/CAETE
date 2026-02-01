@@ -37,6 +37,9 @@ src/tests/__pycache__
 src/tests/*.csv
 src/tests/*.txt
 src/temp_*
+src/*.txt
+src/*.dat
+src/*.prof
 *_env
 *_data
 *_cache
