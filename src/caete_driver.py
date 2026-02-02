@@ -10,17 +10,11 @@ including spinup, transient climate simulations, and output generation.
 Workflow Overview:
     1. Region Initialization - Load input data and create the simulation region
     2. Spinup - Equilibrate soil carbon pools using repeated spinup climate
-    3. Transclim Run - Run model with transitional climate (1765-1900)
+    3. Transclim Run - Run model with transitional climate (~1850-1900)
     4. State Checkpoint - Save model state for potential restarts
     5. Prepare Transient - Update input to observational climate data
     6. Transient Run - Run model with historical climate (1901-2024)
     7. Finalize - Clean state and export results
-
-Requirements:
-    - CDO (Climate Data Operators) for benchmarking
-    - NetCDF input files (spinclim and obsclim)
-    - PLS (Plant Life Strategy) table CSV file
-    - Gridlist CSV defining simulation domain
 
 Usage:
     Run this script directly from the src/ directory:
@@ -29,7 +23,7 @@ Usage:
 Output Files:
     - {region_name}_after_spinup_state_file.psz : State after spinup (restartable)
     - {region_name}_result.psz : Final simulation results
-    - ../outputs/ : NetCDF and other output formats
+    - ../outputs/ : NetCDF and other output formats, including serialized "spin" files, and state files.
 
 Copyright 2017- LabTerra
 
@@ -80,7 +74,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
 
     # Region identifier - used for output file naming
-    region_name = "pan_amazon_hist"
+    region_name = "pan_amazon_hist_5"
 
     # Climate input files (NetCDF format)
     obsclim_files = "../input/20CRv3-ERA5/obsclim/caete_input_20CRv3-ERA5_obsclim.nc"

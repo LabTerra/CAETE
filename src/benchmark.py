@@ -8,7 +8,7 @@ Requires CDO to be installed and accessible in the system path.
 """
 
 from pathlib import Path
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Collection
 
 import numpy as np
 import numpy.ma as ma
@@ -75,6 +75,21 @@ VARIABLE_PREPROCESSING = {
     "rnpp": (monsum, 0.001, "kg*m**-2*month**-1"),       # daily gC/m2/day -> monthly kgC/m2/month
     "et": (monsum, 1, "mm*month**-1"),                   # daily mm/day -> monthly mm/month
 }
+
+
+def _normalize_experiments(experiments: List[str] | str | Collection[str] | None) -> List[str] | None:
+    """Normalize experiments input to a list of strings or None.
+
+    Accepts a single experiment name, a list/collection of names, or None.
+    None means "use all available experiments".
+    """
+    if experiments is None:
+        return None
+    if isinstance(experiments, str):
+        return [experiments]
+    if isinstance(experiments, Collection):
+        return list(experiments)
+    raise TypeError("experiments must be a string, a collection of strings, or None")
 
 
 def get_model_data(variable: str, experiment: str | None = None, use_cache: bool = True) -> Tuple[xr.Dataset, str, xr.Dataset]:
@@ -145,6 +160,8 @@ def get_multiple_model_data(
             - model_masks: Dict mapping experiment name to mask Dataset.
     """
     caete_varname = get_caete_varname(variable)
+
+    experiments = _normalize_experiments(experiments)
 
     # Get available experiments for this variable
     if experiments is None:
@@ -283,47 +300,6 @@ def conform_datasets(
     return model_ds, ref_ds
 
 
-def get_model_and_ref(
-    variable: str = "gpp",
-    dataset_name: str = "GOSIF",
-    filename: str = "gpp_GOSIF_2000-2024.nc",
-    experiment: str | None = None
-) -> Tuple[xr.Dataset, xr.Dataset, str, xr.Dataset, xr.Dataset]:
-    """Orchestrator function to load and prepare model and reference datasets for comparison.
-
-    This function combines the functionality of get_model_data, get_reference_data,
-    conform_datasets, and get_region_mask to provide a complete workflow for
-    benchmarking CAETE model outputs against reference datasets.
-
-    Args:
-        variable: Variable name to read from CAETE output. Default is "gpp".
-        dataset_name: Name of the reference dataset. Default is "MADANI".
-        filename: Filename within the reference datasets. Default is "gpp_masked.nc".
-        experiment: Experiment name. If None, uses the first available experiment.
-
-    Returns:
-        A tuple containing:
-            - model_ds (xr.Dataset): Preprocessed and conformed CAETE dataset.
-            - ref_ds (xr.Dataset): Preprocessed and conformed reference dataset.
-            - experiment (str): Experiment identifier from CAETE output.
-            - region_mask (xr.Dataset): RAISG mask for the Pan Amazon region.
-            - model_mask (xr.Dataset): Mask indicating valid model data cells.
-    """
-    # Step 1: Get model data with mask
-    model_ds, experiment, model_mask = get_model_data(variable, experiment)
-
-    # Step 2: Get reference data
-    ref_ds = get_reference_data(dataset_name, filename)
-
-    # Step 3: Conform datasets (align, regrid, restrict to region)
-    model_ds, ref_ds = conform_datasets(model_ds, ref_ds, variable)
-
-    # Step 4: Get region mask (RAISG)
-    region_mask = get_region_mask()
-
-    return model_ds, ref_ds, experiment, region_mask, model_mask
-
-
 def get_models_and_ref(
     variable: str = "gpp",
     dataset_name: str = "GOSIF",
@@ -348,6 +324,9 @@ def get_models_and_ref(
             - region_mask: RAISG mask for the Pan Amazon region.
             - model_masks: Dict[str, xr.Dataset] mapping experiment names to masks.
     """
+    # Normalize experiments input (str -> [str], other iterables -> list)
+    experiments = _normalize_experiments(experiments)
+
     # Step 1: Get multiple model datasets
     model_datasets, model_masks = get_multiple_model_data(variable, experiments)
 
@@ -841,187 +820,6 @@ def _print_temporal_analysis_summary(df: pd.DataFrame, variable: str, region: st
 # PLOTTING FUNCTIONS
 # =============================================================================
 
-def _plot_bias_map(
-    bias_data: xr.DataArray,
-    title: str = "Bias Map",
-    region: str | None = None
-) -> plt.Figure:
-    """Plot spatial bias map with cartopy."""
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-
-    # Restrict to region if specified
-    if region is not None:
-        bias_data = Regions.restrict_to_region(bias_data, region)
-
-    # Determine symmetric colorbar limits
-    vmax = float(np.abs(bias_data).quantile(0.95))
-    vmin = -vmax
-
-    # Plot
-    im = bias_data.plot(
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-        cmap='RdBu_r',
-        vmin=vmin,
-        vmax=vmax,
-        add_colorbar=True,
-        cbar_kwargs={'label': bias_data.attrs.get('units', ''), 'shrink': 0.8}
-    )
-
-    # Add map features
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-    ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-    ax.add_feature(cfeature.RIVERS, linewidth=0.3, alpha=0.5)
-
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('Latitude')
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_phase_shift_map(
-    shift_data: xr.DataArray,
-    title: str = "Phase Shift",
-    region: str | None = None
-) -> plt.Figure:
-    """Plot phase shift map."""
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-
-    if region is not None:
-        shift_data = Regions.restrict_to_region(shift_data, region)
-
-    im = shift_data.plot(
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-        cmap='PRGn',
-        vmin=-6,
-        vmax=6,
-        add_colorbar=True,
-        cbar_kwargs={'label': 'Months', 'shrink': 0.8}
-    )
-
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-    ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    return fig
-
-
-def _plot_seasonal_cycle(
-    ref_cycle: xr.DataArray,
-    com_cycle: xr.DataArray,
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot seasonal cycle comparison."""
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    months = np.arange(1, 13)
-    month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-    # Plot reference
-    ax.plot(months, ref_cycle.values, 'o-', color='black', linewidth=2,
-            markersize=8, label='Reference', zorder=3)
-
-    # Plot model
-    ax.plot(months, com_cycle.values, 's--', color='#1f77b4', linewidth=2,
-            markersize=8, label='CAETE Model', zorder=2)
-
-    # Formatting
-    ax.set_xticks(months)
-    ax.set_xticklabels(month_labels)
-    ax.set_xlabel('Month', fontsize=12)
-    ax.set_ylabel(f'{variable.upper()} ({ref_cycle.attrs.get("units", "")})', fontsize=12)
-    ax.set_title(f'Seasonal Cycle: {variable.upper()} ({region})', fontsize=14, fontweight='bold')
-    ax.legend(loc='best', fontsize=11)
-    ax.grid(True, alpha=0.3)
-
-    # Add fill between
-    ax.fill_between(months, ref_cycle.values, com_cycle.values, alpha=0.2, color='gray')
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_timeseries(
-    ref_ts: xr.DataArray,
-    model_ts: xr.DataArray,
-    variable: str,
-    region: str,
-    metrics: Dict[str, float]
-) -> plt.Figure:
-    """Plot time series comparison."""
-    fig, ax = plt.subplots(figsize=(14, 6))
-
-    # Plot time series
-    ref_ts.plot(ax=ax, color='black', linewidth=1.5, label='Reference', alpha=0.8)
-    model_ts.plot(ax=ax, color='#1f77b4', linewidth=1.5, label='CAETE Model', alpha=0.8)
-
-    # Formatting
-    ax.set_xlabel('Time', fontsize=12)
-    ax.set_ylabel(f'{variable.upper()} ({ref_ts.attrs.get("units", "")})', fontsize=12)
-    ax.set_title(f'Time Series: {variable.upper()} ({region})', fontsize=14, fontweight='bold')
-    ax.legend(loc='upper right', fontsize=11)
-    ax.grid(True, alpha=0.3)
-
-    # Add metrics text box
-    textstr = '\n'.join([
-        f"Correlation: {metrics['correlation']:.3f}",
-        f"RMSE: {metrics['rmse']:.4f}",
-        f"Bias: {metrics['bias']:.4f}",
-        f"Taylor Score: {metrics['taylor_score']:.3f}"
-    ])
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-    ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=10,
-            verticalalignment='top', bbox=props)
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_interannual_variability(
-    ref_annual: xr.DataArray,
-    com_annual: xr.DataArray,
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot interannual variability comparison."""
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    years = ref_annual['year'].values
-
-    ax.bar(years - 0.2, ref_annual.values, width=0.4, color='black',
-           alpha=0.7, label='Reference')
-    ax.bar(years + 0.2, com_annual.values, width=0.4, color='#1f77b4',
-           alpha=0.7, label='CAETE Model')
-
-    # Add trend lines
-    z_ref = np.polyfit(years, ref_annual.values, 1)
-    z_com = np.polyfit(years, com_annual.values, 1)
-    ax.plot(years, np.polyval(z_ref, years), 'k--', linewidth=2, alpha=0.5)
-    ax.plot(years, np.polyval(z_com, years), 'b--', linewidth=2, alpha=0.5)
-
-    ax.set_xlabel('Year', fontsize=12)
-    ax.set_ylabel(f'{variable.upper()} ({ref_annual.attrs.get("units", "")})', fontsize=12)
-    ax.set_title(f'Interannual Variability: {variable.upper()} ({region})',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='best', fontsize=11)
-    ax.grid(True, alpha=0.3, axis='y')
-
-    plt.tight_layout()
-    return fig
-
-
-# =============================================================================
-# MULTI-EXPERIMENT PLOTTING FUNCTIONS
-# =============================================================================
-
 def _plot_multi_experiment_bias_maps(
     bias_data_per_exp: Dict[str, xr.DataArray],
     title: str,
@@ -1190,7 +988,8 @@ def spatial_analysis(
     ref_ds: xr.Dataset,
     variable: str,
     region: str = "pana",
-    output_dir: Path | None = None
+    output_dir: Path | None = None,
+    region_mask: xr.Dataset | None = None
 ) -> Dict[str, Any]:
     """Perform comprehensive spatial analysis between multiple model experiments and reference.
 
@@ -1203,6 +1002,7 @@ def spatial_analysis(
         variable: Variable name to analyze (e.g., "gpp", "et").
         region: Region label for analysis. Default is "pana" (Pan Amazon).
         output_dir: Optional directory to save plots. If None, plots are displayed.
+        region_mask: Optional RAISG mask dataset to apply to reference mean field plots.
 
     Returns:
         dict: Dictionary containing:
@@ -1249,7 +1049,8 @@ def spatial_analysis(
                 ref_mean,
                 mean_fields_per_exp,
                 variable=variable,
-                region=region
+                region=region,
+                region_mask=region_mask
             )
             results['figures']['mean_field_comparison'] = fig_mean
 
@@ -1625,6 +1426,37 @@ def _compute_spatial_bias_metrics(
     }
 
 
+def _get_mask_dataarray(mask_ds: xr.Dataset) -> xr.DataArray:
+    """Return a mask DataArray from a mask Dataset."""
+    if 'mask' in mask_ds.data_vars:
+        mask_da = mask_ds['mask']
+    else:
+        mask_da = next(iter(mask_ds.data_vars.values()))
+
+    if 'time' in mask_da.dims:
+        mask_da = mask_da.isel(time=0)
+
+    return mask_da
+
+
+def _apply_reference_mask(ref_mean: xr.DataArray, region_mask: xr.Dataset | None) -> xr.DataArray:
+    """Apply a region mask to the reference mean field for plotting."""
+    if region_mask is None:
+        return ref_mean
+
+    mask_da = _get_mask_dataarray(region_mask)
+
+    try:
+        ref_nested, mask_nested = cmp.nest_spatial_grids(ref_mean, mask_da)
+    except Exception:
+        ref_nested, mask_nested = ref_mean, mask_da
+
+    mask_clean = xr.where(mask_nested.notnull(), mask_nested, 0)
+    mask_bool = mask_clean.astype(bool)
+
+    return ref_nested.where(mask_bool)
+
+
 def _compute_pattern_correlation(
     ref_ds: xr.Dataset,
     model_ds: xr.Dataset,
@@ -1775,285 +1607,6 @@ def _print_spatial_analysis_summary(df: pd.DataFrame, variable: str, region: str
 # SPATIAL PLOTTING FUNCTIONS
 # =============================================================================
 
-def _plot_mean_field_comparison(
-    ref_mean: xr.DataArray,
-    model_mean: xr.DataArray,
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot side-by-side comparison of mean fields."""
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6),
-                              subplot_kw={'projection': ccrs.PlateCarree()})
-
-    # Restrict to region
-    ref_regional = Regions.restrict_to_region(ref_mean, region)
-    model_regional = Regions.restrict_to_region(model_mean, region)
-
-    # Common colorbar limits
-    vmin = min(float(ref_regional.min()), float(model_regional.min()))
-    vmax = max(float(ref_regional.max()), float(model_regional.max()))
-
-    # Plot reference
-    ref_regional.plot(
-        ax=axes[0],
-        transform=ccrs.PlateCarree(),
-        cmap='viridis',
-        vmin=vmin,
-        vmax=vmax,
-        add_colorbar=True,
-        cbar_kwargs={'label': ref_mean.attrs.get('units', ''), 'shrink': 0.8}
-    )
-    axes[0].add_feature(cfeature.COASTLINE, linewidth=0.5)
-    axes[0].add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-    axes[0].set_title(f'Reference Mean {variable.upper()}', fontsize=12, fontweight='bold')
-
-    # Plot model
-    model_regional.plot(
-        ax=axes[1],
-        transform=ccrs.PlateCarree(),
-        cmap='viridis',
-        vmin=vmin,
-        vmax=vmax,
-        add_colorbar=True,
-        cbar_kwargs={'label': model_mean.attrs.get('units', ''), 'shrink': 0.8}
-    )
-    axes[1].add_feature(cfeature.COASTLINE, linewidth=0.5)
-    axes[1].add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-    axes[1].set_title(f'CAETE Model Mean {variable.upper()}', fontsize=12, fontweight='bold')
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_spatial_bias_map(
-    bias_data: xr.DataArray,
-    title: str,
-    region: str,
-    units: str = ''
-) -> plt.Figure:
-    """Plot spatial bias map."""
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-
-    # Restrict to region
-    bias_regional = Regions.restrict_to_region(bias_data, region)
-
-    # Symmetric colorbar
-    vmax = float(np.abs(bias_regional).quantile(0.95))
-    vmin = -vmax
-
-    im = bias_regional.plot(
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-        cmap='RdBu_r',
-        vmin=vmin,
-        vmax=vmax,
-        add_colorbar=True,
-        cbar_kwargs={'label': units, 'shrink': 0.8}
-    )
-
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-    ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-    ax.add_feature(cfeature.RIVERS, linewidth=0.3, alpha=0.5)
-
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    return fig
-
-
-def _plot_rmse_map(
-    rmse_data: xr.DataArray,
-    title: str,
-    region: str,
-    units: str = ''
-) -> plt.Figure:
-    """Plot RMSE map."""
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
-
-    # Restrict to region
-    rmse_regional = Regions.restrict_to_region(rmse_data, region)
-
-    im = rmse_regional.plot(
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-        cmap='YlOrRd',
-        add_colorbar=True,
-        cbar_kwargs={'label': units, 'shrink': 0.8}
-    )
-
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-    ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=':')
-
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    return fig
-
-
-def _plot_spatial_scatter(
-    ref_values: np.ndarray,
-    com_values: np.ndarray,
-    variable: str,
-    region: str,
-    metrics: Dict[str, float]
-) -> plt.Figure:
-    """Plot spatial scatter (model vs reference)."""
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    # Scatter plot
-    ax.scatter(ref_values, com_values, alpha=0.3, s=10, c='#1f77b4', edgecolors='none')
-
-    # 1:1 line
-    lims = [
-        min(ref_values.min(), com_values.min()),
-        max(ref_values.max(), com_values.max())
-    ]
-    ax.plot(lims, lims, 'k--', linewidth=2, label='1:1 line')
-
-    # Regression line
-    if len(ref_values) > 2:
-        z = np.polyfit(ref_values, com_values, 1)
-        p = np.poly1d(z)
-        ax.plot(lims, p(lims), 'r-', linewidth=2, alpha=0.7,
-                label=f'Fit: y={z[0]:.2f}x+{z[1]:.2f}')
-
-    ax.set_xlabel(f'Reference {variable.upper()}', fontsize=12)
-    ax.set_ylabel(f'Model {variable.upper()}', fontsize=12)
-    ax.set_title(f'Spatial Scatter: {variable.upper()} ({region})',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='upper left', fontsize=10)
-    ax.grid(True, alpha=0.3)
-
-    # Add metrics text box
-    textstr = '\n'.join([
-        f"R = {metrics['spatial_correlation']:.3f}",
-        f"Pattern Score = {metrics['pattern_score']:.3f}",
-        f"Centered RMSE = {metrics['centered_rmse']:.4f}"
-    ])
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-    ax.text(0.95, 0.05, textstr, transform=ax.transAxes, fontsize=10,
-            verticalalignment='bottom', horizontalalignment='right', bbox=props)
-
-    # Equal aspect ratio
-    ax.set_aspect('equal', adjustable='box')
-    plt.tight_layout()
-    return fig
-
-
-def _plot_zonal_means(
-    ref_zonal: xr.DataArray,
-    com_zonal: xr.DataArray,
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot zonal mean profiles."""
-    fig, ax = plt.subplots(figsize=(8, 10))
-
-    # Get latitude values (should now match after nesting)
-    ref_lats = ref_zonal['lat'].values
-    com_lats = com_zonal['lat'].values
-    ref_vals = ref_zonal.values
-    com_vals = com_zonal.values
-
-    # Plot zonal means
-    ax.plot(ref_vals, ref_lats, 'k-', linewidth=2, label='Reference')
-    ax.plot(com_vals, com_lats, 'b--', linewidth=2, label='CAETE Model')
-
-    ax.set_xlabel(f'{variable.upper()} ({ref_zonal.attrs.get("units", "")})', fontsize=12)
-    ax.set_ylabel('Latitude', fontsize=12)
-    ax.set_title(f'Zonal Mean: {variable.upper()} ({region})',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='best', fontsize=11)
-    ax.grid(True, alpha=0.3)
-
-    # Fill between (only if latitudes match)
-    if np.array_equal(ref_lats, com_lats):
-        ax.fill_betweenx(ref_lats, ref_vals, com_vals, alpha=0.2, color='gray')
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_qq_diagram(
-    ref_quantiles: Dict[float, float],
-    com_quantiles: Dict[float, float],
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot quantile-quantile diagram."""
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    quantiles = list(ref_quantiles.keys())
-    ref_vals = [ref_quantiles[q] for q in quantiles]
-    com_vals = [com_quantiles[q] for q in quantiles]
-
-    # Q-Q plot
-    ax.scatter(ref_vals, com_vals, s=100, c='#1f77b4', edgecolors='black', zorder=3)
-
-    # Label points
-    for q, rx, cx in zip(quantiles, ref_vals, com_vals):
-        ax.annotate(f'Q{int(q*100)}', (rx, cx), textcoords="offset points",
-                    xytext=(5, 5), fontsize=9)
-
-    # 1:1 line
-    lims = [min(min(ref_vals), min(com_vals)), max(max(ref_vals), max(com_vals))]
-    ax.plot(lims, lims, 'k--', linewidth=2, label='1:1 line')
-
-    ax.set_xlabel(f'Reference Quantiles ({variable.upper()})', fontsize=12)
-    ax.set_ylabel(f'Model Quantiles ({variable.upper()})', fontsize=12)
-    ax.set_title(f'Q-Q Plot: {variable.upper()} ({region})',
-                 fontsize=14, fontweight='bold')
-    ax.legend(loc='upper left', fontsize=11)
-    ax.grid(True, alpha=0.3)
-    ax.set_aspect('equal', adjustable='box')
-
-    plt.tight_layout()
-    return fig
-
-
-def _plot_spatial_taylor_diagram(
-    df: pd.DataFrame,
-    variable: str,
-    region: str
-) -> plt.Figure:
-    """Plot Taylor diagram for spatial distribution."""
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(111, polar=True)
-
-    # Reference point
-    ax.plot(0, 1, 'ko', markersize=12, label='Reference')
-
-    # Get metrics from dataframe
-    try:
-        norm_std = float(df[df['name'] == 'Normalized Standard Deviation']['value'].iloc[0])
-        corr = float(df[df['name'] == 'Correlation']['value'].iloc[0])
-
-        if not np.isnan(corr) and not np.isnan(norm_std):
-            theta = np.arccos(corr)
-            ax.plot(theta, norm_std, 's', color='#1f77b4', markersize=12, label='CAETE Model')
-    except (IndexError, KeyError):
-        pass
-
-    # Configure axes
-    ax.set_thetamin(0)
-    ax.set_thetamax(90)
-    ax.set_theta_direction(-1)
-    ax.set_theta_zero_location('E')
-    ax.set_rlabel_position(0)
-    ax.set_rticks([0.5, 1.0, 1.5, 2.0])
-
-    ax.set_title(f'Spatial Taylor Diagram: {variable.upper()} ({region})',
-                 fontsize=14, fontweight='bold', pad=20)
-    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
-
-    plt.tight_layout()
-    return fig
-
-
-# =============================================================================
-# MULTI-EXPERIMENT SPATIAL PLOTTING FUNCTIONS
-# =============================================================================
-
 def _plot_multi_experiment_taylor_diagram(
     taylor_metrics_per_exp: Dict[str, Dict[str, float]],
     variable: str,
@@ -2152,7 +1705,8 @@ def _plot_multi_experiment_mean_fields(
     ref_mean: xr.DataArray,
     mean_fields_per_exp: Dict[str, xr.DataArray],
     variable: str,
-    region: str
+    region: str,
+    region_mask: xr.Dataset | None = None
 ) -> plt.Figure:
     """Plot mean field comparison for multiple experiments."""
     n_exp = len(mean_fields_per_exp)
@@ -2166,8 +1720,9 @@ def _plot_multi_experiment_mean_fields(
         squeeze=False
     )
 
-    # Find common colorbar limits
-    ref_regional = Regions.restrict_to_region(ref_mean, region)
+    # Apply region mask to reference (for plotting) and find common colorbar limits
+    masked_ref_mean = _apply_reference_mask(ref_mean, region_mask)
+    ref_regional = Regions.restrict_to_region(masked_ref_mean, region)
     all_means = [ref_regional] + [Regions.restrict_to_region(m, region) for m in mean_fields_per_exp.values()]
     vmin = min(float(m.min()) for m in all_means)
     vmax = max(float(m.max()) for m in all_means)
@@ -2390,9 +1945,12 @@ def run_benchmark(
             - 'ref_ds': reference dataset
     """
     print(f"\n{'='*70}")
-    print(f"RUNNING MULTI-EXPERIMENT BENCHMARK: {variable.upper()}")
+    print(f"RUNNING BENCHMARK: {variable.upper()}")
     print(f"Reference: {dataset_name}/{filename}")
     print(f"{'='*70}\n")
+
+    # Normalize experiments input (str -> [str], other iterables -> list)
+    experiments = _normalize_experiments(experiments)
 
     # Load and prepare data for multiple experiments
     model_datasets, ref_ds, region_mask, model_masks = get_models_and_ref(
@@ -2413,7 +1971,7 @@ def run_benchmark(
 
     # Run temporal analysis (multi-experiment)
     print("\n" + "-"*70)
-    print("TEMPORAL ANALYSIS (Multi-Experiment)")
+    print("TEMPORAL ANALYSIS")
     print("-"*70)
     temporal_results = temporal_analysis(
         model_datasets=model_datasets,
@@ -2425,14 +1983,15 @@ def run_benchmark(
 
     # Run spatial analysis (multi-experiment)
     print("\n" + "-"*70)
-    print("SPATIAL ANALYSIS (Multi-Experiment)")
+    print("SPATIAL ANALYSIS")
     print("-"*70)
     spatial_results = spatial_analysis(
         model_datasets=model_datasets,
         ref_ds=ref_ds,
         variable=variable,
         region="pana",
-        output_dir=output_path
+        output_dir=output_path,
+        region_mask=region_mask
     )
 
     # Combine all scalars

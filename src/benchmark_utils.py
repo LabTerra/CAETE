@@ -70,7 +70,7 @@ ensure_cache_dir()
 #     └── AVHRR/
 #         └── data.nc
 # BENCHMARK_DIR = Path("../../../../OneDrive/Desktop/GUESS_data/LPJG-home/benchmark/") # EDIT HERE TO POINT TO BENCHMARK DATA DIRECTORY
-BENCHMARK_DIR = Path("../../../../OneDrive/Desktop/CAETE/benchmark_data/custom_data")
+BENCHMARK_DIR = Path("../../../../OneDrive/Desktop/CAETE_benchmark/")
 
 ref_datasets = dict()
 
