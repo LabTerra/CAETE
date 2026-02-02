@@ -19,6 +19,8 @@ If you need help configuring your development environment, installing Python, ma
 - João P. Darela F.
 - David Lapola
 - Bianca Rius
+- Bárbara Cardeli
+- Gabriela Sophia
 - Gabriel Marandola
 
 ## Contributors
@@ -34,3 +36,4 @@ If you need help configuring your development environment, installing Python, ma
 - Phillip Papastefanou
 - Tatiana Reichert
 - Thiago S. F. Silva
+
