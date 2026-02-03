@@ -99,6 +99,8 @@ nmake -f Makefile_win setup
 nmake -f Makefile_win
 ```
 
+To run CAETE, follow instructions on section [Running Caete](./running_caete.md)
+
 ---
 
 ## Alternative: Using gfortran in windows
@@ -113,76 +115,29 @@ nmake -f Makefile_win
 
 - Use the script build_caete.bat to build the model with gfortran in windows. This script just applies the numpy.f2py script to build the fortran/python extension module searching for the gfortran and c compilers in the PATH. This combination is pretty raw. I recommend using the Intel fortran compiler if possible. Be aware that using gfortran in windows may lead to unexpected issues, specially issues related to linking the fortran runtime libraries. I tested this in one machine only, with windows 11 pro and mingw64 from winlibs. I used a python 3.11.13 installation built localy from source with the MS Visual compiler.
 
+To run CAETE, follow instructions on section [Running Caete](./running_caete.md)
+
 ## Linux/MacOS setup
 
-- gnu-make
+**1) Install compilers:** Check if you have `gcc`, `gfortran` and `make` libraries installed in your system. You can check if they are installed just by invoking each of them in the command line (e.g. `gcc --version`, `gfortran --version`, etc). If necessary to install, you can run `sudo apt install gfortran gcc make` on Linux to install.
 
-- gcc
+**2) Configure python environment:** You need to have Python >= 3.11 + pip installed to run CAETE. You can install it directly in your system, or use virtual environments **(reccommended)**, like `pyenv` or `miniconda`.
 
-- gfortran
-
-- python >= 3.11 + pip
-
-In linux it is possible to run the model in python 3.11, 3.12 and 3.13. However, the building system used to compile the fortran/python extension module differs between python versions. In python 3.12 the numpy distutils was removed from numpy. See: [Numpy distutils status](https://numpy.org/doc/stable/reference/distutils_status_migration.html#distutils-status-migration). The new (candidate) build method is based on meson. So, if you are using python >=3.12 you will need also:
-
-- meson
-- ninja
+Using linux, it is possible to run the model using Python 3.11, 3.12 and 3.13. However, the building system used to compile the fortran/python extension module differs between Python versions. In Python 3.12, the numpy distutils was removed from numpy. See: [Numpy distutils status](https://numpy.org/doc/stable/reference/distutils_status_migration.html#distutils-status-migration). The new (candidate) build method is based on meson. So, if you are using Python >= 3.12, you will need also to install `meson` and `ninja`
 
 Note: At the current time, the new building (meson) system was only working on linux. If you are using windows, you will need to use python 3.11.
 
-Python Dependencies: see the [requirements](../src/requirements_3xx_last.txt).
+**IMPORTANT:** Edit the PYEXEC variable in the [linux Makefile](../src/Makefile) to match the python that you will use to run the model!
 
-Edit the PYEXEC variable in the [linux Makefile](../src/Makefile) to match the python that you will use to run the model.
-
-Use the make target setup to install python libraries.
-
-To build the extension module in linux, navigate to the src folder and run:
+In order to install Python dependencies, you can navigate to `src` folder and run the following command:
 
 ```bash
 make setup
-make
 ```
 
-## Running the model
+This will install all python requirements from [requirements file](../src/requirements_3xx_last.txt).
 
-### Generating the PLS table
+To run CAETE, follow instructions on section [Running Caete](./running_caete.md)
 
-The PLS (Plant Life Strategy) table is required for running the CAETÊ model. You can generate the PLS table using the `plsgen.py` script located in the `src` folder. This script creates a PLS table based on the specified parameters and saves it as a CSV file.
-
-Navigate to the `src` folder and run the following command to see the available options for the `plsgen.py` script:
-
-```bash
-python plsgen.py -h
-```
-
-This will display the help message with the available options. To generate a PLS table with 10,000 entries and save it to a file named  pls_attrs-10000.csv inside the `PLS_MAIN` folder in the src directory, run the following command:
-
-```bash
-python plsgen.py -n 10000 -f PLS_MAIN
-
-```
-
-After generating the PLS table, you can use it to run the CAETÊ model by specifying the path to the generated CSV file in the model driver script.
-
-### Model configuration
-
-Model configuration parameters are set in the ```caete.toml``` file located in the src folder. You can edit this file to change model parameters before running the model. The config.py script has a class that reads the ```caete.toml``` file and makes the parameters available to the model after a validation step. To include new parameters in the ```caete.toml``` file, you will need to edit the config.py script to include the new parameters in the validation step.
-
-After building the extension module, you can run the model from the src folder using the same python executable that is used in your Makefile.
-
-```bash
-$ python caete_driver.py
-
-# or
-
-$ python caete_driver_CMIP6.py
-
-```
-
-The idea is that when you want to do a experiment with the model, you create a script that mimics the caete_driver.py script but with your own configuration (e.g., different input files, different output files, different spinup configurations).
-
-```caete_driver.py``` runs the model with a subset (n=16) of the gridcells in the input files.
-
-```caete_driver_CMIP6.py``` runs the model with CMIP6 forcing data for 4 gridcells . You need to edit the paths to the input data files in the ```caete_driver_CMIP6.py``` and ```caete_driver.py``` scripts before running them.
 
 [⇦ Back](../README.md)

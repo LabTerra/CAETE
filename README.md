@@ -4,11 +4,16 @@ This repository contains the implementation of the CAETÊ (CArbon and Ecosystem 
 
 [Overview](./doc/build_instruction_slides.md)
 
-[System requirements, building, and running](./doc/system_config.md)
-
 [Input data](./doc/input_data.md)
 
+[System requirements and building](./doc/system_config.md)
+
+[Running CAETE](./doc/running_caete.md)
+
 [Model architecture](./doc/caete_architecture.md)
+
+[Code Maintenance architecture](./doc/code_maintenance.md)
+
 
 ## Help
 
