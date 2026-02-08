@@ -41,7 +41,6 @@ src/*.txt
 src/*.dat
 src/*.prof
 *_env
-*_data
 *_cache
 input/temp*
 

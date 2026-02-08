@@ -36,7 +36,7 @@ contains
 
    subroutine daily_budget(dt, w1, w2, ts, temp, p0, ipar, rh&
         &, mineral_n, labile_p, on, sop, op, catm, sto_budg_in, cl1_in, ca1_in, cf1_in&
-        &, uptk_costs_in, wmax_in, rnpp, evavg, epavg, phavg, aravg, nppavg, laiavg, rcavg&
+        &, uptk_costs_in, wmax_in, rnpp, doy, evavg, epavg, phavg, aravg, nppavg, laiavg, rcavg&
         &,  f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft, cfrootavg_pft&
         &, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg, vcmax_1&
         &, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
@@ -74,6 +74,7 @@ contains
       real(r_8),dimension(npls),intent(in) :: ca1_in  !                 cawood
       real(r_8),dimension(npls),intent(in) :: uptk_costs_in ! g m-2
       real(r_8),dimension(npls),intent(in) :: rnpp ! NPP (g m-2 day-1) construction from previous day
+      integer(i_4),intent(in) :: doy
 
 
       !     ----------------------------OUTPUTS------------------------------
@@ -173,15 +174,16 @@ contains
       real(r_8), dimension(:, :), allocatable :: sto_budg
       real(r_8) :: soil_sat, ar_aux, total_c, c_def_amount, cl_def, ca_def, cf_def
       real(r_8), dimension(:), allocatable :: idx_grasses, idx_pdia
+      real(r_8) :: ae
 
 
-      allocate(sto_budg(3, npls))
 
       !     START
       !     --------------
       !     Grid cell area fraction 0-1
       !     ============================
       ! create copies of some input variables (arrays) - ( they are passed by reference by standard)
+      allocate(sto_budg(3, npls))
       do i = 1,npls
          awood_aux(i) = dt(7,i)
          pdia_aux(i) = dt(17,i)
@@ -193,8 +195,6 @@ contains
             sto_budg(j,i) = sto_budg_in(j,i)
          enddo
       enddo
-
-      ! find the number of grasses
 
       w = w1 + w2      ! soil water mm
       soil_temp = ts   ! soil temp °C
@@ -305,7 +305,8 @@ contains
 
       !     Maximum evapotranspiration   (emax)
       !     =================================
-      emax = evpot2(p0,temp,rh,available_energy(temp))
+      ae = available_energy(temp)
+      emax = evpot2(p0,temp,rh,ae)
       soil_temp = ts
 
       !     Productivity & Growth (ph, ALLOCATION, aresp, vpd, rc2 & etc.) for each PLS
@@ -321,7 +322,7 @@ contains
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
       !$OMP PRIVATE(p, ri, carbon_in_storage, testcdef, sr, dt1, mr_sto, growth_stoc,&
-      !$OMP         ar_aux, total_c, c_def_amount, cl_def, ca_def, cf_def)
+      !$OMP         ar_aux, total_c, c_def_amount, cl_def, ca_def, cf_def, ae)
       do p = 1,nlen
          carbon_in_storage = 0.0D0
          testcdef = 0.0D0
@@ -339,7 +340,7 @@ contains
 
          ! TODO: Implement the degree of coupling between the soil-vegetation-atmosphere system using stomatal conductance and VPD
          ! as in Köstner et al. 1992
-         evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
+         evap(p) = penman(p0,temp,rh,ae,rc2(p)) !Actual evapotranspiration (evap, mm/day)
 
          ! Check if the carbon deficit can be compensated by stored carbon
 

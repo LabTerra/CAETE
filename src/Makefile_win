@@ -55,9 +55,6 @@ OVRTFLAG = --overwrite-signature
 FCFLAGS = -fpp -Od -debug:full -warn:all -nologo
 FLFLAGS = -fpp -c -Od -debug:full -nologo
 
-# Use budget_fixed.F90 for stack allocation (faster)
-# MAIN_SUB = budget_fixed.F90
-
 # Use budget.F90 for heap allocation (slower, but allows larger number of PLS)
 MAIN_SUB = budget.F90
 
@@ -75,12 +72,15 @@ objects = $(src_obj) $(basename $(MAIN_SUB)).obj
 all: caete_lib
 
 # Targets
-caete_lib: clean_py clean_so modules so_parallel
+caete_lib: clean_py clean_so modules so_parallel unittests
 
 # python setup
 setup:
 	@echo "Installing dependencies..."
 	$(PIP) install -r requirements_3xx_last.txt
+
+unittests: clean_py
+	@$(PYEXEC) run_unit_tests.py
 
 # pyf interfaces
 interface: $(sources)
@@ -170,41 +170,26 @@ budget.mod: budget.obj budget.F90
 	$(FC) $(FLFLAGS) budget.F90
 
 clean_py:
-	del /s /q __pycache__
-	del /s /q build
+	pwsh.exe -Command "Get-ChildItem -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue; exit 0"
+	pwsh.exe -Command "if (Test-Path build) { Remove-Item -Recurse -Force build }; exit 0"
 
 clean_so:
-	del /s *.pyd
-	del /s *.pyf
-	del /s *.c
-	del /s *.log
-	del /s *.psz
+	pwsh.exe -Command "Get-ChildItem -Recurse -Include *.pyd,*.pyf,*.c,*.log,*.psz | Remove-Item -Force -ErrorAction SilentlyContinue; exit 0"
 
 clean: clean_py clean_so
-	del /s *.mod
-	del /s *.o
-	del /s *.s
-	del pls_ex.txt
-	del run_debug
-	del logfile.log
-	del /s *.obj
-	del /s *.exe
-	del /s *.dll
-	del /s *.pdb
-	del /s *.ilk
-	del /s *.lib
-	del /s *.exp
-	cls
+	pwsh.exe -Command "Get-ChildItem -Recurse -Include *.mod,*.o,*.s,*.obj,*.exe,*.dll,*.pdb,*.ilk,*.lib,*.exp | Remove-Item -Force -ErrorAction SilentlyContinue; exit 0"
+	pwsh.exe -Command "Remove-Item -Force pls_ex.txt,run_debug,logfile.log -ErrorAction SilentlyContinue; exit 0"
+	pwsh.exe -Command "Clear-Host"
 
 clean_outputs:
-	del /s /q ..\outputs
-	cls
+	pwsh.exe -Command "if (Test-Path ..\outputs) { Remove-Item -Recurse -Force ..\outputs }; exit 0"
+	pwsh.exe -Command "Clear-Host"
 
 clean_all: clean clean_outputs
 	@echo "All files cleaned."
 
 clean_dfs:
-	del /s /q .\\__pycache__\\dataframes.cpython*.pyc
+	pwsh.exe -Command "Remove-Item -Force .\__pycache__\dataframes.cpython*.pyc -ErrorAction SilentlyContinue; exit 0"
 
 clean_community:
-	del /s /q .\\__pycache__\\community.cpython*.pyc
+	pwsh.exe -Command "Remove-Item -Force .\__pycache__\community.cpython*.pyc -ErrorAction SilentlyContinue; exit 0"

@@ -20,9 +20,19 @@
 # It also can build a fortran executable for debugging purposes.
 # This is not implemented in the windows version.
 
-# Requires python 3.13 or lower (because of numba)
-# If using python 3.12, use the ext_mod_meson target
-# If using python 3.11, use the ext_mod_legacy target
+# Requires python 3.11 - 3.14
+# Use bash
+SHELL := /bin/bash
+
+# NCEP Available Energy model flag
+# Set USE_NCEP_AE=1 to enable new multivariate AE model (T, RH, P)
+# Usage: make USE_NCEP_AE=1
+ifdef USE_NCEP_AE
+    NCEP_AE_FLAG = -DNCEP_AE
+    $(info [NCEP_AE] Using multivariate Available Energy model (T, RH, P))
+else
+    NCEP_AE_FLAG =
+endif
 
 PYEXEC = python # Edit this line to point to the python executable
 PIP = $(PYEXEC) -m pip
@@ -40,20 +50,22 @@ OVRTFLAG = --overwrite-signature
 
 # Compiler and flags. Choose one of the options below.
 
-# GNU Fortran compiler with libgomp. Set FC to gfortran and OMP_LIB to -lgomp (Default)
-# Ext flags for gfortran: EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans
+# # GNU Fortran compiler with libgomp. Set FC to gfortran and OMP_LIB to -lgomp (Default)
+# # Ext flags for gfortran: EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans
+# # gfortran compiler - libgomp
+# FC = gfortran
+# OMP_LIB = -lgomp
+# EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans
 
-# gfortran compiler - libgomp
-FC = gfortran
-OMP_LIB = -lgomp
-EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans
-
-# # AMD Optimizing C/C++ and Fortran Compilers. Not tested with other versions of flang.
-## Faster in AMD hardware
+# # AMD Optimizing C/C++ and Fortran Compilers. https://docs.amd.com/r/en-US/57222-AOCC-user-guide/Installation
+# # Faster in AMD hardware
 # # flang compiler uses libomp
-# FC = flang
-# OMP_LIB = -lomp
-# EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -DPREPEND_FORTRAN -DNO_APPEND_FORTRAN -DUPPERCASE_FORTRAN
+# # Adjust AOCC_ACTIVATE_SCRIPT to your install path
+AOCC_ACTIVATE_SCRIPT = $(HOME)/opt
+SOURCE_SCRIPT = source
+FC = flang
+OMP_LIB = -lomp
+EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -DPREPEND_FORTRAN -DNO_APPEND_FORTRAN -DUPPERCASE_FORTRAN
 
 # f2py debugging flag: --debug
 # Add this flag to the f2py command to enable debugging information in the extension module.
@@ -89,12 +101,15 @@ objects = $(src_obj) $(basename $(MAIN_SUB)).o debug_caete.o
 # Targets
 .PHONY: setup interface so so_parallel clean clean_so modules
 
-all: ext_mod_meson_parallel #ext_mod_legacy
+all: ext_mod_meson_parallel unittests
+
+aocc_flang:
+	source $(AOCC_ACTIVATE_SCRIPT)/setenv_AOCC.sh && $(MAKE) ext_mod_meson_parallel && $(MAKE) unittests
+	@echo "Set AOCC using: source /path_to/setenv_AOCC.sh before importing the extension module"
 
 # Bypass the makefile. To be used with gnu-make in windows
 mingw64_build:
 	cmd /c build_caete.bat
-
 
 # Python setup
 setup:
@@ -104,20 +119,23 @@ setup:
 modules: $(sources)
 	$(FC) -c $(sources)
 
+unittests: clean
+	$(PYEXEC) run_unit_tests.py
+
 # Build the extension module (caete_module) from .F90 source
 # To be used when python >= 3.12
 ext_mod_meson: $(sources) modules
 	@$(PYEXEC) precompilation_data.py
 	$(F2PY) $(HFLAG) $(INTERFACES) $(sources) -m $(MODNAME) $(OVRTFLAG) --quiet
 	@export FC=$(FC) && \
-	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --build-dir build --backend meson --f90flags="-Wall $(EXT_FLAGS)" $(DEBUG)
+	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --build-dir build --backend meson --f90flags="-Wall $(EXT_FLAGS) $(NCEP_AE_FLAG)" $(DEBUG)
 
 
 ext_mod_meson_parallel: $(sources) modules
 	@$(PYEXEC) precompilation_data.py
 	$(F2PY) $(HFLAG) $(INTERFACES) $(sources) -m $(MODNAME) $(OVRTFLAG) --quiet
 	@export FC=$(FC) && \
-	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --build-dir build --backend meson --f90flags="-Wall $(EXT_FLAGS) -fopenmp" $(OMP_LIB) $(DEBUG) --no-freethreading-compatible
+	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --build-dir build --backend meson --f90flags="-Wall $(EXT_FLAGS) $(NCEP_AE_FLAG) -fopenmp" $(OMP_LIB) $(DEBUG) --no-freethreading-compatible
 
 
 # Build the extension module (caete_module) from .F90 source
@@ -125,7 +143,7 @@ ext_mod_meson_parallel: $(sources) modules
 ext_mod_legacy: $(sources) modules
 	@$(PYEXEC) precompilation_data.py
 	$(F2PY) $(HFLAG) $(INTERFACES) $(sources) -m $(MODNAME) $(OVRTFLAG) --quiet
-	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS)" --backend distutils $(DEBUG)
+	$(F2PY) $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS) $(NCEP_AE_FLAG)" --backend distutils $(DEBUG)
 
 ### numpy.distutils build targets ===========================
 # deprecated targets for building the extension module using numpy.distutils
@@ -139,7 +157,7 @@ interface: $(sources)
 # Build the shared object (caete_module) from .F90 source
 # Enable OpenMP
 so_parallel: $(sources) interface
-	$(F2PY)  $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS) \
+	$(F2PY)  $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS) $(NCEP_AE_FLAG) \
 	                                      -fopenmp " $(OMP_LIB) $(DEBUG) --backend distutils --no-freethreading-compatible
 	@echo "Parallel version of caete_module created using $(FC)"
 #	@echo "Compiling community module..."
@@ -148,7 +166,7 @@ so_parallel: $(sources) interface
 # Build the shared object (caete_module) from .F90 source
 # Serial version
 so: $(sources) interface
-	$(F2PY)  $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS) " --quiet $(DEBUG)
+	$(F2PY)  $(INTERFACES) $(CFLAG) $(sources) --f90exec="$(FC)" --f77exec="$(FC)" --f90flags="-Wall $(EXT_FLAGS) $(NCEP_AE_FLAG)" --quiet $(DEBUG)
 	@echo "Serial version of caete_module created using $(FC)"
 #	@echo "Compiling community module..."
 #	$(PYEXEC) setup.py build_ext --inplace

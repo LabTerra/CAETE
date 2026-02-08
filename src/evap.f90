@@ -60,7 +60,7 @@ module water
       use types
       use global_par
       !implicit none
-      integer(i_4),parameter :: m = 1095
+      integer(i_4),parameter :: m = 365
 
       real(r_8),dimension(m), intent( in) :: temp ! future __ make temps an allocatable array
       real(r_8), intent(out) :: tsoil

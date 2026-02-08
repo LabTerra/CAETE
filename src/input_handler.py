@@ -858,14 +858,22 @@ class netcdf_handler(base_handler):
             list: List of station names as strings extracted from the NetCDF file
 
         Note:
-            Assumes the NetCDF file has a 1D 'station_name' variable.
+            Handles both 1D string arrays and 2D character arrays (S1 type).
         """
+        import netCDF4 as nc
 
         # Get the station_name variable
         station_name_var = self.nc_data.variables['station_name']
+        data = station_name_var[:]
 
-        # We assume 1D string arrays for the station names
-        names = [str(name).strip() for name in station_name_var[:]]
+        # Check if it's a 2D character array (common NetCDF format)
+        if data.ndim == 2:
+            # Convert character array to string array using netCDF4's chartostring
+            names = [s.strip() for s in nc.chartostring(data)]
+        else:
+            # 1D string array
+            names = [str(name).strip() for name in data]
+
         return names
 
     def _find_coordinate_variable(self, coord_type):
@@ -1334,7 +1342,9 @@ class input_handler:
                 # Extract latitude and longitude variables
                 lats = ds.variables[lat_var][:].data
                 lons = ds.variables[lon_var][:].data
-                station_names = ds.variables['station_name'][:]
+                # Convert station names from binary/char array to strings
+                station_names_raw = ds.variables['station_name'][:]
+                station_names = [b''.join(row).decode('utf-8').strip() for row in station_names_raw]
                 station_ids = ds.variables['station'][:].data
                 global_y, global_x = np.array([find_indices_xy(ny, nx) for ny, nx in zip(lats, lons)]).T
 

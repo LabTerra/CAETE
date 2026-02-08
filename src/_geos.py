@@ -21,9 +21,19 @@
 #     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # """
 
+
+"""
+This module contains functions for working with geospatial data, such as calculating the area of a cell on the Earth's surface,
+finding the indices of a given latitude and longitude in a grid, and finding the latitude and longitude for given indices in a grid.
+Most of the functions in this module are JIT compiled and cached using numba.
+If you change any of the cached functions, you should delete the cache
+folder in the src folder (named __pycache__). This will force numba
+to recompile the functions and cache them again.
+Unit tests are not exposed to be imported by other scripts or called as a module routine
+"""
+
+
 from typing import Tuple
-
-
 import numpy as np
 
 from numba import jit # type: ignore
@@ -35,13 +45,22 @@ except ImportError:
     from .config import fetch_config
 
 config = fetch_config()
-datum = config.crs.datum # type: ignore
+DATUM = config.crs.datum # type: ignore
+DY = config.crs.yres # type: ignore
+DX = config.crs.xres # type: ignore
+
+JIT_CACHE = True # Set to false for debugging/developing, true for production.
 
 #TODO:  find_indices and find_coordinates should raise errors in case of improper inputs.
 
 # WARN: find_indices and find_coordinates precision is limited to 7 decimal places.
 
-def calculate_area(center_lat:float, center_lon:float, dx:float=0.5, dy:float=0.5, datum: str = datum)->float: # type: ignore
+def calculate_area(center_lat:float,
+                   center_lon:float,
+                   dx:float=DX,
+                   dy:float=DY,
+                   datum: str = DATUM
+                   )->float: # type: ignore
     """Calculates the area of a cell on the Earth's surface given the center coordinates and the cell resolution
     using a geographic coordinate system with the datum provided.
 
@@ -81,7 +100,8 @@ def calculate_area(center_lat:float, center_lon:float, dx:float=0.5, dy:float=0.
 
     return area
 
-@jit(nopython=True, cache=True)
+# JIT compiled
+@jit(nopython=True, cache=JIT_CACHE)
 def calc_min_rounding_log(res: float) -> int:
     """Calculate minimum rounding digits needed for a given resolution using logarithms."""
     if res >= 1.0:
@@ -104,8 +124,9 @@ def calc_min_rounding_log(res: float) -> int:
         return max(2, decimal_places + safety_margin)  # +2 for safety margin
 
 
-@jit(nopython=True, cache=True) # type: ignore
-def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, rounding: int = 2) -> Tuple[int, int]:
+@jit(nopython=True, cache=JIT_CACHE) # type: ignore
+def find_indices_xy(N: float, W: float, res_y: float = DY, res_x: float = DX, rounding: int = 2) -> Tuple[int, int]:
+    # TODO: Add rounding to config?
     """
     It finds the indices for a given latitude and longitude in a planar grid.
     WARNING Feeding the function with lat/long outside the boundaries
@@ -119,8 +140,8 @@ def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, 
     Args:
         N (float): latitude in decimal degrees north
         W (float): longitude in decimal degrees west
-        res_y (float, optional): grid resolution for y-axis. Defaults to 0.5 degrees.
-        res_x (float, optional): grid resolution for x-axis. Defaults to 0.5 degrees.
+        res_y (float, optional): grid resolution for y-axis. Defaults to value defined in caete.toml.
+        res_x (float, optional): grid resolution for x-axis. Defaults to 0.5 defined in caete.toml.
         rounding (int, optional): decimal significant digits. Defaults to 2.
 
     Returns:
@@ -169,8 +190,8 @@ def find_indices_xy(N: float, W: float, res_y: float = 0.5, res_x: float = 0.5, 
     return Yind, Xind
 
 
-@jit(nopython=True, cache=True) # type: ignore
-def find_indices(N: float, W: float, res: float = 0.5, rounding: int = 2) -> Tuple[int, int]:
+@jit(nopython=True, cache=JIT_CACHE) # type: ignore
+def find_indices(N: float, W: float, res: float = DX, rounding: int = 2) -> Tuple[int, int]:
     """
     It finds the indices for a given latitude and longitude in a planar grid.
     WARNING Feeding the function with lat/long outside the boundaries
@@ -179,7 +200,7 @@ def find_indices(N: float, W: float, res: float = 0.5, rounding: int = 2) -> Tup
     Args:
         N (float): latitude in decimal degrees north
         W (float): longitude in decimal degrees west
-        res (float, optional): grid resolution. Defaults to 0.5 degrees.
+        res (float, optional): grid resolution. Defaults to xres degrees (in caete.toml).
         rounding (int, optional): decimal significant digits. Defaults to 2.
 
     Returns:
@@ -216,8 +237,8 @@ def find_indices(N: float, W: float, res: float = 0.5, rounding: int = 2) -> Tup
     return Yind, Xind
 
 
-@jit(nopython=True, cache=True) # type: ignore
-def find_coordinates_xy(Yind: int, Xind: int, res_y: float = 0.5, res_x: float = 0.5, rounding: int = 2) -> Tuple[float, float]:
+@jit(nopython=True, cache=JIT_CACHE) # type: ignore
+def find_coordinates_xy(Yind: int, Xind: int, res_y: float = DY, res_x: float = DX, rounding: int = 2) -> Tuple[float, float]:
     """
     It finds the latitude and longitude (cell center) for given (Yind, Xind) indices in a planar grid.
     WARNING: This function do not check if the indices are valid.
@@ -225,9 +246,9 @@ def find_coordinates_xy(Yind: int, Xind: int, res_y: float = 0.5, res_x: float =
     Args:
         Yind (int): y index in the grid
         Xind (int): x index in the grid
-        res_y (float, optional): grid resolution for y-axis. Defaults to 0.5 degrees.
-        res_x (float, optional): grid resolution for x-axis. Defaults to 0.5 degrees.
-        rounding (int, optional): decimal significant digits. Defaults to 2.
+        res_y (float, optional): grid resolution for y-axis. Defaults to crs.xres in the caete.toml
+        res_x (float, optional): grid resolution for x-axis. Defaults to crs.yres in the caete.toml
+        rounding (int, optional): decimal significant digits. Defaults to 2
 
     Returns:
         tuple[float, float]: (N, W) latitude and longitude for the given indices.
@@ -258,15 +279,15 @@ def find_coordinates_xy(Yind: int, Xind: int, res_y: float = 0.5, res_x: float =
     return N, W
 
 
-@jit(nopython=True, cache=True) # type: ignore
-def find_coordinates(Yind: int, Xind: int, res: float = 0.5, rounding: int = 2) -> Tuple[float, float]:
+@jit(nopython=True, cache=JIT_CACHE) # type: ignore
+def find_coordinates(Yind: int, Xind: int, res: float = DX, rounding: int = 2) -> Tuple[float, float]:
     """It finds the latitude and longitude (cell center) for given (Yind, Xind) indices in a planar grid
     WARNING: This function do not check if the indices are valid.
 
     Args:
         Yind (int): y index in the grid
         Xind (int): x index in the grid
-        res (float, optional): grid resolution. Defaults to 0.5 degrees.
+        res (float, optional): grid resolution. Defaults to crs.xres in caete.toml.
         rounding (int, optional): decimal significant digits. Defaults to 2.
 
     Returns:
@@ -347,244 +368,252 @@ global_region = define_region(**global_bbox)  # type: ignore
 pan_amazon_region = define_region(**pan_amazon_bbox) # type: ignore
 
 
+
 if __name__ == "__main__":
-    import unittest
+    # Unit tests
+    import sys
 
-    class TestFunctions(unittest.TestCase):
-        def test_calculate_area(self):
-            # Test with known values
-            # Compare with some external data source:
-            # https://gis.stackexchange.com/questions/127165/more-accurate-way-to-calculate-area-of-rasters
-            # Look at the first answer
+    if sys.argv[-1] == "pass":
+        pass
+    else:
+        import unittest
 
-            self.assertAlmostEqual(calculate_area(0, 0, 0.5, 0.5) * 1e-6, 3077.2300079, delta=0.1)
-            self.assertAlmostEqual(calculate_area(0.75, 0, 0.5, 0.5) * 1e-6, 3077.0019391, delta=0.1)
-            self.assertAlmostEqual(calculate_area(-0.75, 0, 0.5, 0.5) * 1e-6, 3077.0019391, delta=0.1)
-            self.assertAlmostEqual(calculate_area(-89.75, 0.0, 0.5, 0.5) * 1e-6, 13.608615243, delta=0.1)
-            self.assertAlmostEqual(calculate_area(0, 0, 0.25, 0.25) * 1e-6, 3077.2300079/4, delta=0.1)
-            self.assertAlmostEqual(calculate_area(0.75, 0, 0.25, 0.25) * 1e-6, 3077.0019391/4, delta=0.1)
-            self.assertAlmostEqual(calculate_area(-0.75, 0, 0.25, 0.25) * 1e-6, 3077.0019391/4, delta=0.1)
-            self.assertAlmostEqual(calculate_area(-89.75, 0.0, 0.25, 0.25) * 1e-6, 13.608615243/4, delta=0.1)
+        class TestFunctions(unittest.TestCase):
 
-            # Test with invalid inputs
-            with self.assertRaises(AssertionError):
-                calculate_area(-91, 0, 1, 1)
-                calculate_area(91, 0, 1, 1)
-                calculate_area(0, -181, 1, 1)
-                calculate_area(0, 181, 1, 1)
-                calculate_area(0, 0, -1, 1)
-                calculate_area(0, 0, 1, -1)
+            def test_calculate_area(self):
+                # Test with known values
+                # Compare with some external data source:
+                # https://gis.stackexchange.com/questions/127165/more-accurate-way-to-calculate-area-of-rasters
+                # Look at the first answer
 
+                self.assertAlmostEqual(calculate_area(0, 0, 0.5, 0.5) * 1e-6, 3077.2300079, delta=0.1)
+                self.assertAlmostEqual(calculate_area(0.75, 0, 0.5, 0.5) * 1e-6, 3077.0019391, delta=0.1)
+                self.assertAlmostEqual(calculate_area(-0.75, 0, 0.5, 0.5) * 1e-6, 3077.0019391, delta=0.1)
+                self.assertAlmostEqual(calculate_area(-89.75, 0.0, 0.5, 0.5) * 1e-6, 13.608615243, delta=0.1)
+                self.assertAlmostEqual(calculate_area(0, 0, 0.25, 0.25) * 1e-6, 3077.2300079/4, delta=0.1)
+                self.assertAlmostEqual(calculate_area(0.75, 0, 0.25, 0.25) * 1e-6, 3077.0019391/4, delta=0.1)
+                self.assertAlmostEqual(calculate_area(-0.75, 0, 0.25, 0.25) * 1e-6, 3077.0019391/4, delta=0.1)
+                self.assertAlmostEqual(calculate_area(-89.75, 0.0, 0.25, 0.25) * 1e-6, 13.608615243/4, delta=0.1)
 
-        def test_find_indices(self):
-
-            # Test with invalid inputs
-            # Resolution must be positive and lat/lon must be within the boundaries
-            self.assertEqual(find_indices_xy(91, 0, 1, 1), (-1, 179))
-            self.assertEqual(find_indices_xy(-91, 0, 1, 1), (-1, 179))
-            self.assertEqual(find_indices_xy(0, 181, 1, 1), (89, -1))
-            self.assertEqual(find_indices_xy(0, -181, 1, 1), (89, -1))
-            self.assertEqual(find_indices_xy(0, 0, -1, 1), (-1, -1))
-            self.assertEqual(find_indices_xy(0, 0, 1, -1), (-1, -1))
-            self.assertEqual(find_indices_xy(0, 0, 0, 0), (-1, -1))
-
-            # XY versions must match the non-XY versions
-            # find_indices and find_indices_xy should return the same values
-            self.assertEqual(find_indices_xy(45, 45, 1, 1), find_indices(45, 45, 1))
-            self.assertEqual(find_indices_xy(0, 0, 0.25, 0.25), find_indices(0, 0, 0.25))
-            self.assertEqual(find_indices_xy(45, 45, 0.25, 0.25), find_indices(45, 45, 0.25))
-            self.assertEqual(find_indices_xy(0, 0, 0.5, 0.5), find_indices(0, 0, 0.5))
-            self.assertEqual(find_indices_xy(-2.63, 0, 0.5, 0.5), find_indices(-2.63, 0, 0.5))
-            self.assertEqual(find_indices_xy(-2.63, 0, 1/12, 1/12), find_indices(-2.63, 0, 1/12))
-            self.assertEqual(find_indices_xy(-2.63, 0, 1/1200, 1/1200), find_indices(-2.63, 0, 1/1200))
-
-            # the same for find_coordinates and find_coordinates_xy
-            self.assertEqual(find_coordinates_xy(0, 0, 1, 1), find_coordinates(0, 0, 1))
-            self.assertEqual(find_coordinates_xy(180, 45, 1, 1), find_coordinates(180, 45, 1))
-            self.assertEqual(find_coordinates_xy(30, 0, 1, 1), find_coordinates(30, 0, 1))
-            self.assertEqual(find_coordinates_xy(45, 45, 1/12, 1/12), find_coordinates(45, 45, 1/12))
-            self.assertEqual(find_coordinates_xy(45, 45, 1/120, 1/120), find_coordinates(45, 45, 1/120))
-            self.assertEqual(find_coordinates_xy(45, 45, 1/1200, 1/1200), find_coordinates(45, 45, 1/1200))
-
-            # find coordinates and find coordinates_xy cross test
-            self.assertEqual(find_coordinates_xy(*find_indices_xy(0, 0, 0.5, 0.5), 0.5, 0.5),
-                             find_coordinates(*find_indices(0, 0, 0.5), 0.5))
-
-            # find coordinates and find coordinates_xy must return the same values
-            self.assertEqual(find_coordinates_xy(*find_indices_xy(45, 45, 1, 1), 1, 1),
-                             find_coordinates(*find_indices(45, 45, 1), 1))
+                # Test with invalid inputs
+                with self.assertRaises(AssertionError):
+                    calculate_area(-91, 0, 1, 1)
+                    calculate_area(91, 0, 1, 1)
+                    calculate_area(0, -181, 1, 1)
+                    calculate_area(0, 181, 1, 1)
+                    calculate_area(0, 0, -1, 1)
+                    calculate_area(0, 0, 1, -1)
 
 
-            # outputs of find_coordinates feeded with the outputs of find_indices should be the same as the inputs of find_indices
-            # Find coordinates snaps to cell center, so we use res/2 as delta
-            def check_crossed_results(lat=90, lon=180, res=0.5):  # type: ignore
-                y, x = find_indices(lat, lon, res)
-                lat1, lon1 = find_coordinates(y, x, res)
+            def test_find_indices(self):
+
+                # Test with invalid inputs
+                # Resolution must be positive and lat/lon must be within the boundaries
+                self.assertEqual(find_indices_xy(91, 0, 1, 1), (-1, 179))
+                self.assertEqual(find_indices_xy(-91, 0, 1, 1), (-1, 179))
+                self.assertEqual(find_indices_xy(0, 181, 1, 1), (89, -1))
+                self.assertEqual(find_indices_xy(0, -181, 1, 1), (89, -1))
+                self.assertEqual(find_indices_xy(0, 0, -1, 1), (-1, -1))
+                self.assertEqual(find_indices_xy(0, 0, 1, -1), (-1, -1))
+                self.assertEqual(find_indices_xy(0, 0, 0, 0), (-1, -1))
+
+                # XY versions must match the non-XY versions
+                # find_indices and find_indices_xy should return the same values
+                self.assertEqual(find_indices_xy(45, 45, 1, 1), find_indices(45, 45, 1))
+                self.assertEqual(find_indices_xy(0, 0, 0.25, 0.25), find_indices(0, 0, 0.25))
+                self.assertEqual(find_indices_xy(45, 45, 0.25, 0.25), find_indices(45, 45, 0.25))
+                self.assertEqual(find_indices_xy(0, 0, 0.5, 0.5), find_indices(0, 0, 0.5))
+                self.assertEqual(find_indices_xy(-2.63, 0, 0.5, 0.5), find_indices(-2.63, 0, 0.5))
+                self.assertEqual(find_indices_xy(-2.63, 0, 1/12, 1/12), find_indices(-2.63, 0, 1/12))
+                self.assertEqual(find_indices_xy(-2.63, 0, 1/1200, 1/1200), find_indices(-2.63, 0, 1/1200))
+
+                # the same for find_coordinates and find_coordinates_xy
+                self.assertEqual(find_coordinates_xy(0, 0, 1, 1), find_coordinates(0, 0, 1))
+                self.assertEqual(find_coordinates_xy(180, 45, 1, 1), find_coordinates(180, 45, 1))
+                self.assertEqual(find_coordinates_xy(30, 0, 1, 1), find_coordinates(30, 0, 1))
+                self.assertEqual(find_coordinates_xy(45, 45, 1/12, 1/12), find_coordinates(45, 45, 1/12))
+                self.assertEqual(find_coordinates_xy(45, 45, 1/120, 1/120), find_coordinates(45, 45, 1/120))
+                self.assertEqual(find_coordinates_xy(45, 45, 1/1200, 1/1200), find_coordinates(45, 45, 1/1200))
+
+                # find coordinates and find coordinates_xy cross test
+                self.assertEqual(find_coordinates_xy(*find_indices_xy(0, 0, 0.5, 0.5), 0.5, 0.5),
+                                    find_coordinates(*find_indices(0, 0, 0.5), 0.5))
+
+                # find coordinates and find coordinates_xy must return the same values
+                self.assertEqual(find_coordinates_xy(*find_indices_xy(45, 45, 1, 1), 1, 1),
+                                    find_coordinates(*find_indices(45, 45, 1), 1))
+
+
+                # outputs of find_coordinates feeded with the outputs of find_indices should be the same as the inputs of find_indices
                 # Find coordinates snaps to cell center, so we use res/2 as delta
-                self.assertAlmostEqual(lat1, lat, delta=res/2.0)
-                self.assertAlmostEqual(lon1, lon, delta=res/2.0)
+                def check_crossed_results(lat=90, lon=180, res=0.5):  # type: ignore
+                    y, x = find_indices(lat, lon, res)
+                    lat1, lon1 = find_coordinates(y, x, res)
+                    # Find coordinates snaps to cell center, so we use res/2 as delta
+                    self.assertAlmostEqual(lat1, lat, delta=res/2.0)
+                    self.assertAlmostEqual(lon1, lon, delta=res/2.0)
 
-            check_crossed_results()
-            check_crossed_results(0, 0, 0.5)
-            check_crossed_results(45, 45, 1)
-            check_crossed_results(0, 0, 0.25)
-            check_crossed_results(45, 45, 0.25)
-            check_crossed_results(90, 180, 0.5)
-            check_crossed_results(-90, -180, 0.5)
-            check_crossed_results(-90, 180, 0.5)
-            check_crossed_results(90, -180, 0.01)
+                check_crossed_results()
+                check_crossed_results(0, 0, 0.5)
+                check_crossed_results(45, 45, 1)
+                check_crossed_results(0, 0, 0.25)
+                check_crossed_results(45, 45, 0.25)
+                check_crossed_results(90, 180, 0.5)
+                check_crossed_results(-90, -180, 0.5)
+                check_crossed_results(-90, 180, 0.5)
+                check_crossed_results(90, -180, 0.01)
 
-            def check_crossed_results_xy(lat=90, lon=180, res=0.5):  # type: ignore
-                y, x = find_indices_xy(lat, lon, res, res)
-                lat1, lon1 = find_coordinates_xy(y, x, res, res)
-                # Find coordinates snaps to cell center, so we use res/2 as delta
-                self.assertAlmostEqual(lat1, lat, delta=res/2.0)
-                self.assertAlmostEqual(lon1, lon, delta=res/2.0)
+                def check_crossed_results_xy(lat=90, lon=180, res=0.5):  # type: ignore
+                    y, x = find_indices_xy(lat, lon, res, res)
+                    lat1, lon1 = find_coordinates_xy(y, x, res, res)
+                    # Find coordinates snaps to cell center, so we use res/2 as delta
+                    self.assertAlmostEqual(lat1, lat, delta=res/2.0)
+                    self.assertAlmostEqual(lon1, lon, delta=res/2.0)
 
-            check_crossed_results_xy()
-            check_crossed_results_xy(0, 0, 0.5)
-            check_crossed_results_xy(45, 45, 1)
-            check_crossed_results_xy(0, 0, 0.25)
-            check_crossed_results_xy(45, 45, 0.25)
-            check_crossed_results_xy(90, 180, 0.5)
-            check_crossed_results_xy(-90, -180, 0.5)
-            check_crossed_results_xy(-90, 180, 0.5)
-            check_crossed_results_xy(90, -180, 0.01)
-
-
-            def check_crossed_results_crossed_xy(lat=90, lon=180, res=0.5):  # type: ignore
-                y, x = find_indices(lat, lon, res)
-                lat1, lon1 = find_coordinates_xy(y, x, res, res)
-                # Find coordinates snaps to cell center, so we use res/2 as delta
-                self.assertAlmostEqual(lat1, lat, delta=res/2.0)
-                self.assertAlmostEqual(lon1, lon, delta=res/2.0)
-
-            check_crossed_results_crossed_xy()
-            check_crossed_results_crossed_xy(0, 0, 0.5)
-            check_crossed_results_crossed_xy(45, 45, 1)
-            check_crossed_results_crossed_xy(0, 0, 0.25)
-            check_crossed_results_crossed_xy(45, 45, 0.25)
-            check_crossed_results_crossed_xy(90, 180, 0.5)
-            check_crossed_results_crossed_xy(-90, -180, 0.5)
-            check_crossed_results_crossed_xy(-90, 180, 0.5)
-            check_crossed_results_crossed_xy(90, -180, 0.01)
-
-            def check_crossed_results_crossed_xy_2(lat=90, lon=180, res=0.5):  # type: ignore
-                y, x = find_indices_xy(lat, lon, res, res)
-                lat1, lon1 = find_coordinates(y, x, res)
-                # Find coordinates snaps to cell center, so we use res/2 as delta
-                self.assertAlmostEqual(lat1, lat, delta=res/2.0)
-                self.assertAlmostEqual(lon1, lon, delta=res/2.0)
-
-            check_crossed_results_crossed_xy_2()
-            check_crossed_results_crossed_xy_2(0, 0, 0.5)
-            check_crossed_results_crossed_xy_2(45, 45, 1)
-            check_crossed_results_crossed_xy_2(0, 0, 0.25)
-            check_crossed_results_crossed_xy_2(45, 45, 0.25)
-            check_crossed_results_crossed_xy_2(90, 180, 0.5)
-            check_crossed_results_crossed_xy_2(-90, -180, 0.5)
-            check_crossed_results_crossed_xy_2(-90, 180, 0.5)
-            check_crossed_results_crossed_xy_2(90, -180, 0.01)
+                check_crossed_results_xy()
+                check_crossed_results_xy(0, 0, 0.5)
+                check_crossed_results_xy(45, 45, 1)
+                check_crossed_results_xy(0, 0, 0.25)
+                check_crossed_results_xy(45, 45, 0.25)
+                check_crossed_results_xy(90, 180, 0.5)
+                check_crossed_results_xy(-90, -180, 0.5)
+                check_crossed_results_xy(-90, 180, 0.5)
+                check_crossed_results_xy(90, -180, 0.01)
 
 
-        def test_find_coordinates(self):
+                def check_crossed_results_crossed_xy(lat=90, lon=180, res=0.5):  # type: ignore
+                    y, x = find_indices(lat, lon, res)
+                    lat1, lon1 = find_coordinates_xy(y, x, res, res)
+                    # Find coordinates snaps to cell center, so we use res/2 as delta
+                    self.assertAlmostEqual(lat1, lat, delta=res/2.0)
+                    self.assertAlmostEqual(lon1, lon, delta=res/2.0)
 
-            # Test with known values
-            res = 0.5
-            rounding = calc_min_rounding_log(res)
-            lat = 90 - 0.5/2
-            lon = -180 + 0.5/2
-            y, x = find_indices_xy(lat, lon, res, res, rounding)
-            self.assertAlmostEqual(find_coordinates_xy(y, x, res, res, rounding), (lat, lon), delta=0.001)
+                check_crossed_results_crossed_xy()
+                check_crossed_results_crossed_xy(0, 0, 0.5)
+                check_crossed_results_crossed_xy(45, 45, 1)
+                check_crossed_results_crossed_xy(0, 0, 0.25)
+                check_crossed_results_crossed_xy(45, 45, 0.25)
+                check_crossed_results_crossed_xy(90, 180, 0.5)
+                check_crossed_results_crossed_xy(-90, -180, 0.5)
+                check_crossed_results_crossed_xy(-90, 180, 0.5)
+                check_crossed_results_crossed_xy(90, -180, 0.01)
 
-            xres = 0.25
-            yres = 0.5
-            rounding = 2
-            lat = 90 - yres/2
-            lon = 180 - xres/2
-            y, x = find_indices_xy(lat, lon, yres, xres, rounding)
-            self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
+                def check_crossed_results_crossed_xy_2(lat=90, lon=180, res=0.5):  # type: ignore
+                    y, x = find_indices_xy(lat, lon, res, res)
+                    lat1, lon1 = find_coordinates(y, x, res)
+                    # Find coordinates snaps to cell center, so we use res/2 as delta
+                    self.assertAlmostEqual(lat1, lat, delta=res/2.0)
+                    self.assertAlmostEqual(lon1, lon, delta=res/2.0)
 
-            res =  0.5
-            rounding = calc_min_rounding_log(res)
-            lat = 90 - 0.5/2
-            lon = 180 - 0.5/2
-            y, x = find_indices(lat, lon, res, rounding)
-            self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
+                check_crossed_results_crossed_xy_2()
+                check_crossed_results_crossed_xy_2(0, 0, 0.5)
+                check_crossed_results_crossed_xy_2(45, 45, 1)
+                check_crossed_results_crossed_xy_2(0, 0, 0.25)
+                check_crossed_results_crossed_xy_2(45, 45, 0.25)
+                check_crossed_results_crossed_xy_2(90, 180, 0.5)
+                check_crossed_results_crossed_xy_2(-90, -180, 0.5)
+                check_crossed_results_crossed_xy_2(-90, 180, 0.5)
+                check_crossed_results_crossed_xy_2(90, -180, 0.01)
 
-            res = 0.25
-            rounding = calc_min_rounding_log(res)
-            lat = 90 - 0.25/2
-            lon = -180 + 0.25/2
-            y, x = find_indices(lat, lon, res, rounding)
-            self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
 
-            res = 0.25
-            rounding = calc_min_rounding_log(res)
-            lat = 90 - 0.25/2
-            lon = 180 - 0.25/2
-            y, x = find_indices(lat, lon, res, rounding)
-            self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
+            def test_find_coordinates(self):
 
-            # Extended tests with larger range of resolutions
-            # Test with various square resolutions
-            for res in [1/360, 1/90, 1/30, 1/12, 0.0025, 0.008, 0.05, 0.1, 0.125, 0.2, 1.0, 2.0, 5.0]:
+                # Test with known values
+                res = 0.5
                 rounding = calc_min_rounding_log(res)
-                # Test corner coordinates (top-left)
-                lat = 90 - res/2
-                lon = -180 + res/2
-                y, x = find_indices(lat, lon, res, rounding)
-                a, b = find_coordinates(y, x, res, rounding)
-                self.assertAlmostEqual(a, lat, delta=0.0000001)
-                self.assertAlmostEqual(b, lon, delta=0.0000001)
+                lat = 90 - 0.5/2
+                lon = -180 + 0.5/2
+                y, x = find_indices_xy(lat, lon, res, res, rounding)
+                self.assertAlmostEqual(find_coordinates_xy(y, x, res, res, rounding), (lat, lon), delta=0.001)
 
-                # Test corner coordinates (bottom-right)
-                lat = -90 + res/2
-                lon = 180 - res/2
-                y, x = find_indices(lat, lon, res, rounding)
-                a, b = find_coordinates(y, x, res, rounding)
-                self.assertAlmostEqual(a, lat, delta=0.0001)
-                self.assertAlmostEqual(b, lon, delta=0.0001)
-
-
-            # Test with various rectangular resolutions
-            resolution_pairs = [
-                (0.1, 0.2), (0.125, 0.25), (0.2, 0.4), (0.5, 1.0),
-                (1.0, 0.5), (2.0, 1.0), (1.0, 2.0), (5.0, 2.5)
-            ]
-
-            for yres, xres in resolution_pairs:
-                rounding = max(calc_min_rounding_log(yres), calc_min_rounding_log(xres))
-                # Test corner coordinates (top-left)
+                xres = 0.25
+                yres = 0.5
+                rounding = 2
                 lat = 90 - yres/2
-                lon = -180 + xres/2
-                y, x = find_indices_xy(lat, lon, yres, xres, rounding)
-                self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
-
-                # Test corner coordinates (bottom-right)
-                lat = -90 + yres/2
                 lon = 180 - xres/2
                 y, x = find_indices_xy(lat, lon, yres, xres, rounding)
                 self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
 
-            # Test with very fine resolutions
-            for res in [0.01, 0.025, 0.05]:
+                res =  0.5
                 rounding = calc_min_rounding_log(res)
-                # Test center coordinates
-                lat = 0.0
-                lon = 0.0
-                y, x = find_indices(lat, lon, res, rounding)
-                recovered_lat, recovered_lon = find_coordinates(y, x, res, rounding)
-                self.assertAlmostEqual(recovered_lat, lat, delta=res/2)
-                self.assertAlmostEqual(recovered_lon, lon, delta=res/2)
-
-            # Test with coarse resolutions
-            for res in [10.0, 15.0, 30.0]:
-                rounding = calc_min_rounding_log(res)
-                # Test coordinates that align with grid
-                lat = 90 - res/2
-                lon = -180 + res/2
+                lat = 90 - 0.5/2
+                lon = 180 - 0.5/2
                 y, x = find_indices(lat, lon, res, rounding)
                 self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
 
-    unittest.main()
+                res = 0.25
+                rounding = calc_min_rounding_log(res)
+                lat = 90 - 0.25/2
+                lon = -180 + 0.25/2
+                y, x = find_indices(lat, lon, res, rounding)
+                self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
+
+                res = 0.25
+                rounding = calc_min_rounding_log(res)
+                lat = 90 - 0.25/2
+                lon = 180 - 0.25/2
+                y, x = find_indices(lat, lon, res, rounding)
+                self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
+
+                # Extended tests with larger range of resolutions
+                # Test with various square resolutions
+                for res in [1/360, 1/90, 1/30, 1/12, 0.0025, 0.008, 0.05, 0.1, 0.125, 0.2, 1.0, 2.0, 5.0]:
+                    rounding = calc_min_rounding_log(res)
+                    # Test corner coordinates (top-left)
+                    lat = 90 - res/2
+                    lon = -180 + res/2
+                    y, x = find_indices(lat, lon, res, rounding)
+                    a, b = find_coordinates(y, x, res, rounding)
+                    self.assertAlmostEqual(a, lat, delta=0.0000001)
+                    self.assertAlmostEqual(b, lon, delta=0.0000001)
+
+                    # Test corner coordinates (bottom-right)
+                    lat = -90 + res/2
+                    lon = 180 - res/2
+                    y, x = find_indices(lat, lon, res, rounding)
+                    a, b = find_coordinates(y, x, res, rounding)
+                    self.assertAlmostEqual(a, lat, delta=0.0001)
+                    self.assertAlmostEqual(b, lon, delta=0.0001)
+
+
+                # Test with various rectangular resolutions
+                resolution_pairs = [
+                    (0.1, 0.2), (0.125, 0.25), (0.2, 0.4), (0.5, 1.0),
+                    (1.0, 0.5), (2.0, 1.0), (1.0, 2.0), (5.0, 2.5)
+                ]
+
+                for yres, xres in resolution_pairs:
+                    rounding = max(calc_min_rounding_log(yres), calc_min_rounding_log(xres))
+                    # Test corner coordinates (top-left)
+                    lat = 90 - yres/2
+                    lon = -180 + xres/2
+                    y, x = find_indices_xy(lat, lon, yres, xres, rounding)
+                    self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
+
+                    # Test corner coordinates (bottom-right)
+                    lat = -90 + yres/2
+                    lon = 180 - xres/2
+                    y, x = find_indices_xy(lat, lon, yres, xres, rounding)
+                    self.assertAlmostEqual(find_coordinates_xy(y, x, yres, xres, rounding), (lat, lon))
+
+                # Test with very fine resolutions
+                for res in [0.01, 0.025, 0.05]:
+                    rounding = calc_min_rounding_log(res)
+                    # Test center coordinates
+                    lat = 0.0
+                    lon = 0.0
+                    y, x = find_indices(lat, lon, res, rounding)
+                    recovered_lat, recovered_lon = find_coordinates(y, x, res, rounding)
+                    self.assertAlmostEqual(recovered_lat, lat, delta=res/2)
+                    self.assertAlmostEqual(recovered_lon, lon, delta=res/2)
+
+                # Test with coarse resolutions
+                for res in [10.0, 15.0, 30.0]:
+                    rounding = calc_min_rounding_log(res)
+                    # Test coordinates that align with grid
+                    lat = 90 - res/2
+                    lon = -180 + res/2
+                    y, x = find_indices(lat, lon, res, rounding)
+                    self.assertAlmostEqual(find_coordinates(y, x, res, rounding), (lat, lon))
+        # Finally, run unittests
+        unittest.main()

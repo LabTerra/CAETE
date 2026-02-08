@@ -23,11 +23,16 @@
 
 
 """
-Jit compiled functions
-These functions are JIT compiled and cached by numba.
+**Jit compiled functions**
+Most of the functions in this module are JIT compiled and cached using numba.
+
 If you change any of the cached functions, you should delete the cache
-folder in the src folder, generally named __pycache__. This will force numba
-to recompile the functions and cache them again."""
+folder in the src folder (named __pycache__). This will force numba
+to recompile the functions and cache them again.
+
+Unit tests are not exposed to be imported by other scripts
+or called as a module routine from the command line.
+"""
 
 from typing import List, Union, Tuple
 import numpy as np
@@ -90,7 +95,6 @@ def pft_area_frac64(cleaf1:NDArray[np.float64],
         ocp_coeffs = total_biomass_pft / total_biomass
         ocp_coeffs[ocp_coeffs < 0.0] = 0.0
     return ocp_coeffs
-
 
 @numba.jit(nopython=True, cache=True)
 def neighbours_index(pos: Union[List, NDArray], matrix: NDArray) -> List:
@@ -232,23 +236,6 @@ def shannon_diversity(ocp: NDArray[np.float64]) -> float:
 if __name__ == "__main__":
     # Test functions
     import unittest
-    from pathlib import Path
-    import sys
-
-    # In the first pass all functions are compiled and cached if necessary.
-    # If this runs, then the functions are correctly compiled and cached.
-    print("Testing CAETE JIT compiled functions...")
-
-    # Remove __pycache__ folder
-    # In any case, to force recompilation of the functions, delete the __pycache__ folder.
-    pycache_path = Path(__file__).parent / "__pycache__"
-    if pycache_path.exists() and pycache_path.is_dir():
-        import shutil
-        try:
-            shutil.rmtree(pycache_path)
-        except OSError:
-            print("Could not remove __pycache__ - continuing (files might be locked)", file=sys.stdout)
-    print("0 - OK ... ", file=sys.stdout)
 
     class TestCaeteJit(unittest.TestCase):
 

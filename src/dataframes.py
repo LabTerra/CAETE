@@ -23,7 +23,6 @@
 
 # CAETE output post-processing functions.
 
-import argparse
 import gc
 import os
 import sys

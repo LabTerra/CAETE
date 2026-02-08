@@ -154,8 +154,16 @@ from caete_module import budget as model # type: ignore
 from caete_module import soil_dec        # type: ignore
 from caete_module import water as st     # type: ignore
 
-# The @profile decorator is used in the run_gridcell method for memory profiling
-PROF_M = False # Set to True to enable memory profiling
+
+# Define env var for runtime: NCEP_AE
+os.environ
+
+# Memory profiling flag. Set to True in order to enable memory profiling
+# We use mprof. In order to profile this program from command line, use:
+# $ mprof --multiprocessing --include-children caete.py (see: https://pypi.org/project/memory-profiler/)
+# TODO: Make an oferenda asking for someone to mantain the memory_profiler package
+PROF_M = False
+
 if PROF_M:
     from memory_profiler import profile
 else:
@@ -565,7 +573,13 @@ class soil:
             hsoil (Tuple): tuple with the soil texture, saturation point and water potential at saturation
         """
         assert self.tas is not None, "Climate data not loaded" # type: ignore
-        self.soil_temp = st.soil_temp_sub(self.tas[:1095] - 273.15)  # type: ignore
+        temp_cfg = fetch_config()
+        if temp_cfg.input_handler.input_type == "pbz2":
+            self.soil_temp = st.soil_temp_sub(self.tas[:365] - 273.15)  # type: ignore
+        else:
+            self.soil_temp = st.soil_temp_sub(self.tas[:365])  # type: ignore
+
+        del(temp_cfg)
 
         self.tsoil = []
         self.emaxm = []
@@ -1268,7 +1282,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
                                             p_atm[step], ipar[step], ru[step], self.sp_available_n,
                                             self.sp_available_p, ton, top, self.sp_organic_p,
                                             co2, sto, cleaf_in, cwood_in, croot_in, uptk_costs,self.wmax_mm,
-                                            rnpp_in)
+                                            rnpp_in, julian_day)
 
                     # get daily budget results
                     daily_output.update(out)
@@ -1988,6 +2002,15 @@ def task2(gridcell:grd_mt) -> grd_mt:
     return gridcell
 
 
+
+# Unit tests of the module caete.py
+# TODO: Module Unit tests
+import unittest
+
+class TestCAETE(unittest.TestCase):
+    pass
+
+
 if __name__ == '__main__':
 
     # Short example of how to run the model. Also used to do some profiling.
@@ -2013,16 +2036,38 @@ if __name__ == '__main__':
         from region import region # region is a class that handles the region of gridcells
         import polars as pl # polars is used to read csv files only
 
-        ## Paths to input data
+        ## Paths to input data for profiling
         co2_path = Path("../input/co2/historical_CO2_annual_1765-2024.csv")
         co2_path_ssp370 = Path("../input/co2/ssp370_CO2_annual_2015-2100.csv")
-        main_table = pls_table.read_pls_table(Path("./PLS_MAIN/pls_attrs-25000.csv"))
-        gridlist = pl.read_csv("../grd/gridlist_profile.csv")
+        main_table = pls_table.read_pls_table(Path("../src/test_data/pls_attrs-5000.csv"))
+        gridlist = pl.read_csv("../grd/gridlist_profile.csv") # Only used by the memory profiler
 
+        #============================================================================
         # Memory profiling
+        #============================================================================
+
+        def is_running_under_mprof() -> bool:
+            """Check if the script is running under mprof (memory_profiler)."""
+            try:
+                import psutil
+                parent = psutil.Process(os.getppid())
+                parent_cmdline = ' '.join(parent.cmdline()).lower()
+                return 'mprof' in parent_cmdline
+            except Exception:
+                return False
+
         # Set PROF_M to True (in the header of this script) to
         # enable memory profiling with memory_profiler. Keep PROF_M = False to disable memory profiling.
         if PROF_M:
+            if not is_running_under_mprof():
+                print("PROF_M is set to True, but the script was not invoked with mprof.\n"
+                      "Use:\n"
+                      "  $ mprof run --multiprocess --include-children caete.py\n"
+                      "to run the model with memory profiling. The output will be saved in a\n"
+                      "file named mprofile_*.dat. You can visualize the memory usage with:\n"
+                      "  $ mprof plot")
+                sys.exit(1)
+
             def run_model():
                 # Complete set of model operations for a region (from creation to writing of serialized outputs).
                 # Create region object
@@ -2063,7 +2108,7 @@ if __name__ == '__main__':
 
                 # Clean model state. This generates a lightweight version of the state file.
                 # THis lightweight object is detached from any model state and only holds filepaths to the output data of the model.
-                # These clean state files are used to post-process the model.
+                # These clean state files are used to post-process the model outputs.
                 r.clean_model_state_fast()
 
                 # Save the model state again.
@@ -2073,17 +2118,34 @@ if __name__ == '__main__':
             run_model()
             # Halt execution.
             sys.exit(0)
+        #============================================================================
         # End of memory profiling: exit
+        #============================================================================
 
-        # Create region object.
-        r = region("region_test",
-                    "../input/MPI-ESM1-2-HR/historical/caete_input_MPI-ESM1-2-HR_historical.nc",
+        # Cprofile profiling OR functionality testing
+
+        # If we are not profiling memory, run unit tests or do the cProfile profiling.
+        # Create region object. USe dummy data for testing and cProfile profiling.
+
+        # Mock data for a pre-integration test and cProfile profiling.
+        gridlist = pl.read_csv("./test_data/test_grd.csv")
+        main_table = pls_table.read_pls_table(Path("./test_data/pls_attrs-5000.csv"))
+        climate_input = "./test_data/test_input.nc"
+
+        r = region("test_grd_mt",
+                    climate_input,
                     (tsoil, ssoil, hsoil),
                     co2_path,
                     main_table,
                     gridlist)
 
         # Set gridcells in memory.
+        # Please note: this method can consume a lot of memory for regions with many gridcells, so please use it with care.
+        # Each gridcell object has 200 MB of data in memory, so setting gridcells for a large region can lead to memory issues.
+        # It is recommended to use this method only for testing and profiling purposes, and not for running the model for large regions.
+        # Check the script caete_driver.py (and the function run_model() above) to see how to run the model
+        # for large regions without setting gridcells in memory. In summary, in "normal conditions of use",
+        # gridcells are managed by the region class.
         r.set_gridcells()
 
         gridcell = r[0]
@@ -2096,31 +2158,81 @@ if __name__ == '__main__':
 
         if prof:
             import cProfile
-            command = "gridcell.run_gridcell('1901-01-01', '1950-12-31', spinup=2, fixed_co2_atm_conc=1901, save=False, nutri_cycle=True, reset_community=True)"
-            cProfile.run(command, sort="cumulative", filename="profile.prof")
+            command = "gridcell.run_gridcell('1901-01-01', '1901-12-31', spinup=50, fixed_co2_atm_conc=1901, save=False, nutri_cycle=True, reset_community=True)"
+            cProfile.run(command, sort="cumulative", filename="cprofile.prof")
 
-        elif not PROF_M:
-        # Run the model for one gridcell to test the functionality.
-            start = tm.time()
+            try:
+                from gprof2dot import gprof2dot
+            except ImportError:
+                print("gprof2dot not found. Please install gprof2dot to visualize the cProfile output.")
+                pass
+
+            import subprocess
+            # gprof2dot must be in path
+            try:
+                subprocess.run(["gprof2dot", "-f", "pstats", "cprofile.prof", "-o", "cprofile.dot"], check=True)
+                print("cProfile output saved as cprofile.dot. You can visualize it with Graphviz or other dot file viewers.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error running gprof2dot: {e}. Please ensure gprof2dot is installed and in your PATH.")
+
+            try:
+                import graphviz
+                graph = graphviz.Source.from_file("cprofile.dot")
+                graph.render("cprofile", format="svg", cleanup=True)
+                print("cProfile visualization saved as cprofile.svg.")
+            except ImportError:
+                print("Graphviz not found. Please install Graphviz to visualize the cProfile output.")
+                pass
+
+            try:
+                subprocess.run([sys.executable, "-m", "profiling.profile_analyzer", "cprofile.prof"], check=True)
+                print("cProfile analysis completed. Check the output for details.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error running profile_analyzer: {e}. Please ensure profiling.profile_analyzer is available and can be run as a module.")
+                pass
+            print(f"Cprofile files: cprofile.prof, cprofile.dot, cprofile.svg (if Graphviz is installed)")
+
+        # End of cProfile profiling: exit
+
+        # Functionality testing. TODO: Develop the TestCAETE class with unit tests
+        # for the grd_mt class and the functions defined in this module.
+        elif (not PROF_M):
+
+            # Unit tests goes here TODO
+            pass
+
+            # Run the model for one gridcell to test the functionality.
+            # This as a "pre-integration" test. What do I mean by "pre-integration" test?
+            # At this point in the script the region object is successfully created,
+            # the gridcell object(s) is(are) created and set in memory, and we can run
+            # the model for one gridcell to test the functionality of the model before
+            # running it for the whole region.
+            #  This "pre-integration" is intended to be executed with the unit tests.
             # Test model functionality.
-            gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
+
+            # We test only basic functionality of the grd_mt class
+            start = tm.perf_counter()
+            gridcell.run_gridcell("1901-01-01", "1901-12-31", spinup=1, fixed_co2_atm_conc=None,
                                                 save=False, nutri_cycle=True, reset_community=True,
                                                 env_filter=True)
 
-            gridcell.run_gridcell("1901-01-01", "1950-12-31", spinup=1, fixed_co2_atm_conc=None,
+            gridcell.run_gridcell("1901-01-01", "1901-12-31", spinup=1, fixed_co2_atm_conc=None,
                                     save=True, nutri_cycle=True)
 
             # Test directory update.
-            r.update_dump_directory("test_new_region")
+            r.update_dump_directory("test_grd_mt_new_dump_dir")
 
-            # Test change input.
-            r.update_input("../input/MPI-ESM1-2-HR/ssp370/caete_input_MPI-ESM1-2-HR_ssp370.nc", co2 = co2_path_ssp370)
+            # Test change input. Use the same data
+            r.update_input(climate_input, co2 = co2_path)
 
             gridcell = r[0]
-            gridcell.run_gridcell("2015-01-01", "2030-12-31", spinup=1, fixed_co2_atm_conc=None,
+            gridcell.run_gridcell("1901-01-01", "1901-12-31", spinup=1, fixed_co2_atm_conc=None,
                                                 save=True, nutri_cycle=True)
-            end = tm.time()
+            end = tm.perf_counter()
             print(f"Run time: {end - start:.2f} seconds")
+
+        else:
+            sys.exit(0) #
 
 
 
