@@ -25,14 +25,16 @@
 SHELL := /bin/bash
 
 # NCEP Available Energy model flag
+NCEP_AE_FLAG = -DNCEP_AE
+
 # Set USE_NCEP_AE=1 to enable new multivariate AE model (T, RH, P)
 # Usage: make USE_NCEP_AE=1
-ifdef USE_NCEP_AE
-    NCEP_AE_FLAG = -DNCEP_AE
-    $(info [NCEP_AE] Using multivariate Available Energy model (T, RH, P))
-else
-    NCEP_AE_FLAG =
-endif
+# ifdef USE_NCEP_AE
+#     NCEP_AE_FLAG = -DNCEP_AE
+#     $(info [NCEP_AE] Using newly implemented NCEP available energy model)
+# else
+#     NCEP_AE_FLAG =
+# endif
 
 PYEXEC = python # Edit this line to point to the python executable
 PIP = $(PYEXEC) -m pip
@@ -89,7 +91,7 @@ MAIN_SUB = budget.F90
 
 
 # Sources for extension module creation (F2PY)
-src_lib = types.f90 global.f90 photo_par.f90 funcs.f90 evap.f90 soil_dec.f90 cc.f90 allocation.f90 productivity.f90
+src_lib = types.f90 global.f90 photo_par.f90 funcs.f90 evap.f90 soil_dec.f90 cc.f90 allocation.f90 productivity.f90 ae_seasonal_model.f90
 sources = $(src_lib) $(MAIN_SUB)
 
 

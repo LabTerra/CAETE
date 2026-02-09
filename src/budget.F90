@@ -22,6 +22,7 @@ module budget
    use global_par, only: ntraits, npls, omp_nthreads
    use alloc
    use productivity
+   use ae_seasonal_model
    use ieee_arithmetic
    implicit none
    private
@@ -305,15 +306,19 @@ contains
 
       !     Maximum evapotranspiration   (emax)
       !     =================================
+#ifdef NCEP_AE
+      ae = available_energy_daily(temp, doy)
+#else
       ae = available_energy(temp)
+#endif
       emax = evpot2(p0,temp,rh,ae)
       soil_temp = ts
 
       !     Productivity & Growth (ph, ALLOCATION, aresp, vpd, rc2 & etc.) for each PLS
       !     =====================make it parallel=========================
 #ifdef _OPENMP
-   call OMP_SET_NUM_THREADS(omp_nthreads)
-   if (nlen .lt. 200) call OMP_SET_NUM_THREADS(1)
+      call OMP_SET_NUM_THREADS(omp_nthreads)
+      if (nlen .lt. 200) call OMP_SET_NUM_THREADS(1)
 #endif
 
       construction = rnpp ! construction (Real NPP) of the plant tissues in the previous day. To calculate growth respiration

@@ -2229,8 +2229,11 @@ if __name__ == '__main__':
             gridcell.run_gridcell("1901-01-01", "1901-12-31", spinup=1, fixed_co2_atm_conc=None,
                                                 save=True, nutri_cycle=True)
             end = tm.perf_counter()
-            print(f"Run time: {end - start:.2f} seconds")
-
+            elapsed = end - start
+            hours = int(elapsed // 3600)
+            minutes = int((elapsed % 3600) // 60)
+            seconds = elapsed % 60
+            print(f"Run time: {hours}h {minutes}m {seconds:.2f}s")
         else:
             sys.exit(0) #
 

@@ -2,6 +2,7 @@
 # CAETÊ - Carbon and Ecosystem Functional-Trait Evolution Model
 # Author: João Paulo Darela Filho
 
+
 """CAETÊ Model Driver Script.
 
 This script demonstrates the complete workflow for running the CAETÊ model,
@@ -40,14 +41,14 @@ Copyright 2017- LabTerra
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
+import sys
 import multiprocessing as mp
 from pathlib import Path
 
 from polars import read_csv
 
 
-GENERATE_NEW_PLS_TABLE = False  # Set to True to generate a new PLS table instead of using a pre-generated one
+GENERATE_NEW_PLS_TABLE = True  # Set to True to generate a new PLS table instead of using a pre-generated one
 
 # All simulation code must be inside the if __name__ == "__main__" block.
 # This is required for multiprocessing with the 'spawn' method, which is
@@ -78,14 +79,20 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
 
     # Region identifier - used for output file naming
-    region_name = "pan_amazon_hist"
+    try:
+        region_name = sys.argv[1]
+    except Exception as e:
+        print(f"Error reading region name from command line: {e}")
+        print("Using default region name: 'pan_amazon_hist'")
+        region_name = "pan_amazon_hist"
 
     # Climate input files (NetCDF format)
     obsclim_files = "../input/20CRv3-ERA5/obsclim/caete_input_20CRv3-ERA5_obsclim.nc"
     spinclim_files = "../input/20CRv3-ERA5/spinclim/caete_input_20CRv3-ERA5_spinclim.nc"
+    grd_file = "../grd/gridlist_mask_test_random16.csv"
 
     # Gridlist defines which gridcells to simulate
-    gridlist = read_csv("../grd/gridlist_mask_test_random16.csv")
+    gridlist = read_csv(grd_file)
 
     # Soil hydraulic parameters (wilting point, field capacity, saturation)
     # TODO: Reconcile with soil hydrology model parameters
@@ -107,6 +114,7 @@ if __name__ == "__main__":
     # OR GENERATE PLS TABLE ON THE FLY
     else: # Generate a new PLS table
         # Edit GLOBAL_NPLS to change the number of PLS to generate
+        # WARNING: Overwrite existing file in the local folder i.e., ./PLS_MAIN
         GLOBAL_NPLS = 5000
         PLS_TABLE_DIR = Path(f"./PLS_MAIN")
         main_table = table_gen(GLOBAL_NPLS, fpath=PLS_TABLE_DIR)  # Generate PLS table on-the-fly ans save to PLS_TABLE_DIR
@@ -140,6 +148,14 @@ if __name__ == "__main__":
     print(f"  Region: {region_name}")
     print(f"  Gridcells: {len(gridlist)}")
     print("=" * 70 + "\n")
+
+    # Print region config details
+    print("--------Gridlist and PLS table-----------")
+    print(f"Gridlist file: {grd_file}")
+    print(f"Using PLS table: {PLS_TABLE_PATH}")
+    print("-----------------------------------------\n")
+
+
 
     # =========================================================================
     # PHASE 1: Region Initialization
@@ -221,13 +237,13 @@ if __name__ == "__main__":
     # Until now we did not generated any output files. The state files generated
     # during spinup only stores the model state for restarts.
     # All outputs in the spinup phase are discarded.
+
+    # the run_region_starmap enables the use of initial and final dates.
     print("[6/7] Running transient simulation (1901-2024)...")
     s_trans = time.perf_counter()
     run_breaks = fn.create_run_breaks(1901, 2024, 30)
 
     for i, period in enumerate(run_breaks, 1):
-        print(f"      Period {i}/{len(run_breaks)}: {period[0]} → {period[1]}", end="")
-        sp = time.perf_counter()
 
         # In fn.transient_run_brk the ouptut is serialized to "spin" files named spinXXXX.pkz
         # Each file contains the outputs for that period.
@@ -238,7 +254,7 @@ if __name__ == "__main__":
         pan_amazon.run_region_starmap(fn.transient_run_brk, period)
 
         ep = time.perf_counter()
-        print(f" ({format_time(ep - sp)})")
+        # print(f" ({format_time(ep - sp)})")
 
     e_trans = time.perf_counter()
     print(f"      ✓ Transient run completed in {format_time(e_trans - s_trans)}\n")

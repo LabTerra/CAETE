@@ -43,6 +43,7 @@ src/*.prof
 *_env
 *_cache
 input/temp*
+input/NCEP_NCAR_R1_ltm-day_AE/*.nc
 
 outputs/
 

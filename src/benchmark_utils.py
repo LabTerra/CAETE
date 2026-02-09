@@ -46,7 +46,7 @@ available_variables = _build_available_variables()
 # Some CAETE output variables may need unit conversions / naming changes for benchmarking.
 # Most variables are output in daily resolution and different units and generally need to be converted to monthly totals.
 # We preprocess CAETE outputs and store the intermediate datasets in the
-BENCHMARCK_CACHE_DIR = Path("./benchmark_cache/")
+BENCHMARCK_CACHE_DIR = Path(cfg.output.output_dir / "benchmark_cache")
 ensure_cache_dir = lambda : os.makedirs(BENCHMARCK_CACHE_DIR, exist_ok=True)
 clean_cache = lambda : [f.unlink() for f in BENCHMARCK_CACHE_DIR.glob("*") if f.is_file()]
 

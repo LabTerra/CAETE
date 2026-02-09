@@ -20,7 +20,7 @@
 
 # Variables
 # Python executable, package manager and f2py
-PYEXEC = python
+PYEXEC = py -3.11
 PIP = $(PYEXEC) -m pip
 F2PY = $(PYEXEC) -m numpy.f2py
 CYTHON = $(PYEXEC) -m cython
