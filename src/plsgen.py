@@ -67,7 +67,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-n", "--number", type=int, required=False, help="Number of PLSs to generate")
 parser.add_argument("-f", "--folder", type=str, required=False, help="Path to save the output")
 
-args = parser.parse_args()
+
 
 CONFIG_FILE = (Path(__file__).parent / "plsgen.toml").resolve()
 
@@ -98,7 +98,7 @@ def check_viability(trait_values, awood=False):
         wood: bool  Is this a woody PLS?
         output:bool True if the PLS is viable, False otherwise
     """
-    #TODO: the model is sensitive to the biomass values used to set (initial condition) the PLSs in the community class. 
+    #TODO: the model is sensitive to the biomass values used to set (initial condition) the PLSs in the community class.
     # The leaf pool is particularly sensitive. We need to find a better way to set these initial biomass values.
     data = get_parameters()
     lim = gp.cmin * 10  # 1e-3 Minimum carbon (kg m⁻²)
@@ -129,7 +129,7 @@ def allocation_combinations():
     """ Generate allocation combinations for woody and grass plants based on the Dirichlet distribution
         **
       * ** *
-    * * ** * * 
+    * * ** * *
   * * * ** * * *
 * * * * ** * * * *
     Returns:
@@ -273,7 +273,7 @@ def nutrient_ratios_combinations_reich(NPLS, alloc):
 
 def nutrient_ratios_combinations(NPLS, alloc):
     # Deprecated function. Use nutrient_ratios_combinations_reich instead.
-    # This function is kept for reference. 
+    # This function is kept for reference.
     # # Nitrogen and Phosphorus content in carbon pools (NO C:N:P restrictions) Do not use it. Kept for reference
     # # C : N : P
 
@@ -398,4 +398,5 @@ def table_gen(NPLS, fpath=None, ret=True):
         return np.asfortranarray(pls_table, dtype=np.float32)
 
 if  __name__ == "__main__":
+    args = parser.parse_args()
     table_gen(args.number, Path(args.folder).resolve(), False)
