@@ -4,7 +4,16 @@ This document describes how to run memory profiling, CPU profiling, and function
 
 ## Prerequisites
 
-Before running profiling, ensure you have **Graphviz** installed on your system:
+memory_profiler and Graphviz are required for profiling:
+
+To install **memory_profiler**:
+
+```bash
+python -m pip install memory_profiler
+```
+
+To install **Graphviz**:
+
 - **Windows**: Download from [graphviz.org](https://graphviz.org/download/) or `winget install graphviz`
 - **Linux**: `sudo apt install graphviz`
 - **macOS**: `brew install graphviz`
