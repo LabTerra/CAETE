@@ -51,6 +51,8 @@ HFLAG = -h
 CFLAG = -c
 OVRTFLAG = --overwrite-signature
 
+# NCEP_AE_FLAG = /DNCEP_AE
+NCEP_AE_FLAG  =
 # Intel Fortran Compiler (ifx) FLAGS for debugging (do not affect the extension module)
 FCFLAGS = -fpp -Od -debug:full -warn:all -nologo
 FLFLAGS = -fpp -c -Od -debug:full -nologo
@@ -59,10 +61,10 @@ FLFLAGS = -fpp -c -Od -debug:full -nologo
 MAIN_SUB = budget.F90
 
 # Intel Fortran Compiler (ifx) FLAGS for release (caete_module extension module)
-IFX_FLAGS = /fpp /QxHost /warn:all /nologo /I$(MOD_DIR) /DPREPEND_FORTRAN /DNO_APPEND_FORTRAN /DUPPERCASE_FORTRAN /DUNDERSCORE_G77
+IFX_FLAGS = /fpp /QxHost /warn:all /nologo /I$(MOD_DIR) /DPREPEND_FORTRAN /DNO_APPEND_FORTRAN /DUPPERCASE_FORTRAN /DUNDERSCORE_G77 $(NCEP_AE_FLAG)
 
 # Sources
-src_lib = types.f90 global.f90 photo_par.f90 funcs.f90 evap.f90 soil_dec.f90 cc.f90 allocation.f90 productivity.f90
+src_lib = types.f90 global.f90 photo_par.f90 funcs.f90 evap.f90 soil_dec.f90 cc.f90 allocation.f90 productivity.f90 ae_seasonal_model.f90
 sources = $(src_lib) $(MAIN_SUB)
 
 # Fortran objects
