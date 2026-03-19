@@ -42,7 +42,8 @@ module carbon_costs
    implicit none
    private
 
-   public :: calc_passive_uptk1     ,&
+   public :: abrt                   ,&
+           & calc_passive_uptk1     ,&
            & passive_uptake         ,&
            & cc_active              ,&
            & active_cost            ,&
@@ -61,12 +62,12 @@ module carbon_costs
            & prep_out_p
 
    contains
-   !! HElPERS
-   !subroutine abrt(arg1)
-   !   character(*), intent(in) :: arg1
-   !   print *, arg1
-   !   call abort()
-   !end subroutine abrt
+   ! HElPERS
+   subroutine abrt(arg1)
+      character(*), intent(in) :: arg1
+      print *, arg1
+      call abort()
+   end subroutine abrt
 
 
    ! CONVERSIONS -- LOOK eq 150 onwards in Reis 2020
@@ -77,7 +78,7 @@ module carbon_costs
       real(r_8), intent(in) :: nsoil  ! (ML⁻²)
       real(r_8), intent(in) :: et ! Transpiration (ML⁻²T⁻¹) (mm/s)
       real(r_8), intent(in) :: sd ! soil water depht (ML⁻²)  ( 1 Kg(H2O) m⁻² == 1 mm )
-      real(r_8), intent(in) :: mf !
+      real(r_8), intent(in) :: mf ! 
       real(r_8), intent(out) :: uptk
       ! Mass units of et and sd must be the same
 
@@ -295,13 +296,12 @@ module carbon_costs
 
       ! !Costs of Mycorrhizal AP/exudates
       ccp(AMAP) = cc_active(kap, amp * op , kapc, amp * croot) ! OP
-      ! TODO: CHECK IF THIS ADDITIONAL COST IS REASONABLE
       ccp(EM0x) = cc_active(kep, ecm * sop, kepc, ecm * croot) + 0.8 ! Artificial increasing of c costs
    end subroutine active_costp
 
 
    function cc_fix(ts) result (c_fix)
-      real(r_8), intent(in) :: ts ! soil temp °C
+      real(r_4), intent(in) :: ts ! soil temp °C
       real(r_8) :: c_fix ! C Cost of Nitrogen M(N) M(C)⁻¹
       c_fix = -6.25D0 * (exp(-3.62D0 + (0.27D0 * ts) &
       &       * (1.0D0 - (0.5D0 * (ts / 25.15D0)))) - 2.0D0)
@@ -311,7 +311,7 @@ module carbon_costs
    function fixed_n(c, ts) result(fn)
       ! Given the C available calculate the fixed N
       real(r_8), intent(in) :: c ! g m-2 day-1 % of NPP destinated to diazotroph partners
-      real(r_8), intent(in) :: ts ! soil tem °C
+      real(r_4), intent(in) :: ts ! soil tem °C
       real(r_8) :: fn
 
       fn = c / cc_fix(ts)
@@ -393,6 +393,7 @@ module carbon_costs
             out_array(on) = to_pay
          case default
             print*, 'NAQW', nut_aqui_strat
+            call abrt("Problem in N output case default - cc.f90 325")
       end select
       ! Soluble inorg_n_pool = (1, 2, 3, 4)
       ! Organic N pool = (5, 6)
@@ -423,7 +424,7 @@ module carbon_costs
             out_array(op) = 0.0D0
          case default
             print*, 'NAQW', nut_aqui_strat
-            !call abrt("Problem in P output case default - cc.f90 362")
+            call abrt("Problem in P output case default - cc.f90 362")
       end select
       ! Soluble inorg_n_pool = (1, 2, 3, 4)
       ! Organic N pool = (5, 6)

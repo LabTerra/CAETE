@@ -3,7 +3,7 @@
 !     This program is free software: you can redistribute it and/or modify
 !     it under the terms of the GNU General Public License as published by
 !     the Free Software Foundation, either version 3 of the License, or
-!     (at your option) any later version.
+!     (at your option) any later version.)
 
 !     This program is distributed in the hope that it will be useful,
 !     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,9 +21,8 @@ module alloc
                           & active_costn, active_costp,&
                           & prep_out_n, prep_out_p,&
                           & retran_nutri_cost, select_active_strategy
-    use global_par, only: ntraits, sapwood, cmin
-    use photo, only: spec_leaf_area, realized_npp
-    use ieee_arithmetic, only: ieee_is_normal, ieee_is_negative, ieee_is_nan
+    use global_par, only: ntraits, sapwood
+    use photo, only: f_four, spec_leaf_area, realized_npp
 
     implicit none
     private
@@ -44,7 +43,7 @@ module alloc
       & sop,op,scl1,sca1,scf1,storage,storage_out_alloc,scl2,sca2,scf2,&
       & leaf_litter,cwd,root_litter,nitrogen_uptake, phosphorus_uptake,&
       & litter_nutrient_content, limiting_nutrient, c_costs_of_uptake,&
-      & uptk_strategy, ctonfix, construction_c)
+      & uptk_strategy, ctonfix)
 
 
       ! PARAMETERS
@@ -79,16 +78,16 @@ module alloc
 
       ! variables I/O
       real(r_8),dimension(ntraits),intent(in) :: dt  ! PLS attributes
-      real(r_8),intent(in) :: npp  ! npp (KgC/m2/yr) gpp (µmol m-2 s)
+      real(r_4),intent(in) :: npp  ! npp (KgC/m2/yr) gpp (µmol m-2 s)
       real(r_8),intent(in) :: npp_costs ! Carbon costs of Nutrient active uptake and retranslocation
-      real(r_8),intent(in) :: ts   ! soil temp °C
+      real(r_4),intent(in) :: ts   ! soil temp °C
       real(r_8),intent(in) :: wsoil! soil water depth (mm)
       real(r_8),intent(in) :: te   ! plant transpiration (mm/s)
       real(r_8),intent(in) :: scl1 ! previous day carbon content on leaf compartment (KgC/m2)
       real(r_8),intent(in) :: sca1 ! previous day carbon content on aboveground woody biomass compartment(KgC/m2)
       real(r_8),intent(in) :: scf1 ! previous day carbon content on fine roots compartment (KgC/m2)
-      real(r_8),intent(in) :: nmin ! N in mineral N pool(g m-2) SOLUTION
-      real(r_8),intent(in) :: plab ! P in labile pool (g m-2)   SOLUTION
+      real(r_4),intent(in) :: nmin ! N in mineral N pool(g m-2) SOLUTION
+      real(r_4),intent(in) :: plab ! P in labile pool (g m-2)   SOLUTION
       real(r_8),intent(in) :: on,sop,op ! Organic N, Sorbed P, Organic P
       real(r_8),dimension(3),intent(in) :: storage ! Three element array- storage pool([C,N,P]) g m-2
       ! O
@@ -107,7 +106,6 @@ module alloc
       real(r_8), intent(out) :: c_costs_of_uptake
       integer(i_4), dimension(2), intent(out) :: uptk_strategy
       real(r_8),intent(out) :: ctonfix
-      real(r_8),intent(out) :: construction_c
 
       ! Auxiliary variables
       real(r_8) :: nuptk ! N plant uptake g(N) m-2
@@ -181,7 +179,7 @@ module alloc
       real(r_8), dimension(6) :: ccn ! Carbon Costs of  N uptake by strategy :
       real(r_8), dimension(8) :: ccp ! CC of P uptake by strategy
       real(r_8) :: active_nupt_cost, active_pupt_cost
-      integer(i_4) :: nacquis_strat, pacquis_strat, i
+      integer(i_4) :: naquis_strat, paquis_strat
       real(r_8) :: p_cost_resorpt, n_cost_resorpt
       real(r_8) :: negative_one
       real(r_8) :: aux_on, aux_sop, aux_op
@@ -234,8 +232,8 @@ module alloc
       real_npp               = 0.0D0
 
       ! 0 for passive uptake
-      nacquis_strat           = 0
-      pacquis_strat           = 0
+      naquis_strat           = 0
+      paquis_strat           = 0
 
       pdia                   = 0.0D0
       amp                    = 0.0D0
@@ -255,6 +253,9 @@ module alloc
       ccn(:)                 = 0.0D0
       ccp(:)                 = 0.0D0
 
+      ! Catch the functional/demographic traits of pls
+      !  head = ['g1', 'resopfrac', 'tleaf', 'twood', 'troot', 'aleaf', 'awood', 'aroot', 'c4',
+      !  'leaf_n2c', 'awood_n2c', 'froot_n2c', 'leaf_p2c', 'awood_p2c', 'froot_p2c', pdia, amp]
       resorpt_frac = dt(2)
       tleaf = dt(3) ! RESIDENCE TIME (years)
       twood = dt(4)
@@ -274,25 +275,25 @@ module alloc
 
       ctonfix = 0.0D0
 
-
-      ! Only a  small amount of total nutrients are available in fact
-      mult_factor_n = 0.03D0!1.0D0!0.03D0
-      mult_factor_p = 0.002D0!1.0D0!0.002D0
+      
+      ! Only a very small amount of total nutrients are available in fact
+      mult_factor_n  = 0.025D0
+      mult_factor_p  = 0.0035D0
       ! Partitioning Nutrients for cveg pools (weight by allocation coeffs)
       ! FIND AVAILABLE NUTRIENTS:
 
       avail_n = (mult_factor_n * nmin) !g m⁻²
       if(nmin .le. 0.0) avail_n = 0.0D0
-
+      
       avail_p = (mult_factor_p * plab) !g m⁻²
       if(plab .le. 0.0) avail_p = 0.0D0
-
+      
       aux_on = on * mult_factor_n
       if (on .le. 0.0D0) aux_on = 0.0D0
 
       aux_op = op * mult_factor_p
       if (op .le. 0.0D0) aux_op = 0.0D0
-
+      
       aux_sop = sop * mult_factor_p
       if (sop .le. 0.0D0) aux_sop = 0.0D0
 
@@ -343,7 +344,7 @@ module alloc
 
       !# if you reach this point ---> There is C and nutrients to allocate!
       test35 = .false.
-
+      
       ! INTERNAL VARIABLES
       scf2_tmp = 0.0D0
       sca2_tmp = 0.0D0
@@ -353,7 +354,7 @@ module alloc
       ! You have: kg m-2 year-1
       ! You want: g m-2 day-1
       npp_pot = (real(npp,kind=r_8) * (1000.0D0 / 365.242D0)) ! Transform Kg m-2 Year-1 to g m-2 day
-      daily_growth(:) = 0.0D0
+      daily_growth = 0.0D0
       npp_to_fixer = npp_pot * pdia
       ctonfix =  npp_to_fixer ! Sum Up in HR
       npp_pot = npp_pot - npp_to_fixer - npp_costs
@@ -365,7 +366,7 @@ module alloc
 
       ! SUM UP STORAGE AND NPP to create POTNPP
       if(storage(1) .gt. 0.0D0) then
-         from_sto2npp = 0.5D0 * storage(1)
+         from_sto2npp = 0.75D0 * storage(1)
          npp_pot = npp_pot + from_sto2npp
          storage_out_alloc(1) = storage(1) - from_sto2npp
       endif
@@ -393,16 +394,6 @@ module alloc
          endif
       endif
 29 continue
-      ! print *, "npp_pot", npp_pot
-      ! print *, "storage_out_alloc(1)", storage_out_alloc(1)
-      ! print *, "storage_out_alloc(2)", storage_out_alloc(2)
-      ! print *, "storage_out_alloc(3)", storage_out_alloc(3)
-
-      ! print *, "storage(1)", storage(1)
-      ! print *, "storage(2)", storage(2)
-      ! print *, "storage(3)", storage(3)
-
-
 
       ! Potential NPP for each compartment
       ! Partitioning NPP for CVEG pools
@@ -466,8 +457,8 @@ module alloc
       endif
 
       ! START NURTIENT STORAGE FOR OUTPUT  storage of NUTRIENTS
-      storage_out_alloc(nitrog) = 0.0D0 ! N
-      storage_out_alloc(phosph) = 0.0D0 ! P
+      storage_out_alloc(2) = 0.0D0 ! N
+      storage_out_alloc(3) = 0.0D0 ! P
 
       !----------END OF POTENTIAL VALUES CALCULATION (in MASS)
 
@@ -612,7 +603,7 @@ module alloc
          else
          ! IDENTIFY LIMITING
             if(is_limited(leaf, nitrog) .and. is_limited(leaf, phosph)) then
-               kappa = abs(real_npp(leaf, nitrog) - real_npp(leaf, phosph)) .lt. 1D-2
+               kappa = abs(real_npp(leaf, nitrog) - real_npp(leaf, phosph)) .lt. 1D-6
 
                if (kappa) then
                   limiting_nutrient(leaf) = colimi + colimi
@@ -632,7 +623,7 @@ module alloc
             endif
             daily_growth(leaf) = min(real_npp(leaf,nitrog), real_npp(leaf,phosph))
             to_storage_234 = npp_leaf - daily_growth(leaf)
-            storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234, "L636")
+            storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234)
             to_storage_234 = 0.0D0
             rn_uptake(leaf) = ((daily_growth(leaf) * leaf_av_n) / npp_leaf)
             rp_uptake(leaf) = ((daily_growth(leaf) * leaf_av_p) / npp_leaf)
@@ -668,7 +659,7 @@ module alloc
             endif
             daily_growth(root) = min(real_npp(root,nitrog), real_npp(root,phosph))
             to_storage_234 = npp_root - daily_growth(root)
-            storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234, "L672")
+            storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234)
             to_storage_234 = 0.0D0
             rn_uptake(root) = ((daily_growth(root) * root_av_n) / npp_root)
             rp_uptake(root) = ((daily_growth(root) * root_av_p) / npp_root)
@@ -705,7 +696,7 @@ module alloc
                endif
                daily_growth(wood) = min(real_npp(wood,nitrog), real_npp(wood,phosph))
                to_storage_234 = npp_wood - daily_growth(wood)
-               storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234, "L709")
+               storage_out_alloc(1) = add_pool(storage_out_alloc(1), to_storage_234)
                to_storage_234 = 0.0D0
                rn_uptake(wood) = ((daily_growth(wood) * wood_av_n) / npp_wood)
                rp_uptake(wood) = ((daily_growth(wood) * wood_av_p) / npp_wood)
@@ -773,25 +764,8 @@ module alloc
          p_to_storage(root) = max(0.0D0, (internal_p_root - rp_uptake(root)))
       endif
 
-      ! Check and clean n_to_storage and p_to_storage arrays for invalid values
-      do i = 1, 3
-         ! Check n_to_storage
-         if (ieee_is_nan(n_to_storage(i)) .or. .not. ieee_is_normal(n_to_storage(i))) then
-            n_to_storage(i) = 0.0D0
-         else if (n_to_storage(i) .gt. 1.0D3) then  ! Check for unreasonably large values
-            n_to_storage(i) = 0.0D0
-         endif
-
-         ! Check p_to_storage
-         if (ieee_is_nan(p_to_storage(i)) .or. .not. ieee_is_normal(p_to_storage(i))) then
-            p_to_storage(i) = 0.0D0
-         else if (p_to_storage(i) .gt. 1.0D3) then  ! Check for unreasonably large values
-            p_to_storage(i) = 0.0D0
-         endif
-      end do
-
-      storage_out_alloc(2) = add_pool(storage_out_alloc(2), sum(n_to_storage), "L777")
-      storage_out_alloc(3) = add_pool(storage_out_alloc(3), sum(p_to_storage), "L778")
+      storage_out_alloc(2) = add_pool(storage_out_alloc(2), sum(n_to_storage))
+      storage_out_alloc(3) = add_pool(storage_out_alloc(3), sum(p_to_storage))
       nuptk = sum(n_uptake)
       puptk = sum(p_uptake)
 
@@ -803,54 +777,54 @@ module alloc
       ! N
       ccn(:) = 0.0D0
       active_nupt_cost = 0.0D0
-      nacquis_strat = 0   ! Passive uptake
+      naquis_strat = 0   ! Passive uptake
       nitrogen_uptake(:) = 0.0D0
       if (to_pay(1) .gt. 0.0D0) then
          call active_costn(amp, avail_n - plant_passive_uptake(1), aux_on, scf1 * 1D3, ccn)
-         call select_active_strategy(ccn, active_nupt_cost, nacquis_strat)
-         call prep_out_n(nacquis_strat, nuptk, to_pay(1), nitrogen_uptake)
-         uptk_strategy(1) = nacquis_strat
+         call select_active_strategy(ccn, active_nupt_cost, naquis_strat)
+         call prep_out_n(naquis_strat, nuptk, to_pay(1), nitrogen_uptake)
+         uptk_strategy(1) = naquis_strat
       else
          nitrogen_uptake(1) = nuptk
          nitrogen_uptake(2) = 0.0D0
          uptk_strategy(1) = 0
       endif
       test34 = nitrogen_uptake(2) .gt. on
-      uptk_strategy(1) = nacquis_strat
-      if(ieee_is_nan(to_sto(1))) to_sto(1) = 0.0D0
+      uptk_strategy(1) = naquis_strat
+      if(isnan(to_sto(1))) to_sto(1) = 0.0D0
       ! if(to_sto(1) .gt. 1.0D1) to_sto(1) = 0.0D0
       if(to_sto(1) .lt. 0.0D0) to_sto(1) = 0.0D0
-      storage_out_alloc(2) = add_pool(storage_out_alloc(2), to_sto(1), "L807")
+      storage_out_alloc(2) = add_pool(storage_out_alloc(2), to_sto(1))
 
       !  P
       ccp(:) = 0.0D0
       active_pupt_cost = 0.0D0
-      pacquis_strat = 0
+      paquis_strat = 0
       phosphorus_uptake(:) = 0.0D0
       if(to_pay(2) .gt. 0.0D0) then
          call active_costp(amp, avail_p - plant_passive_uptake(2), aux_sop, aux_op, scf1 * 1D3, ccp)
-         call select_active_strategy(ccp, active_pupt_cost, pacquis_strat)
-         call prep_out_p(pacquis_strat, puptk, to_pay(2), phosphorus_uptake)
-         uptk_strategy(2) = pacquis_strat
+         call select_active_strategy(ccp, active_pupt_cost, paquis_strat)
+         call prep_out_p(paquis_strat, puptk, to_pay(2), phosphorus_uptake)
+         uptk_strategy(2) = paquis_strat
       else
          phosphorus_uptake(1) = puptk
          phosphorus_uptake(2) = 0.0D0
          phosphorus_uptake(3) = 0.0D0
          uptk_strategy(2) = 0
       endif
-      if(ieee_is_nan(to_sto(2))) to_sto(2) = 0.0D0
+      if(isnan(to_sto(2))) to_sto(2) = 0.0D0
       ! if(to_sto(2) .gt. 1.0D1) to_sto(2) = 0.0D0
       if(to_sto(2) .lt. 0.0D0) to_sto(2) = 0.0D0
-      storage_out_alloc(3) = add_pool(storage_out_alloc(3), to_sto(2), "L828")
+      storage_out_alloc(3) = add_pool(storage_out_alloc(3), to_sto(2))
 
       ! TODO calculate enzimatic n costs of enzimatic activity?
       ! ???????????????????????????????????????????????????????
 
       ! CARBON AND NUTRIENTS TURNOVER
       test35 = .false. ! Ensure the normal calculations of allocation
-
+      
 294   continue ! Material going to soil + updating veg pools
-
+      
       if(test35) then
          nitrogen_uptake(:) = 0.0D0
          phosphorus_uptake(:) = 0.0D0
@@ -863,8 +837,8 @@ module alloc
          phosphorus_uptake(1) = min(plant_passive_uptake(2), avail_p)
 
          ! Send to sto
-         storage_out_alloc(2) = add_pool(storage_out_alloc(2), to_sto(1), "L850")
-         storage_out_alloc(3) = add_pool(storage_out_alloc(3), to_sto(2), "L851")
+         storage_out_alloc(2) = add_pool(storage_out_alloc(2), to_sto(1))
+         storage_out_alloc(3) = add_pool(storage_out_alloc(3), to_sto(2))
       endif
 
       ! LEAF LITTER FLUX
@@ -876,16 +850,9 @@ module alloc
       scl2 = (1D3 * scl1) + daily_growth(leaf) - (leaf_litter * 2.73791075D0)
       scf2 = (1D3 * scf1) + daily_growth(root) - (root_litter * 2.73791075D0)
 
-      ! if it's a woody strategy:
+      ! ## if it's a woody strategy:
       if(awood .gt. 0.0D0) then
-         ! Calculate the CWD
-         ! if there is less than minimum amount of carbon in leaves and fine roots
-         if(scl2 .lt. cmin .or. scf2 .lt. cmin) then
-            ! Wood cycle faster (quadruple the rate)
-            cwd = sca1 / (twood * 0.25D0) ! Kg(C) m-2 year-1
-         else
-            cwd = sca1 / twood !/ tawood! Kg(C) m-2
-         endif
+         cwd = sca1 / twood !/ tawood! Kg(C) m-2
          sca2 = (1D3 * sca1) + daily_growth(wood) - (cwd * 2.73791075D0)  ! g(C) m-2
       else
          cwd = 0.0D0
@@ -917,7 +884,7 @@ module alloc
       new_leaf_n2c = (n_leaf - aux1) / leaf_litter
 
       ! N resorbed goes to storage pool
-      storage_out_alloc(2) = add_pool(storage_out_alloc(2), aux1, "L904")     ! g(N) m-2
+      storage_out_alloc(2) = add_pool(storage_out_alloc(2), aux1)     ! g(N) m-2
 
       ! CALCULATE THE NUTRIENT N IN LITTER FLUX
       litter_nutrient_content(1) = leaf_litter_o * new_leaf_n2c            ! g(N)m-2
@@ -940,7 +907,7 @@ module alloc
       new_leaf_p2c = 0.0D0
       new_leaf_p2c = (p_leaf - aux1) / leaf_litter
 
-      storage_out_alloc(3) = add_pool(storage_out_alloc(3) , aux1, "L927")
+      storage_out_alloc(3) = add_pool(storage_out_alloc(3) , aux1)
 
       ! CALCULATE THE NUTRIENT N IN LITTER FLUX
       litter_nutrient_content(4) = leaf_litter_o * new_leaf_p2c            ! g(P)m-2
@@ -952,7 +919,7 @@ module alloc
       endif
       ! END RETRANSLOCATION CALCULATIONS
 
-      ! Finalize convert g kg
+      ! Finalize
       scl2 = scl2 * 1.0D-3
       scf2 = scf2 * 1.0D-3
       if(awood .gt. 0.0D0) then
@@ -961,65 +928,22 @@ module alloc
          sca2 = 0.0D0
       endif
 
-      ! Calculate the construction cost of the new biomass. This is stored to be
-      ! taken out of the potential NPP in the next time step
       c_costs_of_uptake = active_nupt_cost + active_pupt_cost &
       &                   + n_cost_resorpt + p_cost_resorpt + negative_one
-
-      ! Calculate the construction cost of the new biomass. This is stored to be
-      ! passed to python. The costs of nutrient uptake are already included (Calculated in the allocation function above)
-      construction_c = sum(daily_growth) ! g m-2 day-1
       ! END OF CALCULATIONS
 
    contains
 
-      function add_pool(a1, a2, message) result(new_amount)
-         use, intrinsic :: ieee_arithmetic, only: ieee_is_normal, ieee_is_negative
+      function add_pool(a1, a2) result(new_amount)
+
          real(r_8), intent(in) :: a1, a2
-         character(len=*), intent(in), optional :: message  ! Optional diagnostic message
          real(r_8) :: new_amount
-         logical(l_1) :: a1_ok, a2_ok
 
-         ! Check if inputs are normal numbers (not NaN/Inf)
-         a1_ok = ieee_is_normal(a1)
-         a2_ok = ieee_is_normal(a2)
-
-         ! Handle non-normal inputs with optional message
-         if (.not. a1_ok) then
-            if (present(message)) then
-                  write(*,*) "Warning: a1 NaN/Inf in add_pool: ", a1, " | Message: ", message
-            else
-                  write(*,*) "Warning: a1 NaN/Inf in add_pool: ", a1
-            end if
-         end if
-
-         if (.not. a2_ok) then
-            if (present(message)) then
-                  write(*,*) "Warning: a2 NaN/Inf in add_pool: ", a2, " | Message: ", message
-            else
-                  write(*,*) "Warning: a2 NaN/Inf in add_pool: ", a2
-            end if
-         end if
-
-         ! Determine result based on input validity
-         if (a1_ok) then
-            if (a2_ok) then
-                  if (ieee_is_negative(a2)) then
-                     new_amount = a1  ! Ignore negative a2
-                  else
-                     new_amount = a1 + a2  ! Valid addition
-                  end if
-            else
-                  new_amount = a1  ! Use a1 when a2 invalid
-            end if
+         if(a2 .ge. 0.0D0) then
+            new_amount = a1 + a2
          else
-            if (a2_ok) then
-                  write(*,*) "Setting pool as a2: ", a2
-                  new_amount = a2  ! Use a2 when a1 invalid
-            else
-                  new_amount = 0.0D0  ! Both inputs invalid
-            end if
-         end if
+            new_amount = a1
+         endif
       end function add_pool
 
    end subroutine allocation

@@ -1,4 +1,0 @@
-numpy
-netCDF4
-numba
-pandas
