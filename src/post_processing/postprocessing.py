@@ -5,7 +5,8 @@ import joblib
 import pandas as pd
 import numpy as np
 
-
+#Choose the gridcell acronym to access the data
+#this step is to facilitate accessing the folder where the results were saved
 while True:
     grd_acro = input('Gridcell acronym [AFL, ALP, FEC, MAN, CAX, NVX]: ')
 
@@ -73,7 +74,7 @@ while True:
 #     'CAX_30prec_7y']
 
 run_names = [
-   'MAN_30prec_7y']
+   'test_marcela']
     
 
 

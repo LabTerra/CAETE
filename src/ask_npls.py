@@ -4,7 +4,7 @@ from pathlib import Path
 descrp = "This script creates a global.f90 file with an asked iniital NPLS number"
 
 
-s = int(input("Number of initial random EV (10 - 3000): "))
+s = int(input("Number of initial random PLS: "))
 
 global_f90 = f"""
 ! Copyright 2017- LabTerra

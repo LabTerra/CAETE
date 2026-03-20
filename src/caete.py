@@ -51,7 +51,7 @@ runplotp = False
 
 while True:
     maskp = input(
-        "TWO MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+        "THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
     if maskp == 'b':
         mask = np.load("../input/mask/mask_raisg-360-720.npy")
         break
