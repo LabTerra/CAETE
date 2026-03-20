@@ -825,7 +825,7 @@ contains
       real(r_8) :: nbio2, pbio2, dark_respiration  ! , cbio_aux
       real(r_8), parameter :: light_penalization = 0.2D0, alpha_a = 0.7D0
 
-
+      ! TODO: add dark respiration donwstream
 
       ! vpd_effect = min(1.0D0, max(1.0D0 - (0.25D0 * vpd), 0.0D0))
       dark_respiration = 1.0D0 - 0.15D0 ! TODO:there is a problem upstream with the vm calculation

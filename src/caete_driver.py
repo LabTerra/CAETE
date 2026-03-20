@@ -48,7 +48,7 @@ from pathlib import Path
 from polars import read_csv
 
 
-GENERATE_NEW_PLS_TABLE = True  # Set to True to generate a new PLS table instead of using a pre-generated one
+GENERATE_NEW_PLS_TABLE = True  # Set to True to generate a new PLS table instead of using a pre-existing one
 
 # All simulation code must be inside the if __name__ == "__main__" block.
 # This is required for multiprocessing with the 'spawn' method, which is
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     # Import here to avoid multiprocessing pickle issues
     print("Generating output files...")
     from dataframes import output_manager
-    output_manager.pan_amazon_output(filename_infix=region_name)
+    output_manager.pan_amazon_output(filename_prefix=region_name)
     print("✓ Output files generated.\n")
 
     # Archive the PLS table used in this simulation for reproducibility

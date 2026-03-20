@@ -516,7 +516,7 @@ def write_caete_netcdf(climate_data, soil_data, vpd_data, lats, lons, station_na
             var_obj.long_name = f"{var_name.upper()} for CAETE"
             var_obj.coordinates = "lat lon"
 
-    print(f"Successfully written CDO-compatible file: {output_file}")
+    print(f"Successfully written file: {output_file}")
     return output_file
 
 def assemble_climate_data_vectorized(climate_vars, vpd_data):

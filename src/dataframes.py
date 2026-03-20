@@ -2123,7 +2123,7 @@ class output_manager:
 
 
     @staticmethod
-    def pan_amazon_output(filename_infix: str = "pan_amazon_hist"):
+    def pan_amazon_output(filename_prefix: str = "pan_amazon_hist"):
 
         """Function to process Pan-Amazon historical output and
         save as netCDF daily files and parquet biomass files (per year).
@@ -2136,7 +2136,7 @@ class output_manager:
         """
 
         # Load region result file
-        output_file = Path(f"../outputs/{filename_infix}_result.psz")
+        output_file = Path(f"../outputs/{filename_prefix}_result.psz")
         reg:region = worker.load_state_zstd(output_file)
 
         # Select the variables to be written
@@ -2152,7 +2152,7 @@ class output_manager:
         from time import perf_counter
         start = perf_counter()
         gridded_output = gridded_data.create_masked_arrays(gridded_data.aggregate_region_data(reg, variables_to_read, (3,5)))
-        gridded_data.save_netcdf_daily(gridded_output, filename_infix)
+        gridded_data.save_netcdf_daily(gridded_output, filename_prefix)
         end = perf_counter()
         print(f"Elapsed time: {end - start:.2f} seconds")
 
