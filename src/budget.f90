@@ -40,6 +40,8 @@ contains
       use productivity
       use omp_lib
 
+      use, intrinsic :: ieee_arithmetic
+
       use photo, only: pft_area_frac, sto_resp
       use water, only: evpot2, penman, available_energy, runoff
       use alloc2
@@ -47,15 +49,15 @@ contains
       !     ----------------------------INPUTS-------------------------------
       real(r_8),dimension(ntraits,npls),intent(in) :: dt
       real(r_8),intent(in) :: w1, w2   !Initial (previous month last day) soil moisture storage (mm)
-      ! real(r_4),dimension(npls),intent(in) :: g1   !Initial soil ice storage (mm)
-      ! real(r_4),dimension(npls),intent(in) :: s1   !Initial overland snow storage (mm)
-      real(r_4),intent(in) :: ts                   ! Soil temperature (oC)
-      real(r_4),intent(in) :: temp                 ! Surface air temperature (oC)
-      real(r_4),intent(in) :: p0                   ! Surface pressure (mb)
-      real(r_4),intent(in) :: ipar                 ! Incident photosynthetic active radiation mol Photons m-2 s-1
-      real(r_4),intent(in) :: rh                   ! Relative humidity
-      real(r_4),intent(in) :: mineral_n            ! Solution N NOx/NaOH gm-2
-      real(r_4),intent(in) :: labile_p             ! solution P O4P  gm-2
+      ! real(r_8),dimension(npls),intent(in) :: g1   !Initial soil ice storage (mm)
+      ! real(r_8),dimension(npls),intent(in) :: s1   !Initial overland snow storage (mm)
+      real(r_8),intent(in) :: ts                   ! Soil temperature (oC)
+      real(r_8),intent(in) :: temp                 ! Surface air temperature (oC)
+      real(r_8),intent(in) :: p0                   ! Surface pressure (mb)
+      real(r_8),intent(in) :: ipar                 ! Incident photosynthetic active radiation mol Photons m-2 s-1
+      real(r_8),intent(in) :: rh                   ! Relative humidity
+      real(r_8),intent(in) :: mineral_n            ! Solution N NOx/NaOH gm-2
+      real(r_8),intent(in) :: labile_p             ! solution P O4P  gm-2
       real(r_8),intent(in) :: on, sop, op          ! Organic N, isoluble inorganic P, Organic P g m-2
       real(r_8),intent(in) :: catm, wmax_in                 ! ATM CO2 concentration ppm
 
@@ -71,7 +73,7 @@ contains
 
 
       !     ----------------------------OUTPUTS------------------------------
-      real(r_4),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
+      real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
       real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
@@ -115,31 +117,31 @@ contains
       logical(l_1),dimension(npls) :: ocp_wood
       integer(i_4),dimension(npls) :: run
 
-      real(r_4),parameter :: tsnow = -1.0
-      real(r_4),parameter :: tice  = -2.5
+      real(r_8),parameter :: tsnow = -1.0D0
+      real(r_8),parameter :: tice  = -2.5D0
 
       real(r_8), dimension(npls) :: cl1_pft, cf1_pft, ca1_pft, cs1_pft, ch1_pft
-      real(r_4) :: soil_temp
-      real(r_4) :: emax
+      real(r_8) :: soil_temp
+      real(r_8) :: emax
       real(r_8) :: w                               !Daily soil moisture storage (mm)
 
       real(r_8),dimension(:),allocatable :: ocp_coeffs
 
-      real(r_4),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
+      real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
       !c     Carbon Cycle
-      real(r_4),dimension(:),allocatable :: ph     !Canopy gross photosynthesis (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: ar     !Autotrophic respiration (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: nppa   !Net primary productivity / auxiliar
+      real(r_8),dimension(:),allocatable :: ph     !Canopy gross photosynthesis (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: ar     !Autotrophic respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: nppa   !Net primary productivity / auxiliar
       real(r_8),dimension(:),allocatable :: laia   !Leaf area index (m2 leaf/m2 area)
-      real(r_4),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
-      real(r_4),dimension(:),allocatable :: f1     !
+      real(r_8),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
+      real(r_8),dimension(:),allocatable :: f1     !
       real(r_8),dimension(:),allocatable :: f5     !Photosynthesis (mol/m2/s)
-      real(r_4),dimension(:),allocatable :: vpd    !Vapor Pressure deficit
-      real(r_4),dimension(:),allocatable :: rm     !maintenance & growth a.resp
-      real(r_4),dimension(:),allocatable :: rg
-      real(r_4),dimension(:),allocatable :: wue
-      real(r_4),dimension(:),allocatable :: cue
-      real(r_4),dimension(:),allocatable :: c_def
+      real(r_8),dimension(:),allocatable :: vpd    !Vapor Pressure deficit
+      real(r_8),dimension(:),allocatable :: rm     !maintenance & growth a.resp
+      real(r_8),dimension(:),allocatable :: rg
+      real(r_8),dimension(:),allocatable :: wue
+      real(r_8),dimension(:),allocatable :: cue
+      real(r_8),dimension(:),allocatable :: c_def
       real(r_8),dimension(:),allocatable :: cl1_int
       real(r_8),dimension(:),allocatable :: cf1_int
       real(r_8),dimension(:),allocatable :: ca1_int
@@ -185,8 +187,8 @@ contains
          cf1_pft(i) = cf1_in(i)
 
          !(sapwood and heartwood compartment)
-         cs1_pft(i) = 0.1*ca1_pft(i)
-         ch1_pft(i) = 0.9*ca1_pft(i)
+         cs1_pft(i) = 0.1D0 * ca1_pft(i)
+         ch1_pft(i) = 0.9D0 * ca1_pft(i)
 
          dleaf(i) = dleaf_in(i)
          dwood(i) = dwood_in(i)
@@ -313,14 +315,14 @@ contains
          ! Check if the carbon deficit can be compensated by stored carbon
          carbon_in_storage = sto_budg(1, ri)
          storage_out_bdgt(1, p) = carbon_in_storage
-         if (c_def(p) .gt. 0.0) then
+         if (c_def(p) .gt. 0.0D0) then
             testcdef = c_def(p) - carbon_in_storage
-            if(testcdef .lt. 0.0) then
+            if(testcdef .lt. 0.0D0) then
                storage_out_bdgt(1, p) = carbon_in_storage - c_def(p)
                c_def(p) = 0.0D0
             else
                storage_out_bdgt(1, p) = 0.0D0
-               c_def(p) = real(testcdef, kind=r_4)       ! testcdef is zero or positive
+               c_def(p) = real(testcdef, kind=r_8)       ! testcdef is zero or positive
             endif
          endif
          carbon_in_storage = 0.0D0
@@ -328,7 +330,7 @@ contains
 
          ! calculate maintanance respirarion of stored C
          mr_sto = sto_resp(temp, storage_out_bdgt(:,p))
-         if (isnan(mr_sto)) mr_sto = 0.0D0
+         if (ieee_is_nan(mr_sto)) mr_sto = 0.0D0
          if (mr_sto .gt. 0.1D2) mr_sto = 0.0D0
          storage_out_bdgt(1,p) = max(0.0D0, (storage_out_bdgt(1,p) - mr_sto))
 
@@ -343,14 +345,14 @@ contains
          ! Estimate growth of storage C pool
          ar_fix_hr(p) = ar_aux
          growth_stoc = max( 0.0D0, (day_storage(1,p) - storage_out_bdgt(1,p)))
-         if (isnan(growth_stoc)) growth_stoc = 0.0D0
+         if (ieee_is_nan(growth_stoc)) growth_stoc = 0.0D0
          if (growth_stoc .gt. 0.1D3) growth_stoc = 0.0D0
          storage_out_bdgt(:,p) = day_storage(:,p)
 
          ! Calculate storage GROWTH respiration
          sr = 0.05D0 * growth_stoc ! g m-2
          if(sr .gt. 1.0D2) sr = 0.0D0
-         ar(p) = ar(p) + real(((sr + mr_sto) * 0.365242), kind=r_4) ! Convert g m-2 day-1 in kg m-2 year-1
+         ar(p) = ar(p) + real(((sr + mr_sto) * 0.365242D0), kind=r_8) ! Convert g m-2 day-1 in kg m-2 year-1
          storage_out_bdgt(1, p) = storage_out_bdgt(1, p) - sr
 
          growth_stoc = 0.0D0
@@ -358,13 +360,13 @@ contains
          sr = 0.0D0
 
          ! CUE & Delta C
-         if(ph(p) .eq. 0.0 .or. nppa(p) .eq. 0.0) then
-            cue(p) = 0.0
+         if(ph(p) < 1.0D-15 .or. nppa(p) < 1.0D-15) then
+            cue(p) = 0.0D0
          else
             cue(p) = nppa(p)/ph(p)
          endif
 
-         delta_cveg(1,p) = cl2(p) - cl1_pft(ri)  !kg m-2
+         delta_cveg(1,p) = cl2(p) - cl1_pft(ri)  ! kg m-2
          if(dt1(4) .lt. 0.0D0) then
             delta_cveg(2,p) = 0.0D0
          else
@@ -376,13 +378,13 @@ contains
 
          if(c_def(p) .gt. 0.0) then
             if(dt1(7) .gt. 0.0D0) then
-               cl1_int(p) = cl2(p) - ((c_def(p) * 1e-3) * 0.333333333)
-               ca1_int(p) = ca2(p) - ((c_def(p) * 1e-3) * 0.333333333)
-               cf1_int(p) = cf2(p) - ((c_def(p) * 1e-3) * 0.333333333)
+               cl1_int(p) = cl2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
+               ca1_int(p) = ca2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
+               cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
             else
-               cl1_int(p) = cl2(p) - ((c_def(p) * 1e-3) * 0.5)
+               cl1_int(p) = cl2(p) - ((c_def(p) * 1.0D-3) * 0.5D0)
                ca1_int(p) = 0.0D0
-               cf1_int(p) = cf2(p) - ((c_def(p) * 1e-3) * 0.5)
+               cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.5D0)
             endif
          else
             if(dt1(7) .gt. 0.0D0) then
@@ -438,36 +440,36 @@ contains
 
       ! FILTER NaN in ocupation (abundance) coefficients
       do p = 1, nlen
-         if(isnan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
+         if(ieee_is_nan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
       enddo
+      
+      evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      phavg = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
+      aravg = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
+      nppavg = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
+      laiavg = sum(laia * ocp_coeffs, mask= .not. ieee_is_nan(laia))
+      rcavg = sum(real(rc2, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rc2))
+      f5avg = sum(f5 * ocp_coeffs, mask= .not. ieee_is_nan(f5))
+      rmavg = sum(real(rm, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rm))
+      rgavg = sum(real(rg, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rg))
+      wueavg = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(wue))
+      cueavg = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(cue))
+      c_defavg = sum(real(c_def, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(c_def)) / 2.73791D0
+      vcmax_1 = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
+      specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
+      litter_l_1 = sum(litter_l * ocp_coeffs, mask= .not. ieee_is_nan(litter_l))
+      cwd_1 = sum(cwd * ocp_coeffs, mask= .not. ieee_is_nan(cwd))
+      litter_fr_1 = sum(litter_fr * ocp_coeffs, mask= .not. ieee_is_nan(litter_fr))
+      c_cost_cwm = sum(npp2pay * ocp_coeffs, mask= .not. ieee_is_nan(npp2pay))
 
-      evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. isnan(evap))
-      phavg = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. isnan(ph))
-      aravg = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. isnan(ar))
-      nppavg = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. isnan(nppa))
-      laiavg = sum(laia * ocp_coeffs, mask= .not. isnan(laia))
-      rcavg = sum(real(rc2, kind=r_8) * ocp_coeffs, mask= .not. isnan(rc2))
-      f5avg = sum(f5 * ocp_coeffs, mask= .not. isnan(f5))
-      rmavg = sum(real(rm, kind=r_8) * ocp_coeffs, mask= .not. isnan(rm))
-      rgavg = sum(real(rg, kind=r_8) * ocp_coeffs, mask= .not. isnan(rg))
-      wueavg = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. isnan(wue))
-      cueavg = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. isnan(cue))
-      c_defavg = sum(real(c_def, kind=r_8) * ocp_coeffs, mask= .not. isnan(c_def)) / 2.73791
-      vcmax_1 = sum(vcmax * ocp_coeffs, mask= .not. isnan(vcmax))
-      specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. isnan(specific_la))
-      litter_l_1 = sum(litter_l * ocp_coeffs, mask= .not. isnan(litter_l))
-      cwd_1 = sum(cwd * ocp_coeffs, mask= .not. isnan(cwd))
-      litter_fr_1 = sum(litter_fr * ocp_coeffs, mask= .not. isnan(litter_fr))
-      c_cost_cwm = sum(npp2pay * ocp_coeffs, mask= .not. isnan(npp2pay))
-
-      cp(1) = sum(cl1_int * ocp_coeffs, mask= .not. isnan(cl1_int))
-      cp(2) = sum(ca1_int * (ocp_coeffs * idx_grasses), mask= .not. isnan(ca1_int))
-      cp(3) = sum(cf1_int * ocp_coeffs, mask= .not. isnan(cf1_int))
-      cp(4) = sum(ar_fix_hr * (ocp_coeffs * idx_pdia), mask= .not. isnan(ar_fix_hr))
+      cp(1) = sum(cl1_int * ocp_coeffs, mask= .not. ieee_is_nan(cl1_int))
+      cp(2) = sum(ca1_int * (ocp_coeffs * idx_grasses), mask= .not. ieee_is_nan(ca1_int))
+      cp(3) = sum(cf1_int * ocp_coeffs, mask= .not. ieee_is_nan(cf1_int))
+      cp(4) = sum(ar_fix_hr * (ocp_coeffs * idx_pdia), mask= .not. ieee_is_nan(ar_fix_hr))
       ! FILTER BAD VALUES
       do p = 1,2
          do i = 1, nlen
-            if (isnan(nupt(p, i))) nupt(p, i) = 0.0D0
+            if (ieee_is_nan(nupt(p, i))) nupt(p, i) = 0.0D0
             if (nupt(p, i) .gt. 1.5D2) nupt(p, i) = 0.0D0
             if (nupt(p, i) .lt. 0.0D0) nupt(p, i) = 0.0D0
          enddo
@@ -475,7 +477,7 @@ contains
 
       do p = 1,3
          do i = 1, nlen
-            if(isnan(pupt(p, i))) pupt(p, i) = 0.0D0
+            if(ieee_is_nan(pupt(p, i))) pupt(p, i) = 0.0D0
             if (pupt(p, i) .gt. 0.7D2) pupt(p, i) = 0.0D0
             if (pupt(p, i) .lt. 0.0D0) pupt(p, i) = 0.0D0
          enddo
@@ -490,7 +492,7 @@ contains
 
       do p = 1,6
          do i = 1, nlen
-            if(isnan(lit_nut_content(p, i))) lit_nut_content(p, i) = 0.0D0
+            if(ieee_is_nan(lit_nut_content(p, i))) lit_nut_content(p, i) = 0.0D0
             if (lit_nut_content(p, i) .gt. 1.0D2) lit_nut_content(p, i) = 0.0D0
             if (lit_nut_content(p, i) .lt. 0.0D0) lit_nut_content(p, i) = 0.0D0
          enddo
@@ -498,7 +500,7 @@ contains
 
       do p = 1,3
          do i = 1, nlen
-            if(isnan(storage_out_bdgt(p,i))) storage_out_bdgt(p,i) = 0.0D0
+            if(ieee_is_nan(storage_out_bdgt(p,i))) storage_out_bdgt(p,i) = 0.0D0
             if(storage_out_bdgt(p,i) > 0.5D2) storage_out_bdgt(p,i) = 0.0D0
             if(storage_out_bdgt(p,i) < 0.0D0) storage_out_bdgt(p,i) = 0.0D0
          enddo

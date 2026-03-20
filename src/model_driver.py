@@ -133,10 +133,10 @@ if not sombrero:
         "Give a name to your run (ASCII letters and numbers only. No spaces): ")
     dump_folder = Path(f'../outputs/{outf}').resolve()
     nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
+    print("\n")
     print(
         f"The raw model results & the PLS table will be saved at: {dump_folder}\n")
     print(f"The final netCDF files will be stored at: {nc_outputs}\n")
-    print('nc outputs----------------->', nc_outputs)
 
 if not sombrero:
     zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
@@ -149,8 +149,8 @@ if not sombrero:
 
 if zone == 'c':
     # # Gridcell MAN: 186, 239
-    # y0, y1 = 186, 187
-    # x0, x1 = 239, 240
+    y0, y1 = 186, 187
+    x0, x1 = 239, 240
 
     # y0, y1 = 175, 176
     # x0, x1 = 235, 236
@@ -262,17 +262,17 @@ if sombrero:
         rbrk_index = 1
 
         # READ the PLS table employed in the base run
-        from parameters import pls_path, ATTR_FILENAME
-        if pls_path.exists():
-            from caete_utils import read_pls_table
-            print('')
-            print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
-            print('')
-            os.makedirs(dump_folder, exist_ok=True)
-            pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
-        else:
-            print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
-            pls_table = pls.table_gen(npls, dump_folder)
+        # from parameters import pls_path, ATTR_FILENAME
+        # if pls_path.exists():
+        #     from caete_utils import read_pls_table
+        #     print('')
+        #     print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
+        #     print('')
+        #     os.makedirs(dump_folder, exist_ok=True)
+        #     pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
+        # else:
+        print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
+        pls_table = pls.table_gen(npls, dump_folder)
 
     with open("stime.txt", 'w') as fh:
         fh.writelines([f"{stime['units']}\n",
@@ -312,19 +312,20 @@ else:
                        f"{stime['calendar']}\n",
                        f"historical-ISIMIP2b-TEST-{folder}\n",
                        f"{rbrk_index}\n"])
+
     # FUNCTIONAL TRAITS DATA
     # pls_table = pls.table_gen(npls, dump_folder)
-    from parameters import pls_path, ATTR_FILENAME
-    if pls_path.exists():
-        from caete_utils import read_pls_table
-        print('')
-        print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
-        print('')
-        os.makedirs(dump_folder, exist_ok=True)
-        pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
-    else:
-        print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
-        pls_table = pls.table_gen(npls, dump_folder)
+    # from parameters import pls_path, ATTR_FILENAME
+    # if pls_path.exists():
+    #     from caete_utils import read_pls_table
+    #     print('')
+    #     print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
+    #     print('')
+    #     os.makedirs(dump_folder, exist_ok=True)
+    #     pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
+    # else:
+    print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
+    pls_table = pls.table_gen(npls, dump_folder)
 
 
 # # Create the gridcell objects
@@ -515,12 +516,12 @@ if __name__ == "__main__":
 
     #save either h5 from allometry or without allometry
     if allom:
-        # write_h5_allom(dump_folder)
-        # print("\n\nSaving netCDF4 files for allometry version")
+        write_h5_allom(dump_folder)
+        #print("\n\nSaving netCDF4 files for allometry version")
         print('\n\nNot saving netCDF4 files')
-        # h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
-        # h52nc_allom(h5path, nc_outputs)
-        # print(time.ctime())
+        #h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+        #h52nc_allom(h5path, nc_outputs)
+        #print(time.ctime())
     else:
         write_h5(dump_folder)
         print("\n\nSaving netCDF4 files")

@@ -48,7 +48,7 @@ def vec_ranging(values, new_min, new_max):
                                        old_min) * (v - old_min) + new_min
         output.append(new_v)
 
-    return np.array(output, dtype=np.float32)
+    return np.array(output, dtype=np.float64)
 
 
 def check_viability(trait_values, wood):

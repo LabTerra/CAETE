@@ -26,7 +26,7 @@ module budget_allom
  
    public :: daily_budget_allom
  
-contains
+   contains
  
    subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh, catm&
       &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
@@ -44,6 +44,8 @@ contains
       use productivity
       use omp_lib
 
+      use, intrinsic :: ieee_arithmetic
+
       use photo, only: pft_area_frac, sto_resp
       use water, only: evpot2, penman, available_energy, runoff
       use alloc2
@@ -58,12 +60,12 @@ contains
       real(r_8),intent(in) :: w2  !Initial (previous month last day) soil moisture storage (mm) - lower layer
 
       !Climatic data
-      real(r_4),intent(in) :: temp    ! Surface air temperature (oC)
-      real(r_4),intent(in) :: p0      ! Surface pressure (mb)
-      real(r_4),intent(in) :: ipar    ! Incident photosynthetic active radiation mol Photons m-2 s-1
-      real(r_4),intent(in) :: rh      ! Relative humidity 
+      real(r_8),intent(in) :: temp    ! Surface air temperature (oC)
+      real(r_8),intent(in) :: p0      ! Surface pressure (mb)
+      real(r_8),intent(in) :: ipar    ! Incident photosynthetic active radiation mol Photons m-2 s-1
+      real(r_8),intent(in) :: rh      ! Relative humidity 
       real(r_8),intent(in) :: catm    ! ATM CO2 concentration ppm
-      real(r_4),intent(in) :: ts      ! Soil temperature (oC)
+      real(r_8),intent(in) :: ts      ! Soil temperature (oC)
 
       !Soil
       real(r_8),intent(in) :: wmax_in ! Saturation point
@@ -120,7 +122,7 @@ contains
       real(r_8),dimension(npls),intent(out) :: ocpavg    ! [0-1] Gridcell occupation
 
       !CWM OUTPUTS
-      real(r_4),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
+      real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
       real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
@@ -225,16 +227,16 @@ contains
 
 
       !Carbon Cycle
-      real(r_4),dimension(:),allocatable :: ph           !Canopy gross photosynthesis (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: ar           !Autotrophic respiration (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: nppa         !Net primary productivity / auxiliar
+      real(r_8),dimension(:),allocatable :: ph           !Canopy gross photosynthesis (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: ar           !Autotrophic respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: nppa         !Net primary productivity / auxiliar
       real(r_8),dimension(:),allocatable :: laia         !Leaf area index (m2 leaf/m2 area)
       real(r_8),dimension(:),allocatable :: f5           !Foliar Photosynthesis (mol/m2/s)
-      real(r_4),dimension(:),allocatable :: vpd          !Vapor Pressure deficit
-      real(r_4),dimension(:),allocatable :: rm           !Maintenance respiration (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: rg           !Growth respiration (kgC/m2/yr)
-      real(r_4),dimension(:),allocatable :: cue          !Carbon use efficiency
-      real(r_4),dimension(:),allocatable :: c_def        !Carbon deficit due to negative NPP (kgC/m2/yr) - i.e. ph < ar
+      real(r_8),dimension(:),allocatable :: vpd          !Vapor Pressure deficit
+      real(r_8),dimension(:),allocatable :: rm           !Maintenance respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: rg           !Growth respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: cue          !Carbon use efficiency
+      real(r_8),dimension(:),allocatable :: c_def        !Carbon deficit due to negative NPP (kgC/m2/yr) - i.e. ph < ar
       real(r_8),dimension(:),allocatable :: vcmax        !Rubisco maximum velocity of carboxilation (µmol/m2/s)
       real(r_8),dimension(:),allocatable :: specific_la  !Specific leaf area (m2/kg)
       real(r_8),dimension(:),allocatable :: litter_l     ! leaf litter
@@ -244,14 +246,14 @@ contains
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
       !Water cycle
-      real(r_4),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
-      real(r_4),dimension(:),allocatable :: wue    !Water use efficiency
-      real(r_4),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
+      real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
+      real(r_8),dimension(:),allocatable :: wue    !Water use efficiency
+      real(r_8),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
       real(r_8),dimension(:),allocatable :: tra    !Transpiration (mm/s)
-      real(r_4) :: emax                            !Maximum evapotranspiration (mm/day)
+      real(r_8) :: emax                            !Maximum evapotranspiration (mm/day)
 
       !soil
-      real(r_4) :: soil_temp !soil temperature
+      real(r_8) :: soil_temp !soil temperature
       real(r_8) :: soil_sat  !soil water saturation point
       
       !area frac occupation
@@ -448,29 +450,29 @@ contains
          ! print*, 'heart', cheart_pls2(p), p
          
 
-            !Carbon use efficiency & Delta C
-         if(ph(p) .eq. 0.0 .or. nppa(p) .eq. 0.0) then
-            cue(p) = 0.0
+         !Carbon use efficiency & Delta C
+         if(ph(p) < 1.0D-15 .or. nppa(p) < 1.0D-15) then
+            cue(p) = 0.0D0
          else
             cue(p) = nppa(p)/ph(p)
          endif
 
 
          !Mass balance (c deficit)
-         c_def(p) = c_def(p)/2.73791 !/2.73791 transforms to year
+         c_def(p) = c_def(p)/2.73791D0 ! transforms to year
 
          if (c_def(p).gt.0.0D0) then
             if (dt1(7) .gt. 0.0D0) then
-               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.15)
-               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.15)
-               csap_int(p)  = csap_pls2(p) - (c_def(p) * 0.15)
-               cheart_int(p) = cheart_pls2(p) + (csap_pls2(p) - (c_def(p) * 0.15))
-               csto_int(p) = csto_pls2(p) - (c_def(p)*0.55)
+               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.15D0)
+               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.15D0)
+               csap_int(p)  = csap_pls2(p) - (c_def(p) * 0.15D0)
+               cheart_int(p) = cheart_pls2(p) + (csap_pls2(p) - (c_def(p) * 0.15D0))
+               csto_int(p) = csto_pls2(p) - (c_def(p)*0.55D0)
                cwood_int(p) = csap_int(p) + cheart_int(p)
                
             else
-               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.5)
-               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.5)
+               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.5D0)
+               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.5D0)
                csap_int(p)  = 0.0D0
                cheart_int(p) = 0.0D0
                csto_int(p) = 0.0D0
@@ -529,7 +531,7 @@ contains
             dsap_pls_aux(p)   = csap_pls2(p)   - csap_pls(ri)
             dheart_pls_aux(p) = cheart_pls2(p) - cheart_pls(ri)
             dsto_pls_aux(p)   = csto_pls2(p)   - csto_pls(ri)
-            dwood_pls_aux(p)  = cwood_pls2(p)  - cwood_pls2(ri)
+            dwood_pls_aux(p)  = cwood_pls2(p)  - cwood_pls(ri)
          else
             dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
             droot_pls_aux(p)  = croot_pls2(p)  - croot_pls(ri)
@@ -595,29 +597,29 @@ contains
  
       ! Filter NaN in ocupation (abundance) coefficients
       do p = 1, nlen
-         if(isnan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
+         if(ieee_is_nan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
       enddo
 
-      evavg         = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. isnan(evap))
-      phavg         = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. isnan(ph))
-      aravg         = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. isnan(ar))
-      nppavg        = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. isnan(nppa))
-      laiavg        = sum(laia * ocp_coeffs, mask= .not. isnan(laia))
-      rcavg         = sum(real(rc2, kind=r_8) * ocp_coeffs, mask= .not. isnan(rc2))
-      f5avg         = sum(f5 * ocp_coeffs, mask= .not. isnan(f5))
-      rmavg         = sum(real(rm, kind=r_8) * ocp_coeffs, mask= .not. isnan(rm))
-      rgavg         = sum(real(rg, kind=r_8) * ocp_coeffs, mask= .not. isnan(rg))
-      wueavg        = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. isnan(wue))
-      cueavg        = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. isnan(cue))
-      vcmax_1       = sum(vcmax * ocp_coeffs, mask= .not. isnan(vcmax))
-      specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. isnan(specific_la))
+      evavg         = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      phavg         = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
+      aravg         = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
+      nppavg        = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
+      laiavg        = sum(laia * ocp_coeffs, mask= .not. ieee_is_nan(laia))
+      rcavg         = sum(real(rc2, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rc2))
+      f5avg         = sum(f5 * ocp_coeffs, mask= .not. ieee_is_nan(f5))
+      rmavg         = sum(real(rm, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rm))
+      rgavg         = sum(real(rg, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rg))
+      wueavg        = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(wue))
+      cueavg        = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(cue))
+      vcmax_1       = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
+      specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
 
-      cleaf_grd  = sum(cleaf_int  * ocp_coeffs, mask = .not. isnan(cleaf_int))
-      cwood_grd  = sum(cwood_int * ocp_coeffs, mask = .not. isnan(cwood_int ))
-      croot_grd  = sum(croot_int  * ocp_coeffs, mask = .not. isnan(croot_int ))
-      csap_grd   = sum(csap_int   * ocp_coeffs, mask = .not. isnan(csap_int  ))
-      cheart_grd = sum(cheart_int * ocp_coeffs, mask = .not. isnan(cheart_int))
-      csto_grd   = sum(csto_int   * ocp_coeffs, mask = .not. isnan(csto_int  ))
+      cleaf_grd  = sum(cleaf_int  * ocp_coeffs, mask = .not. ieee_is_nan(cleaf_int))
+      cwood_grd  = sum(cwood_int * ocp_coeffs, mask = .not. ieee_is_nan(cwood_int ))
+      croot_grd  = sum(croot_int  * ocp_coeffs, mask = .not. ieee_is_nan(croot_int ))
+      csap_grd   = sum(csap_int   * ocp_coeffs, mask = .not. ieee_is_nan(csap_int  ))
+      cheart_grd = sum(cheart_int * ocp_coeffs, mask = .not. ieee_is_nan(cheart_int))
+      csto_grd   = sum(csto_int   * ocp_coeffs, mask = .not. ieee_is_nan(csto_int  ))
 
       !daily output to carbon pools (not CWM)
       do p = 1, nlen
@@ -690,9 +692,6 @@ contains
       deallocate(dsap_pls_aux)
       deallocate(dheart_pls_aux)
       deallocate(dsto_pls_aux)
-
-
-
 
    end subroutine daily_budget_allom
  

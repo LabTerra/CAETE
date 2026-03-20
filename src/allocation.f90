@@ -45,15 +45,15 @@ module alloc
       & litter_nutrient_content, limiting_nutrient, c_costs_of_uptake,&
       & uptk_strategy, ctonfix)
 
+      use, intrinsic :: ieee_arithmetic
 
       ! PARAMETERS
-      integer(i_2), parameter :: nitrog = 1
-      integer(i_2), parameter :: phosph = 2
-      integer(i_2), parameter :: colimi = 3
-
-      integer(i_2), parameter :: leaf = 1
-      integer(i_2), parameter :: wood = 2
-      integer(i_2), parameter :: root = 3
+      integer(i_2), parameter :: nitrog = 1_i_2
+      integer(i_2), parameter :: phosph = 2_i_2
+      integer(i_2), parameter :: colimi = 3_i_2
+      integer(i_2), parameter :: leaf = 1_i_2
+      integer(i_2), parameter :: wood = 2_i_2
+      integer(i_2), parameter :: root = 3_i_2
 
       ! The Nutrient uptake possible strategies
       ! Soluble inorg_n_pool = (1, 2, 3, 4)
@@ -78,16 +78,16 @@ module alloc
 
       ! variables I/O
       real(r_8),dimension(ntraits),intent(in) :: dt  ! PLS attributes
-      real(r_4),intent(in) :: npp  ! npp (KgC/m2/yr) gpp (µmol m-2 s)
+      real(r_8),intent(in) :: npp  ! npp (KgC/m2/yr) gpp (µmol m-2 s)
       real(r_8),intent(in) :: npp_costs ! Carbon costs of Nutrient active uptake and retranslocation
-      real(r_4),intent(in) :: ts   ! soil temp °C
+      real(r_8),intent(in) :: ts   ! soil temp °C
       real(r_8),intent(in) :: wsoil! soil water depth (mm)
       real(r_8),intent(in) :: te   ! plant transpiration (mm/s)
       real(r_8),intent(in) :: scl1 ! previous day carbon content on leaf compartment (KgC/m2)
       real(r_8),intent(in) :: sca1 ! previous day carbon content on aboveground woody biomass compartment(KgC/m2)
       real(r_8),intent(in) :: scf1 ! previous day carbon content on fine roots compartment (KgC/m2)
-      real(r_4),intent(in) :: nmin ! N in mineral N pool(g m-2) SOLUTION
-      real(r_4),intent(in) :: plab ! P in labile pool (g m-2)   SOLUTION
+      real(r_8),intent(in) :: nmin ! N in mineral N pool(g m-2) SOLUTION
+      real(r_8),intent(in) :: plab ! P in labile pool (g m-2)   SOLUTION
       real(r_8),intent(in) :: on,sop,op ! Organic N, Sorbed P, Organic P
       real(r_8),dimension(3),intent(in) :: storage ! Three element array- storage pool([C,N,P]) g m-2
       ! O
@@ -283,10 +283,10 @@ module alloc
       ! FIND AVAILABLE NUTRIENTS:
 
       avail_n = (mult_factor_n * nmin) !g m⁻²
-      if(nmin .le. 0.0) avail_n = 0.0D0
+      if(nmin .le. 0.0D0) avail_n = 0.0D0
       
       avail_p = (mult_factor_p * plab) !g m⁻²
-      if(plab .le. 0.0) avail_p = 0.0D0
+      if(plab .le. 0.0D0) avail_p = 0.0D0
       
       aux_on = on * mult_factor_n
       if (on .le. 0.0D0) aux_on = 0.0D0
@@ -303,7 +303,7 @@ module alloc
       ! Aux variable test35 -> To opptionally calculate passive uptake after label 294
       test35 = .false.
 
-      if((nmin .le. 0.0 .and. on .le. 0.0) .and. storage(2) .le. 0.0D0) then
+      if((nmin .le. 0.0D0 .and. on .le. 0.0D0) .and. storage(2) .le. 0.0D0) then
          daily_growth(wood) = 0.0D0
          daily_growth(root) = 0.0D0
          daily_growth(leaf) = 0.0D0
@@ -316,7 +316,7 @@ module alloc
          goto 294
       endif
 
-      if((plab .le. 0.0 .and. sop .le. 0.0 .and. op .le. 0.0) .and. storage(3) .le. 0.0D0) then
+      if((plab .le. 0.0D0 .and. sop .le. 0.0D0 .and. op .le. 0.0D0) .and. storage(3) .le. 0.0D0) then
          daily_growth(wood) = 0.0D0
          daily_growth(root) = 0.0D0
          daily_growth(leaf) = 0.0D0
@@ -329,7 +329,7 @@ module alloc
          goto 294
       endif
 
-      if(npp .le. 0.0 .and. storage(1) .le. 0.0D0) then
+      if(npp .le. 0.0D0 .and. storage(1) .le. 0.0D0) then
          daily_growth(wood) = 0.0D0
          daily_growth(root) = 0.0D0
          daily_growth(leaf) = 0.0D0
@@ -404,7 +404,7 @@ module alloc
       if (awood .gt. 0.0D0) then
          npp_wood =  awood * npp_pot    ! g(C)m⁻²
       else
-         npp_wood = 0.0
+         npp_wood = 0.0D0
       endif
 
       ! POTENTIAL NUTRIENT UPTAKE
@@ -603,7 +603,7 @@ module alloc
          else
          ! IDENTIFY LIMITING
             if(is_limited(leaf, nitrog) .and. is_limited(leaf, phosph)) then
-               kappa = abs(real_npp(leaf, nitrog) - real_npp(leaf, phosph)) .lt. 1D-6
+               kappa = abs(real_npp(leaf, nitrog) - real_npp(leaf, phosph)) .lt. 1.0D-6
 
                if (kappa) then
                   limiting_nutrient(leaf) = colimi + colimi
@@ -639,7 +639,7 @@ module alloc
          else
          ! IDENTIFY LIMITING
             if(is_limited(root, nitrog) .and. is_limited(root, phosph)) then
-               kappa = abs(real_npp(root, nitrog) - real_npp(root, phosph)) .lt. 1D-6
+               kappa = abs(real_npp(root, nitrog) - real_npp(root, phosph)) .lt. 1.0D-6
 
                if(kappa) then
                   limiting_nutrient(root) = colimi + colimi
@@ -677,7 +677,7 @@ module alloc
             else
             ! IDENTIFY LIMITING
                if(is_limited(wood, nitrog) .and. is_limited(wood, phosph)) then
-                  kappa = abs(real_npp(wood, nitrog) - real_npp(wood, phosph)) .lt. 1D-6
+                  kappa = abs(real_npp(wood, nitrog) - real_npp(wood, phosph)) .lt. 1.0D-6
 
                   if(kappa) then
                      limiting_nutrient(wood) = colimi + colimi
@@ -780,7 +780,7 @@ module alloc
       naquis_strat = 0   ! Passive uptake
       nitrogen_uptake(:) = 0.0D0
       if (to_pay(1) .gt. 0.0D0) then
-         call active_costn(amp, avail_n - plant_passive_uptake(1), aux_on, scf1 * 1D3, ccn)
+         call active_costn(amp, avail_n - plant_passive_uptake(1), aux_on, scf1 * 1.0D3, ccn)
          call select_active_strategy(ccn, active_nupt_cost, naquis_strat)
          call prep_out_n(naquis_strat, nuptk, to_pay(1), nitrogen_uptake)
          uptk_strategy(1) = naquis_strat
@@ -791,7 +791,7 @@ module alloc
       endif
       test34 = nitrogen_uptake(2) .gt. on
       uptk_strategy(1) = naquis_strat
-      if(isnan(to_sto(1))) to_sto(1) = 0.0D0
+      if(ieee_is_nan(to_sto(1))) to_sto(1) = 0.0D0
       ! if(to_sto(1) .gt. 1.0D1) to_sto(1) = 0.0D0
       if(to_sto(1) .lt. 0.0D0) to_sto(1) = 0.0D0
       storage_out_alloc(2) = add_pool(storage_out_alloc(2), to_sto(1))
@@ -802,7 +802,7 @@ module alloc
       paquis_strat = 0
       phosphorus_uptake(:) = 0.0D0
       if(to_pay(2) .gt. 0.0D0) then
-         call active_costp(amp, avail_p - plant_passive_uptake(2), aux_sop, aux_op, scf1 * 1D3, ccp)
+         call active_costp(amp, avail_p - plant_passive_uptake(2), aux_sop, aux_op, scf1 * 1.0D3, ccp)
          call select_active_strategy(ccp, active_pupt_cost, paquis_strat)
          call prep_out_p(paquis_strat, puptk, to_pay(2), phosphorus_uptake)
          uptk_strategy(2) = paquis_strat
@@ -812,7 +812,7 @@ module alloc
          phosphorus_uptake(3) = 0.0D0
          uptk_strategy(2) = 0
       endif
-      if(isnan(to_sto(2))) to_sto(2) = 0.0D0
+      if(ieee_is_nan(to_sto(2))) to_sto(2) = 0.0D0
       ! if(to_sto(2) .gt. 1.0D1) to_sto(2) = 0.0D0
       if(to_sto(2) .lt. 0.0D0) to_sto(2) = 0.0D0
       storage_out_alloc(3) = add_pool(storage_out_alloc(3), to_sto(2))
@@ -847,13 +847,13 @@ module alloc
       root_litter = scf1 / troot  !/ tfroot! kg(C) m-2 year-1
 
       ! UPDATE C content of each compartment in g m-2
-      scl2 = (1D3 * scl1) + daily_growth(leaf) - (leaf_litter * 2.73791075D0)
-      scf2 = (1D3 * scf1) + daily_growth(root) - (root_litter * 2.73791075D0)
+      scl2 = (1.0D3 * scl1) + daily_growth(leaf) - (leaf_litter * 2.73791075D0)
+      scf2 = (1.0D3 * scf1) + daily_growth(root) - (root_litter * 2.73791075D0)
 
       ! ## if it's a woody strategy:
       if(awood .gt. 0.0D0) then
          cwd = sca1 / twood !/ tawood! Kg(C) m-2
-         sca2 = (1D3 * sca1) + daily_growth(wood) - (cwd * 2.73791075D0)  ! g(C) m-2
+         sca2 = (1.0D3 * sca1) + daily_growth(wood) - (cwd * 2.73791075D0)  ! g(C) m-2
       else
          cwd = 0.0D0
          sca2 = 0.0D0

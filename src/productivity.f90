@@ -39,11 +39,11 @@ module productivity
     ! Input
     ! -----
     real(r_8),dimension(ntraits),intent(in) :: dt ! PLS data
-    real(r_4), intent(in) :: temp, ts                 !Mean monthly temperature (oC)
-    real(r_4), intent(in) :: p0                   !Mean surface pressure (hPa)
+    real(r_8), intent(in) :: temp, ts                 !Mean monthly temperature (oC)
+    real(r_8), intent(in) :: p0                   !Mean surface pressure (hPa)
     real(r_8), intent(in) :: w                    !Soil moisture kg m-2
-    real(r_4), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
-    real(r_4), intent(in) :: rh,emax      !Relative humidity/MAXIMUM EVAPOTRANSPIRATION
+    real(r_8), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
+    real(r_8), intent(in) :: rh,emax      !Relative humidity/MAXIMUM EVAPOTRANSPIRATION
     real(r_8), intent(in) :: catm, cl1_prod, cf1_prod, cs1_prod        !Carbon in plant tissues (kg/m2)
     real(r_8), intent(in) :: beta_leaf            !carbon deltas (kg/m2/day)
     real(r_8), intent(in) :: beta_awood !for the allometry is only the sapwood
@@ -53,17 +53,17 @@ module productivity
     ! ------
     ! Output
     ! ------
-    real(r_4), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
-    real(r_4), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
+    real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
+    real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
     real(r_8), intent(out) :: laia                 !Autotrophic respiration (kgC/m2/yr)
-    real(r_4), intent(out) :: ar                   !Leaf area index (m2 leaf/m2 area)
-    real(r_4), intent(out) :: nppa                 !Net primary productivity (kgC/m2/yr)
-    real(r_4), intent(out) :: vpd
+    real(r_8), intent(out) :: ar                   !Leaf area index (m2 leaf/m2 area)
+    real(r_8), intent(out) :: nppa                 !Net primary productivity (kgC/m2/yr)
+    real(r_8), intent(out) :: vpd
     real(r_8), intent(out) :: f5                   !Water stress response modifier (unitless)
-    real(r_4), intent(out) :: rm                   !autothrophic respiration (kgC/m2/day)
-    real(r_4), intent(out) :: rg
-    real(r_4), intent(out) :: wue
-    real(r_4), intent(out) :: c_defcit     ! Carbon deficit gm-2 if it is positive, aresp was greater than npp + sto2(1)
+    real(r_8), intent(out) :: rm                   !autothrophic respiration (kgC/m2/day)
+    real(r_8), intent(out) :: rg
+    real(r_8), intent(out) :: wue
+    real(r_8), intent(out) :: c_defcit     ! Carbon deficit gm-2 if it is positive, aresp was greater than npp + sto2(1)
     real(r_8), intent(out) :: sla, e        !specific leaf area (m2/kg)
     real(r_8), intent(out) :: vm_out        ! PLS Vcmax mol m-2 s-1
 
@@ -86,8 +86,8 @@ module productivity
 
     real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
     real(r_8) :: f1a      !auxiliar_f1
-    real(r_4) :: rc_pot, rc_aux
-    
+    real(r_8) :: rc_pot, rc_aux
+  
     ! ----------------------
     ! getting pls parameters
     ! ----------------------
@@ -135,10 +135,10 @@ module productivity
     ! Photosysthesis minimum and maximum temperature
     ! ----------------------------------------------
     
-    if ((temp.ge.-10.0).and.(temp.le.50.0)) then
+    if ((temp.ge.-10.0D0).and.(temp.le.50.0D0)) then
       f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
     else
-      f1 = 0.0  !Temperature above/below photosynthesis windown
+      f1 = 0.0D0  !Temperature above/below photosynthesis windown
     endif
 
     rc_aux = canopy_resistence(vpd, f1, g1, catm)  ! RCM leaf level -!s m-1
@@ -150,7 +150,7 @@ module productivity
 
     ! Leaf area index (m2/m2)
     ! recalcula rc e escalona para dossel
-    ! laia = 0.2D0 * dexp((2.5D0 * f1)/p25)
+    ! laia = 0.2D0 * exp((2.5D0 * f1)/p25)
     ! sla = spec_leaf_area(tleaf)  ! m2 g-1  ! Convertions made in leaf_area_index &  gross_ph + calls therein
 
     ! sla used in allometry version
@@ -158,8 +158,8 @@ module productivity
 
     laia = leaf_area_index(cl1_prod, sla_allom)
     ! laia = f_four(0, cl1_prod, sla) + f_four(1, cl1_prod, sla)
-    rc = rc_aux * real(laia,kind=r_4) ! RCM -!s m-1 ! CANOPY SCALING --
-    
+    rc = rc_aux * real(laia,kind=r_8) ! RCM -!s m-1 ! CANOPY SCALING --
+  
     ! =======================================x
     ! Canopy gross photosynthesis (kgC/m2/yr)
     ! =======================================x
@@ -170,7 +170,6 @@ module productivity
     ! Autothrophic respiration
     ! ========================
     ! Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
-
     rm = m_resp(temp,ts,cl1_prod,cf1_prod,cs1_prod &
       &,n2cl_resp,n2cw_resp,n2cf_resp,awood)
 
@@ -178,19 +177,19 @@ module productivity
     ! 2003; Levis et al. 2004)
     rg = g_resp(beta_leaf,beta_awood, beta_froot,awood)
 
-    if (rg.lt.0) then
-      rg = 0.0
+
+    if (rg.lt.0.0D0) then
+      rg = 0.0D0
     endif
     
     ! Autotrophic (plant) respiration -ar- (kgC/m2/yr)
     ! Respiration minimum and maximum temperature
     ! -------------------------------------------
-    if ((temp.ge.-10.0).and.(temp.le.50.0)) then
+    if ((temp.ge.-10.0D0).and.(temp.le.50.0D0)) then
       ar = rm + rg
     else
-      ar = 0.0  !Temperature above/below respiration windown
+      ar = 0.0D0  !Temperature above/below respiration windown
     endif
-    
     ! ===================================
     ! Net primary productivity(kgC/m2/yr)
     ! ===================================
@@ -209,10 +208,10 @@ module productivity
     ! The mass balance can be found in allocation2 (when allometry version is used) 
     
     if(ar .gt. ph) then
-      c_defcit = ((ar - ph) * 2.73791) ! tranform kg m-2 year-1 in  g m-2 day-1
-      nppa = 0.0
+      c_defcit = ((ar - ph) * 2.73791D0) ! tranform kg m-2 year-1 in  g m-2 day-1
+      nppa = 0.0D0
     else
-      c_defcit = 0.0
+      c_defcit = 0.0D0
     endif
     
   end subroutine prod

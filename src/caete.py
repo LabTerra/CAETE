@@ -50,8 +50,7 @@ npls = gp.npls
 runplotp = False
 
 while True:
-    maskp = input(
-        "TWO MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+    maskp = input("THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
     if maskp == 'b':
         mask = np.load("../input/mask/mask_raisg-360-720.npy")
         break
@@ -842,6 +841,7 @@ class grd:
 
         #CLIMATIC DATA
         self.pr = self.data['pr']
+        self.pr = self.pr.astype(np.float64)
         self.ps = self.data['ps']
         self.rsds = self.data['rsds']
         self.tas = self.data['tas']
@@ -1004,6 +1004,7 @@ class grd:
         self.flush_data = 0
 
         self.pr = self.data['pr']
+        self.pr = self.pr.astype(np.float64)
         self.ps = self.data['ps']
         self.rsds = self.data['rsds']
         self.tas = self.data['tas']
@@ -1713,10 +1714,30 @@ class grd:
                     c += 1
 
                 #call budget
-                out_allom = model_allom.daily_budget_allom(step, self.pls_table, self.wp_water_upper_mm, self.wp_water_lower_mm, self.wmax_mm,
-                                                     self.soil_temp, temp[step], p_atm[step], ipar[step], ru[step],co2,
-                                                     cleaf_allom, cwood_allom, croot_allom,  csap_allom, cheart_allom, csto_allom, 
-                                                     dcl_allom, dcw_allom, dcr_allom, dcs_allom, dch_allom, dcst_allom)
+                out_allom = model_allom.daily_budget_allom(
+                    step, 
+                    self.pls_table,
+                    self.wp_water_upper_mm,
+                    self.wp_water_lower_mm,
+                    self.wmax_mm,
+                    self.soil_temp,
+                    temp[step],
+                    p_atm[step],
+                    ipar[step],
+                    ru[step],
+                    co2,
+                    cleaf_allom,
+                    cwood_allom,
+                    croot_allom,
+                    csap_allom,
+                    cheart_allom,
+                    csto_allom,
+                    dcl_allom,
+                    dcw_allom,
+                    dcr_allom,
+                    dcs_allom,
+                    dch_allom,
+                    dcst_allom)
                 
                 # Create a dict with the function output
                 daily_output_allom = catch_out_budget_allom(out_allom)
@@ -1793,8 +1814,7 @@ class grd:
 
                 # UPDATE STATE VARIABLES
                 # WATER CWM
-                self.runom[step] = self.swp._update_pool(
-                    prec[step], daily_output_allom['evavg'])
+                self.runom[step] = self.swp._update_pool(prec[step], daily_output_allom['evavg'])
                 self.swp.w1 = np.float64(
                     0.0) if self.swp.w1 < 0.0 else self.swp.w1
                 self.swp.w2 = np.float64(
@@ -2020,6 +2040,7 @@ class plot(grd):
         self.flush_data = 0
 
         self.pr = self.data['pr']
+        self.pr = self.pr.astype(np.float64)
         self.ps = self.data['ps']
         self.rsds = self.data['rsds']
         self.tas = self.data['tas']

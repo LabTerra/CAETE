@@ -22,15 +22,15 @@ subroutine test_budg()
 
    real(r_8),dimension(ntraits,npls) :: dt
    real(r_8) :: w1, w2   !Initial (previous month last day) soil moisture storage (mm)
-   ! real(r_4),dimension(npls) :: g1   !Initial soil ice storage (mm)
-   ! real(r_4),dimension(npls) :: s1   !Initial overland snow storage (mm)
-   real(r_4) :: ts                   ! Soil temperature (oC)
-   real(r_4) :: temp                 ! Surface air temperature (oC)
-   real(r_4) :: p0                   ! Surface pressure (mb)
-   real(r_4) :: ipar                 ! Incident photosynthetic active radiation mol Photons m-2 s-1
-   real(r_4) :: rh                   ! Relative humidity
-   real(r_4) :: mineral_n            ! Solution N NOx/NaOH gm-2
-   real(r_4) :: labile_p             ! solution P O4P  gm-2
+   ! real(r_8),dimension(npls) :: g1   !Initial soil ice storage (mm)
+   ! real(r_8),dimension(npls) :: s1   !Initial overland snow storage (mm)
+   real(r_8) :: ts                   ! Soil temperature (oC)
+   real(r_8) :: temp                 ! Surface air temperature (oC)
+   real(r_8) :: p0                   ! Surface pressure (mb)
+   real(r_8) :: ipar                 ! Incident photosynthetic active radiation mol Photons m-2 s-1
+   real(r_8) :: rh                   ! Relative humidity
+   real(r_8) :: mineral_n            ! Solution N NOx/NaOH gm-2
+   real(r_8) :: labile_p             ! solution P O4P  gm-2
    real(r_8) :: on, sop, op          ! Organic N, isoluble inorganic P, Organic P g m-2
    real(r_8) :: catm, wmax_in                 ! ATM CO2 concentration ppm
 
@@ -45,7 +45,7 @@ subroutine test_budg()
    real(r_8),dimension(npls) :: uptk_costs_in ! g m-2
 
    !    !# out
-   real(r_4) :: epavg          !Maximum evapotranspiration (mm/day)
+   real(r_8) :: epavg          !Maximum evapotranspiration (mm/day)
    real(r_8) :: evavg          !Actual evapotranspiration Daily average (mm/day)
    real(r_8) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
    real(r_8) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
@@ -97,17 +97,17 @@ subroutine test_budg()
       print*, size(dt)
       w1 = 40.0D0
       w2 = 280.0D0
-      ts = 23
-      temp = 25.0
-      p0   = 1000.0
-      ipar = 200.0 * 0.5 / 2.18e5
-      rh   = 0.9
-      mineral_n = 10
-      labile_p = 2.0
-      on = 3.0
-      op = 4.0
-      sop = 11.0
-      catm = 400.0
+      ts = 23.0D0
+      temp = 25.0D0
+      p0   = 1000.0D0
+      ipar = 200.0D0 * 0.5D0 / 2.18D5
+      rh   = 0.9D0
+      mineral_n = 10.0D0
+      labile_p = 2.0D0
+      on = 3.0D0
+      op = 4.0D0
+      sop = 11.0D0
+      catm = 400.0D0
       sto_budg_in(:,:) = 0.0D0
       cl1_in(:) = 2.0D0
       cf1_in(:) = 2.0D0
@@ -149,12 +149,12 @@ subroutine test_budg()
    subroutine test_c3()
 
       integer(i_4) :: index
-      real(r_4) :: soilt=25.0, water_s=0.9
-      real(r_8) :: ll=5.5, lf=5.5, lw=5.5
+      real(r_8) :: soilt=25.0D0, water_s=0.9D0
+      real(r_8) :: ll=5.5D0, lf=5.5D0, lw=5.5D0
       real(r_8), dimension(6) :: lnc = (/2.5461449101567262D-002, 1.2789730913937092D-002, 4.1226762905716891D-002,&
                                         & 3.2206000294536350D-003, 3.1807350460439920D-003, 4.0366222383454442D-003/)
-      real(r_8), dimension(4) :: cs = 0.1, cs_out = 0.1
-      real(r_8), dimension(8) :: snc = 0.00001, snc_in = 0.0001
+      real(r_8), dimension(4) :: cs = 0.1D0, cs_out = 0.1D0
+      real(r_8), dimension(8) :: snc = 0.00001D0, snc_in = 0.0001D0
       real(r_8) :: hr
       real(r_8) :: nmin, pmin
 

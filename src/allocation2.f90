@@ -64,7 +64,7 @@ module alloc2
         real(r_8), intent(in) :: heart_in
         real(r_8), intent(in) :: sto_in
         real(r_8), intent(in) :: wood_in
-        real(r_4), intent(in) :: npp
+        real(r_8), intent(in) :: npp
 
 
 
@@ -76,7 +76,7 @@ module alloc2
         ! real(r_8), intent(in) :: dens_in !ind/m2 initial density of individuals
 
         !input of carbon available gc/m2/time_step
-        real(r_4):: bminc_in ! carbon (NPP) available to be allocated
+        real(r_8):: bminc_in ! carbon (NPP) available to be allocated
         
 
         !VARIABLES OUTPUTS 
@@ -203,16 +203,16 @@ module alloc2
         !wood/non wood strategies !provisory
         if (awood .le. 0.0D0) then
             ! print*, 'sou grama', p
-            leaf_out = 0.3
-            root_out = 0.2
-            sap_out = 0.0
-            heart_out = 0.0
-            sto_out = 1.
-            wood_out = 0.0
+            leaf_out = 0.3D0
+            root_out = 0.2D0
+            sap_out = 0.0D0
+            heart_out = 0.0D0
+            sto_out = 1.0D0
+            wood_out = 0.0D0
         endif     
 
         !provisory !until there no individuals and the FPC/establishment is not implemented
-        dens_in = 1.
+        dens_in = 1.0D0
         
         !carbon (gC) in compartments considering the density (ind/m2) -- NOT APPLIED IN THIS VERSION
         leaf_in_ind = (leaf_in/dens_in)*1.D3
@@ -416,7 +416,7 @@ module alloc2
 
         heart_out = (((heart_updt - heart_turn) + sap_turn)*dens_in)/1.D3
         
-        if (sap_out.ge.0.0) then
+        if (sap_out.ge.0.0D0) then
             heart_out = (((heart_updt - heart_turn) + sap_turn)*dens_in)/1.D3
         else 
             heart_out = (((heart_updt - heart_turn) + abs(sap_out))*dens_in)/1.D3   
@@ -447,7 +447,7 @@ module alloc2
         
         !Calculating diameter (necessary to 'nppheight)
         !WD *1D6 transforms from g/cm3 to g/m3
-        diameter = ((sap_in_ind)/(wd_allom*1.D6)*pi*k_allom2)**(1/(2+k_allom3))
+        diameter = ((sap_in_ind)/(wd_allom*1.0D6)*pi*k_allom2)**(1.0D0/(2.0D0+k_allom3))
         !print*, 'diameter', diameter
 
         !Height 
@@ -472,7 +472,7 @@ module alloc2
         
         !DWOOD = AQUI TEM QUE SER EM KG/M³ ENTÃO PEGA O VALOR EM G/CM³ E MULTIPLICA POR 1.D3
         if (sap_in_ind.gt.0.0D0) then
-            leaf_req = (klatosa * (sap_in_ind/1000.) / ((wd_allom*1.D3) * height * sla_allom*1000))*1000.
+            leaf_req = (klatosa * (sap_in_ind/1.0D3) / ((wd_allom*1.0D3) * height * sla_allom*1.0D3))*1.0D3
         else 
             leaf_req = 0.0D0
         endif
@@ -552,8 +552,8 @@ module alloc2
 
         dx = x2 - x1
 
-        if (dx < 0.01) then !0.01 é a precisão da bisection.
-            ! print*, '(dx < 0.01)' 
+        if (dx < 0.01D0) then !0.01 é a precisão da bisection.
+            ! print*, '(dx < 0.01D0)' 
 
             !there seems to be rare cases where lminc_ind_min (x1) is almost equal to x2. In this case,
             !assume that the leafmass increment is equal to the midpoint between the values and skip 
@@ -601,9 +601,9 @@ module alloc2
         real(r_8) :: fx1 !output
         
         !internal variables
-        real(r_8), parameter :: pi4 = pi/4
-        real(r_8), parameter :: a1 = 2./ k_allom3
-        real(r_8), parameter :: a2 = 1. + a1 !Essa é a forma correta !!CONFERIR ...ESTÁ DIFERENTE ENTRE NOSSO CÓDIGO E O lpjmlFIRE
+        real(r_8), parameter :: pi4 = pi/4.0D0
+        real(r_8), parameter :: a1 = 2.0D0/ k_allom3
+        real(r_8), parameter :: a2 = 1.0D0 + a1 !Essa é a forma correta !!CONFERIR ...ESTÁ DIFERENTE ENTRE NOSSO CÓDIGO E O lpjmlFIRE
         real(r_8), parameter :: a3 = k_allom2**a1
         real(r_8) :: wd_allom !var to transform wd unit
         
@@ -674,7 +674,7 @@ module alloc2
 
             
             
-            if (fmid * fx1 .le. 0. .or. xmid .ge. x2) exit  !sign has changed or we are over the upper bound
+            if (fmid * fx1 .le. 0.0D0 .or. xmid .ge. x2) exit  !sign has changed or we are over the upper bound
 
             if (i > 20) print*, 'first alloc loop flag'
             if (i > 100) stop 'Too many iterations allocmod'
@@ -691,7 +691,7 @@ module alloc2
         fx1 = root_bisec_calc(leaf_in_ind, sap_in_ind, heart_in_ind,&
         root_in_ind, bminc_in_ind, x1, sla_allom, wd_allom)
 
-        if (fx1.ge.0.) then
+        if (fx1.ge.0.0D0) then
             sign = -1
         else
             sign = 1
@@ -715,7 +715,7 @@ module alloc2
             fmid = root_bisec_calc(leaf_in_ind, sap_in_ind, heart_in_ind,&
                 root_in_ind, bminc_in_ind, xmid, sla_allom, wd_allom)
 
-            if (fmid * sign .le. 0.) rtbis = xmid
+            if (fmid * sign .le. 0.0D0) rtbis = xmid
 
             if (dx .lt. xacc .or. abs(fmid) .le. yacc) exit
 
