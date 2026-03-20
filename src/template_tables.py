@@ -18,9 +18,15 @@
 # Templates for tables of CAETÊ
 from caete_module import global_par as gp
 import tables as tb
+from caete import allom
 
 
 __author__ = "JPDarela"
+
+#Group 1 allometry
+G1_1d_allom = {'emaxm',
+               'tsoil',
+               'photo'}
 
 # Group 1
 G1_1d = ['emaxm',
@@ -84,8 +90,19 @@ PLS_head = ['PLS_id', 'g1', 'resopfrac', 'tleaf', 'twood',
             'troot', 'aleaf', 'awood', 'aroot', 'c4',
             'leaf_n2c', 'awood_n2c', 'froot_n2c',
             'leaf_p2c', 'awood_p2c', 'froot_p2c',
-            'amp', 'pdia']
+            'amp', 'pdia','sla_random', 'wd_random', 'restime_sap']
 
+class run_g1_allom(tb.IsDescription):
+    """ Row template for CAETÊ output data"""
+    # ID
+    row_id = tb.Int64Col(dflt=0, pos=0)
+    date = tb.StringCol(itemsize=8, dflt="yyyymmdd", pos=1)
+    grid_y = tb.Int16Col(dflt=0, pos=2)
+    grid_x = tb.Int16Col(dflt=0, pos=3)
+    #Fluxes
+    emaxm = tb.Float32Col(dflt=0.0, pos=4)
+    tsoil = tb.Float32Col(dflt=0.0, pos=5)
+    photo = tb.Float32Col(dflt=0.0, pos=6)
 
 class run_g1(tb.IsDescription):
     """ Row template for CAETÊ output data"""
@@ -197,6 +214,9 @@ class PLS_temp(tb.IsDescription):
     froot_p2c = tb.Float32Col(dflt=0.0, pos=15)
     amp = tb.Float32Col(dflt=0.0, pos=16)
     pdia = tb.Float32Col(dflt=0.0, pos=17)
+    sla_random = tb.Float32Col(dflt=0.0, pos=18)
+    wd_random = tb.Float32Col(dflt=0.0, pos=19)
+    restime_sap = tb.Float32Col(dflt=0.0, pos=20)
 
 
 class spin_snapshots(tb.IsDescription):

@@ -71,7 +71,7 @@ from netCDF4 import Dataset
 import numpy as np
 
 import caete
-from caete import grd, mask, npls, print_progress, rbrk
+from caete import grd, mask, npls, print_progress, rbrk, allom
 import plsgen as pls
 
 __author__ = "João Paulo Darela Filho"
@@ -79,6 +79,7 @@ __descr__ = """RUN CAETÊ"""
 
 FUNCALLS = 0
 
+#check which version will be runned (allom or nutri_cycle)
 
 def check_start():
     while True:
@@ -135,9 +136,10 @@ if not sombrero:
     print(
         f"The raw model results & the PLS table will be saved at: {dump_folder}\n")
     print(f"The final netCDF files will be stored at: {nc_outputs}\n")
+    print('nc outputs----------------->', nc_outputs)
 
 if not sombrero:
-    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]: ")
+    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
     if zone in ['c', 's', 'e', 'nw']:
         print("Running in the zone:", zone)
         pass
@@ -146,24 +148,52 @@ if not sombrero:
         zone = 'c'
 
 if zone == 'c':
-    y0, y1 = 175, 186
-    x0, x1 = 235, 241
+    # # Gridcell MAN: 186, 239
+    # y0, y1 = 186, 187
+    # x0, x1 = 239, 240
+
+    # y0, y1 = 175, 176
+    # x0, x1 = 235, 236
     folder = "central"
 
 elif zone == 's':
-    y0, y1 = 200, 211
-    x0, x1 = 225, 231
+    # Gridcell AFL: 199-248
+    y0, y1 = 199, 200
+    x0, x1 = 248, 249 
+
+    #Gridcell FEC: 200-225
+    # y0, y1 = 200, 201
+    # x0, x1 = 225, 226
+
+    # y0, y1 = 200, 211
+    # x0, x1 = 225, 231
     folder = "south"
 
 elif zone == 'nw':
-    y0, y1 = 168, 175
-    x0, x1 = 225, 230
+    # #Gridcell ALP: 188, 213
+    y0, y1 = 188, 189
+    x0, x1 = 213, 214
+
+    # y0, y1 = 168, 175
+    # x0, x1 = 225, 230
     folder = "north_west"
 
 elif zone == 'e':
-    y0, y1 = 190, 201
-    x0, x1 = 255, 261
+    # #Gridcell CAX: 183, 257
+    # y0, y1 = 183, 184
+    # x0, x1 = 257, 258
     folder = "east"
+
+    # y0, y1 = 190, 201
+    # x0, x1 = 255, 261
+elif zone == 'u':
+    y = y_grd
+    x = x_grd
+    folder = "gridcell"
+    # y0, y1 = 175, 176
+    # x0, x1 = 235, 236
+    # folder = "central"
+
 else:
     assert sombrero
 
@@ -235,7 +265,9 @@ if sombrero:
         from parameters import pls_path, ATTR_FILENAME
         if pls_path.exists():
             from caete_utils import read_pls_table
-            print("Using PLS TABLE from BASE_RUN")
+            print('')
+            print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
+            print('')
             os.makedirs(dump_folder, exist_ok=True)
             pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
         else:
@@ -281,18 +313,26 @@ else:
                        f"historical-ISIMIP2b-TEST-{folder}\n",
                        f"{rbrk_index}\n"])
     # FUNCTIONAL TRAITS DATA
-    pls_table = pls.table_gen(npls, dump_folder)
-
-
-
+    # pls_table = pls.table_gen(npls, dump_folder)
+    from parameters import pls_path, ATTR_FILENAME
+    if pls_path.exists():
+        from caete_utils import read_pls_table
+        print('')
+        print("Using PLS TABLE from BASE_RUN : baserun_6000pls_attrs_table/pls_attrs-6000.csv")
+        print('')
+        os.makedirs(dump_folder, exist_ok=True)
+        pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
+    else:
+        print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
+        pls_table = pls.table_gen(npls, dump_folder)
 
 
 # # Create the gridcell objects
 if sombrero:
     # Running in all gridcells of mask
     grid_mn = []
-    for Y in range(360):
-        for X in range(720):
+    for Y in range(175, 176):
+        for X in range(235, 236):
             if not mask[Y, X]:
                 grid_mn.append(grd(X, Y, outf))
 
@@ -320,8 +360,9 @@ def chunks(lst, chunck_size):
 
 # # START GRIDCELLS
 print("Starting gridcells")
+print(grid_mn)
 print_progress(0, len(grid_mn), prefix='Progress:', suffix='Complete')
-for i, g in enumerate(grid_mn):
+for i, g in enumerate(grid_mn):  #enumerate creates the index (i) for each gridcell in grid_mn
     apply_init(g)
     print_progress(i + 1, len(grid_mn), prefix='Progress:', suffix='Complete')
 
@@ -330,19 +371,27 @@ for i, g in enumerate(grid_mn):
 def apply_spin(grid:grd)->grd:
     """pre-spinup use some outputs of daily budget (water, litter C, N and P) to start soil organic pools"""
     w, ll, cwd, rl, lnc = grid.bdg_spinup(
-        start_date="19790101", end_date="19830101")
+        start_date = "19790101", end_date = "19830101")
     grid.sdc_spinup(w, ll, cwd, rl, lnc)
     return grid
 
 
-def apply_fun(grid:grd)->grd:
-    grid.run_caete('19790101', '19891231', spinup=5, 
+def apply_fun(grid:grd, allometry = allom)->grd:
+    if allom:
+        grid.run_caete_allom('19790101','19891231', spinup=5, 
+                   fix_co2='1980', save=False, nutri_cycle=False)
+    else:
+        grid.run_caete('19790101', '19891231', spinup=5, 
                    fix_co2='1980', save=False, nutri_cycle=False)
     return grid
 
  
-def apply_fun0(grid:grd)->grd:
-    grid.run_caete('19790101', '19891231', spinup=35,
+def apply_fun0(grid:grd, allometry = allom)->grd:
+    if allom:
+        grid.run_caete_allom('19790101', '19891231', spinup=35,
+                   fix_co2='1980', save=True, nutri_cycle=False)
+    else:
+        grid.run_caete('19790101', '19891231', spinup=35,
                    fix_co2='1980', save=False)
     return grid
 
@@ -354,8 +403,11 @@ def zip_gridtime(grd_pool, interval):
     return res
 
 
-def apply_funX(grid:grd, brk:list)->grd:
-    grid.run_caete(brk[0], brk[1])
+def apply_funX(grid:grd, brk:list, allometry = allom)->grd:
+    if allom:
+        grid.run_caete_allom(brk[0], brk[1], save = False, nutri_cycle=False)
+    else:
+        grid.run_caete(brk[0], brk[1])
     return grid
 
 # Garbage collection
@@ -377,8 +429,12 @@ if __name__ == "__main__":
 
     import time
 
-    from post_processing import write_h5
-    from h52nc import h52nc
+    if allom:
+        from post_processing import write_h5_allom
+        from h52nc import h52nc_allom
+    else:
+        from post_processing import write_h5
+        from h52nc import h52nc
 
     n_proc = mp.cpu_count()
 
@@ -456,8 +512,18 @@ if __name__ == "__main__":
 
     print("\nEND OF MODEL EXECUTION ", time.ctime(), "\n\n")
     print("Saving db - This will take some hours\n")
-    write_h5(dump_folder)
-    print("\n\nSaving netCDF4 files")
-    h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
-    h52nc(h5path, nc_outputs)
-    print(time.ctime())
+
+    #save either h5 from allometry or without allometry
+    if allom:
+        # write_h5_allom(dump_folder)
+        # print("\n\nSaving netCDF4 files for allometry version")
+        print('\n\nNot saving netCDF4 files')
+        # h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+        # h52nc_allom(h5path, nc_outputs)
+        # print(time.ctime())
+    else:
+        write_h5(dump_folder)
+        print("\n\nSaving netCDF4 files")
+        h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+        h52nc(h5path, nc_outputs)
+        print(time.ctime())

@@ -214,6 +214,79 @@ def process_ustrat(u_strat, area):
         np.sum(pool_emx0)
     ))
 
+def write_h5_allom(out_dir=Path('../outputs'), RUN=0, reclen=0):
+
+    print('INSIDE WRITE H5 ALLOM')
+    h5_opt = tb.Filters(complevel=1, complib="blosc:blosclz")
+    postp = os.path.join(Path(out_dir), Path("CAETE.h5"))
+
+    with tb.open_file(postp, mode="w", title="CAETÊ outputs") as h5file:
+
+        group_run = h5file.create_group(
+            "/", f'RUN{RUN}', f'CAETÊ outputs tables Run {RUN}')
+        
+        exp_rows = 41965625 # values for 60 grid points/// 916080 * (60/2749) 
+        exp_rows_snap = 57033 # 1254  * (60/2749)
+        
+        #creates table g1
+        #'Outputs_G1' is the name of the table being created in the HDF5 file
+        #group_run is the group in which the table will be created
+        #tt.run_g1 is the class or type of table being used to create the table.
+        #"out vars of g1" is a description of the table
+        #expectedrows=exp_rows is an estimate of the expected number of rows in the table. 
+        table_g1 = h5file.create_table(
+            group_run, 'Outputs_G1_allom', tt.run_g1_allom, "out vars of g1",
+            filters=h5_opt, expectedrows=exp_rows)
+        
+        # Write outputs//
+        # Create filepaths to the raw output data
+        cells = []
+        grds = os.listdir(out_dir)
+        
+        grds = [Path(os.path.join(out_dir, grd)).resolve()
+                for grd in grds if Path(os.path.join(out_dir, grd)).is_dir()]
+        
+        for grd in grds:
+            XY = str(grd).split(os.sep)[-1].split("_")[0][8:].split("-")
+            print('XY ---->', XY)
+            Y = int(XY[0])
+            X = int(XY[1])
+
+            
+            files = sorted(os.listdir(grd))
+            for f in files:
+                filepath = os.path.join(grd, f)
+                # if prefix in filepath:
+                cells.append((filepath, X, Y))
+
+         # Write table G1
+        rec = 0
+        for fp, X, Y in cells:
+            dt = open_fh(fp)
+            
+            date_range = se_dates(dt)
+            ndays = dt['emaxm'].size
+            g1_row = table_g1.row
+
+            for day in range(ndays):
+
+                g1_row['row_id'] = rec
+                g1_row['date'] = cf_date2str(date_range[day].date())
+                g1_row['grid_y'] = Y
+                g1_row['grid_x'] = X
+                
+                # 1 D outputs
+                for key in tt.G1_1d_allom:
+                    
+                    g1_row[key] = dt[key][day]
+                                       
+                
+                g1_row['photo'] = dt['photo'][day]
+            
+                
+                rec += 1
+                g1_row.append()
+        table_g1.flush()
 
 def write_h5(out_dir=Path('../outputs'), RUN=0, reclen=0):
 

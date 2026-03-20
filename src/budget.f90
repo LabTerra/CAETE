@@ -42,6 +42,7 @@ contains
 
       use photo, only: pft_area_frac, sto_resp
       use water, only: evpot2, penman, available_energy, runoff
+      use alloc2
 
       !     ----------------------------INPUTS-------------------------------
       real(r_8),dimension(ntraits,npls),intent(in) :: dt
@@ -117,7 +118,7 @@ contains
       real(r_4),parameter :: tsnow = -1.0
       real(r_4),parameter :: tice  = -2.5
 
-      real(r_8),dimension(npls) :: cl1_pft, cf1_pft, ca1_pft
+      real(r_8), dimension(npls) :: cl1_pft, cf1_pft, ca1_pft, cs1_pft, ch1_pft
       real(r_4) :: soil_temp
       real(r_4) :: emax
       real(r_8) :: w                               !Daily soil moisture storage (mm)
@@ -182,6 +183,11 @@ contains
          cl1_pft(i) = cl1_in(i)
          ca1_pft(i) = ca1_in(i)
          cf1_pft(i) = cf1_in(i)
+
+         !(sapwood and heartwood compartment)
+         cs1_pft(i) = 0.1*ca1_pft(i)
+         ch1_pft(i) = 0.9*ca1_pft(i)
+
          dleaf(i) = dleaf_in(i)
          dwood(i) = dwood_in(i)
          droot(i) = droot_in(i)
@@ -298,7 +304,7 @@ contains
          dt1 = dt(:,ri) ! Pick up the pls functional attributes list
 
          call prod(dt1, ocp_wood(ri),catm, temp, soil_temp, p0, w, ipar, rh, emax&
-               &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), dleaf(ri), dwood(ri), droot(ri)&
+               &, cl1_pft(ri), cs1_pft(ri), cf1_pft(ri), dleaf(ri), dwood(ri), droot(ri)&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
 

@@ -36,10 +36,10 @@ FLFLAGS = -c -g -lgomp -fopenmp -Wall -fcheck=all -Wextra -ffpe-trap=invalid,zer
 EXT_FLAGS = -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans
 
 # Sources for compilation in run mode (F2PY)
-sources = global.f90 funcs.f90 soil_dec.f90 cc.f90 allocation.f90 productivity.f90 budget.f90
+sources = global.f90 funcs.f90 soil_dec.f90 cc.f90 allocation.f90 allocation2.f90 productivity.f90 budget.f90 budget_allom.f90
 
 # Objects for compilation in debug mode
-objects = global.o funcs.o soil_dec.o cc.o allocation.o productivity.o budget.o debug_caete.o
+objects = global.o funcs.o soil_dec.o cc.o allocation.o allocation2.o productivity.o budget.o budget_allom.o debug_caete.o
 
 # Build the interface and the shared object (caete_module) from .F90 source
 interface: $(sources)
@@ -65,6 +65,9 @@ global_par.mod: global.o global.f90
 	$(FC) $(FLFLAGS) global.f90
 
 photo_par.mod: global.o global.f90
+	$(FC) $(FLFLAGS) global.f90
+
+allom_par.mod: global.o global.f90
 	$(FC) $(FLFLAGS) global.f90
 
 funcs.o: funcs.f90
@@ -93,6 +96,18 @@ allocation.o: allocation.f90
 
 alloc.mod: allocation.o allocation.f90
 	$(FC) $(FLFLAGS) allocation.f90
+
+allocation2.o: allocation2.f90
+	$(FC) $(FLFLAGS) allocation2.f90
+
+alloc2.mod: allocation2.o allocation2.f90
+	$(FC) $(FLFLAGS) allocation2.f90
+
+budget_allom.o: budget_allom.f90
+	$(FC) $(FLFLAGS) budget_allom.f90
+
+budget_allom.mod: budget_allom.o budget_allom.f90
+	$(FC) $(FLFLAGS) budget_allom.f90
 
 productivity.o: productivity.f90
 	$(FC) $(FLFLAGS) productivity.f90

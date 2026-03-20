@@ -1,0 +1,4 @@
+Column,VariableCode,VariableName,Unit
+1,YEAR,Year,year
+2,PID,Plant entity identification number,1
+3,OC,Occupation of the gridcell by the plant entity,%
