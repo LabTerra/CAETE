@@ -123,7 +123,7 @@ contains
       f4sun = f_four(1,cleaf,sla)
       f4shade = f_four(2,cleaf,sla)
 
-      ph = real((0.012D0*31557600.0D0*f1in*f4sun*f4shade), r_8)
+      ph = real((0.012D0*31557600.0D0*f1in*(f4sun+f4shade)), r_8)
       if(ph .lt. 0.0) ph = 0.0
    end function gross_ph
 
@@ -849,7 +849,7 @@ contains
             cfrooti_aux(k) = afroot * nppot2
          else
             aux_leaf = cleafi_aux(k-1) + (aleaf * nppot2)
-            aux_wood = cawoodi_aux(k-1) + (aleaf * nppot2)
+            aux_wood = cawoodi_aux(k-1) + (aawood * nppot2)
             aux_root = cfrooti_aux(k-1) + (afroot * nppot2)
 
             out_leaf = aux_leaf - (cleafi_aux(k-1) / tleaf)
@@ -960,7 +960,7 @@ contains
 
             else
                aux_leaf = cleafi_aux(k-1) + (aleaf(i6) * nppot2)
-               aux_wood = cawoodi_aux(k-1) + (aleaf(i6) * nppot2)
+               aux_wood = cawoodi_aux(k-1) + (aawood(i6) * nppot2)
                aux_root = cfrooti_aux(k-1) + (afroot(i6) * nppot2)
 
                out_leaf = aux_leaf - (cleafi_aux(k-1) / tleaf(i6))
