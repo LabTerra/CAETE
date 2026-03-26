@@ -34,6 +34,7 @@ module alloc2
 
     public:: allocation2,& !calculates carbon pools output from NPP and carbon from preivous step
              height_calc,& !(f)calculates height
+             crown_area_calc,&
              leaf_req_calc,& !(f)leaf mass requeriment to satisfy allometry
              leaf_inc_min_calc,& !(f) minimum leaf increment to satisfy allocation equations
              root_inc_min_calc,& !(f) minimum root increment to satisfy allocation equations
@@ -49,7 +50,7 @@ module alloc2
 
     subroutine allocation2(step,ri, p, dt, npp, leaf_in, wood_in, root_in, sap_in, heart_in, sto_in&
         &, leaf_out, wood_out, root_out, sap_out, heart_out, sto_out&
-        &, leaf_req, leaf_inc_min, root_inc_min)
+        &, leaf_req, leaf_inc_min, root_inc_min, height_pls, crown_area_pls)
     
         
         !VARIABLE INPUTS
@@ -91,6 +92,8 @@ module alloc2
         real(r_8), intent(out) :: leaf_req
         real(r_8), intent(out) :: leaf_inc_min
         real(r_8), intent(out) :: root_inc_min
+        real(r_8), intent(out) :: height_pls
+        real(r_8), intent(out) :: crown_area_pls
 
         !INTERNAL VARIABLES
 
@@ -227,12 +230,21 @@ module alloc2
         ! print*, 'initial bminc', bminc_in_ind
       
         ! call functions to allocation logic
-        height = height_calc(wood_in_ind, sap_in_ind, leaf_in_ind, wd_allom)
+        height_pls = height_calc(wood_in_ind, sap_in_ind, leaf_in_ind, wd_allom)
+       
+ 
+        height = height_pls
+
+
         ! print*, 'height', height
       
         ! if (height.le.0.0D0) then
         !     print*, 'HEIGHT LE 0', wood_in_ind
         ! endif
+
+
+        crown_area_pls = crown_area_calc(sap_in_ind,wd_allom)
+
 
         ! !leaf requirement
         leaf_req = leaf_req_calc(sap_in_ind, height, p, sla_allom, wd_allom)
@@ -455,6 +467,28 @@ module alloc2
         ! print*, 'HEIGHT', 'HEIGHT','HEIGHT LPJ', height
 
     end function height_calc
+
+    function crown_area_calc (sap_in_ind,wd_allom) result (crown_area)
+
+        real(r_8), intent(in) :: sap_in_ind  !gC/ind - sapwood
+        real(r_8), intent(in) :: wd_allom
+        real(r_8) :: crown_area
+        
+        !internal variable
+        real(r_8) :: diameter
+        real(r_8) :: crown_area_max
+
+        !initializing variables
+        diameter = 0.0D0
+        crown_area = 0.0D0
+
+        crown_area_max = 30.0D0 !m2 !number from lplmfire code (establishment.f90)
+
+
+        diameter = ((sap_in_ind)/(wd_allom*1.0D6)*pi*k_allom2)**(1.0D0/(2.0D0+k_allom3))
+        crown_area = min(crown_area_max, 250.0D0*(diameter**1.6D0))
+
+    end function crown_area_calc
 
     function leaf_req_calc (sap_in_ind, height, p, sla_allom, wd_allom)  result (leaf_req)
     

@@ -196,8 +196,8 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: leaf_req
       real(r_8),dimension(:), allocatable :: leaf_inc_min
       real(r_8),dimension(:), allocatable :: root_inc_min
-
-
+      real(r_8),dimension(:), allocatable :: height_pls
+      real(r_8),dimension(:), allocatable :: crown_area_pls
 
       !Carbon vegetation pools (auxiliar for internal convertions)
       real(r_8),dimension(:), allocatable :: cleaf_pls_aux
@@ -242,6 +242,7 @@ module budget_allom
       real(r_8),dimension(:),allocatable :: litter_l     ! leaf litter
       real(r_8),dimension(:),allocatable :: cwd          ! coarse wood debris (to litter)
       real(r_8),dimension(:),allocatable :: litter_fr    ! fine roots litter
+      real(r_8) :: max_height
 
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
@@ -369,6 +370,9 @@ module budget_allom
       allocate(cheart_int(nlen))
       allocate(csto_int(nlen))
 
+      allocate(height_pls(nlen))
+      allocate(crown_area_pls(nlen))
+
       allocate(dleaf_pls_aux(nlen))
       allocate(dwood_pls_aux(nlen))
       allocate(droot_pls_aux(nlen))
@@ -412,7 +416,8 @@ module budget_allom
          call prod(dt1, ocp_wood(ri), catm, temp, soil_temp, p0, w, ipar&
             &, rh, emax, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
             &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p)&
-            &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
+            &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p)&
+            &, max_height,height_pls(p), crown_area_pls(p))
 
 
          ! if (p.eq.1259)then
@@ -438,7 +443,7 @@ module budget_allom
          call allocation2(step, ri, p, dt1,nppa(p)&
             &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_pls(ri)&
             &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
-            &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
+            &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), height_pls(p), crown_area_pls(p))
          ! if (p.eq.1460) then
          ! if(csap_pls2(p).eq.0.0D0)then
          !    print*, 'leaf out alloc', cleaf_pls2(p), step,p
@@ -448,6 +453,8 @@ module budget_allom
          ! print*, 'wood', cwood_pls2(p), p
          ! print*, 'sap', csap_pls2(p), p
          ! print*, 'heart', cheart_pls2(p), p
+
+         max_height = maxval(height_pls(:))
          
 
          !Carbon use efficiency & Delta C
@@ -685,6 +692,9 @@ module budget_allom
       deallocate(csap_int)
       deallocate(cheart_int)
       deallocate(csto_int)
+
+      deallocate(height_pls)
+      deallocate(crown_area_pls)
 
       deallocate(dleaf_pls_aux)
       deallocate(dwood_pls_aux)

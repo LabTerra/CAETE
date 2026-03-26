@@ -42,7 +42,7 @@ contains
 
       use, intrinsic :: ieee_arithmetic
 
-      use photo, only: pft_area_frac, sto_resp
+      use photo
       use water, only: evpot2, penman, available_energy, runoff
       use alloc2
 
@@ -117,9 +117,6 @@ contains
       logical(l_1),dimension(npls) :: ocp_wood
       integer(i_4),dimension(npls) :: run
 
-      real(r_8),parameter :: tsnow = -1.0D0
-      real(r_8),parameter :: tice  = -2.5D0
-
       real(r_8), dimension(npls) :: cl1_pft, cf1_pft, ca1_pft, cs1_pft, ch1_pft
       real(r_8) :: soil_temp
       real(r_8) :: emax
@@ -171,6 +168,8 @@ contains
       real(r_8) :: soil_sat, ar_aux
       real(r_8), dimension(:), allocatable :: idx_grasses, idx_pdia
       
+      real(r_8), dimension(npls) :: diameter_aux, crown_aux, height_aux
+      real(r_8) :: max_height
       
       
       !     START
@@ -207,6 +206,12 @@ contains
 
       call pft_area_frac(cl1_pft, cf1_pft, ca1_pft, awood_aux,&
       &                  ocpavg, ocp_wood, run, ocp_mm)
+
+      call pls_allometry(dt,awood_aux, height_aux, diameter_aux,&
+      &                   crown_aux)
+
+
+      max_height = maxval(height_aux(:))
 
       nlen = sum(run)    ! New length for the arrays in the main loop
       allocate(lp(nlen))
@@ -308,7 +313,8 @@ contains
          call prod(dt1, ocp_wood(ri),catm, temp, soil_temp, p0, w, ipar, rh, emax&
                &, cl1_pft(ri), cs1_pft(ri), cf1_pft(ri), dleaf(ri), dwood(ri), droot(ri)&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
-               &, wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
+               &, wue(p), c_def(p), vcmax(p), specific_la(p), tra(p), max_height&
+               &, height_aux(ri), crown_aux(ri))
 
          evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
 

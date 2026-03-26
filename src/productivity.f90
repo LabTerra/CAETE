@@ -27,7 +27,7 @@ module productivity
 
   subroutine prod(dt,light_limit,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
     & cs1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,wmax,ph,ar,&
-    & nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla, e)
+    & nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla, e,max_height,height1,crown_area1)
 
     use types
     use global_par
@@ -48,6 +48,9 @@ module productivity
     real(r_8), intent(in) :: beta_leaf            !carbon deltas (kg/m2/day)
     real(r_8), intent(in) :: beta_awood !for the allometry is only the sapwood
     real(r_8), intent(in) :: beta_froot, wmax
+    real(r_8), intent(in) :: height1
+    real(r_8), intent(in) :: crown_area1
+    real(r_8), intent(in) :: max_height
     logical(l_1), intent(in) :: light_limit                !True for no ligth limitation
 
     ! ------
@@ -113,8 +116,8 @@ module productivity
     ! --------------
     ! rate (molCO2/m2/s)
 
-    call photosynthesis_rate(catm,temp,p0,ipar,light_limit,c4_int,n2cl,&
-      & p2cl,tleaf,f1a,vm_out,jl_out)
+    call photosynthesis_rate(catm,temp,p0,ipar,sla_allom,c4_int,n2cl,&
+      & p2cl,cl1_prod,cs1_prod,tleaf,f1a,vm_out,jl_out,max_height,height1)
     
     ! =====
     !  VPD
