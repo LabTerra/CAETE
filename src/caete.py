@@ -1277,7 +1277,7 @@ class grd:
                     self.vp_ocp = np.zeros(shape=(self.vp_lsid.size,))
                     del awood
                     self.ls[step] = self.vp_lsid.size
-                
+
                 #when save is true
                 else:
                     
@@ -1755,6 +1755,10 @@ class grd:
                 self.vp_lsid = np.where(daily_output_allom['ocpavg'] > 0.0)[0]
                 self.vp_ocp_allom = daily_output_allom['ocpavg'][self.vp_lsid]
                 self.ls[step] = self.vp_lsid.size
+
+                
+                print(f"spin: {s} | step: {step} | ls: {self.vp_lsid.size}")
+                
                 
                 #no living PLS
 
