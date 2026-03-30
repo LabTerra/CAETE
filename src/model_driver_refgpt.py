@@ -70,9 +70,9 @@ import joblib
 from netCDF4 import Dataset
 import numpy as np
 
-import caete
-from caete import grd, mask, npls, print_progress, rbrk, allom
-import plsgen as pls
+# import caete
+# from caete import grd, mask, npls, print_progress, rbrk, allom
+# import plsgen as pls
 
 __author__ = "João Paulo Darela Filho"
 __descr__ = """RUN CAETÊ"""
@@ -81,22 +81,26 @@ FUNCALLS = 0
 
 #check which version will be runned (allom or nutri_cycle)
 
-def check_start():
-    while True:
-        i = input("---RUN IN SOMBRERO(y/n): ")
-        if i == 'y':
-            r = True
-            break
-        elif i == 'n':
-            r = False
-            break
-        else:
-            pass
-    return r
+# =============================
+#        Check inputs
+# =============================
 
+i = input("---RUN IN SOMBRERO(y/n): ")
+sombrero = True if i in ['y',''] else False
+print("  Running in sombrero:", sombrero)
 
-# Check sombrero
-sombrero = check_start()
+outf = None
+zone = None
+if not sombrero:
+    outf = input("Give a name to your run (ASCII letters and numbers only. No spaces): ")
+    print("  Run name:", outf)
+
+    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
+    if zone not in ['c', 's', 'e', 'nw']:
+        zone = 'c'
+    print("  Running in the zone:", zone)
+
+# =============================
 
 zone = ""
 y0, y1 = 0, 0
@@ -127,10 +131,7 @@ hsoil = (theta_sat, psi_sat, soil_texture)
 
 
 
-if not sombrero:
-    print("Set the folder to store outputs:")
-    outf = input(
-        "Give a name to your run (ASCII letters and numbers only. No spaces): ")
+if not sombrero:    
     dump_folder = Path(f'../outputs/{outf}').resolve()
     nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
     print("\n")
@@ -138,14 +139,6 @@ if not sombrero:
         f"The raw model results & the PLS table will be saved at: {dump_folder}\n")
     print(f"The final netCDF files will be stored at: {nc_outputs}\n")
 
-if not sombrero:
-    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
-    if zone in ['c', 's', 'e', 'nw']:
-        print("Running in the zone:", zone)
-        pass
-    else:
-        print("Running in the zone: c")
-        zone = 'c'
 
 if zone == 'c':
     # # Gridcell MAN: 186, 239
@@ -328,24 +321,29 @@ else:
     pls_table = pls.table_gen(npls, dump_folder)
 
 
-# # Create the gridcell objects
-if sombrero:
-    # Running in all gridcells of mask
-    grid_mn = []
-    for Y in range(175, 176):
-        for X in range(235, 236):
-            if not mask[Y, X]:
-                grid_mn.append(grd(X, Y, outf))
-
-else:
+# Create the gridcell objects
+def create_gridcell_objects(mask,grd, y0,y1, x0,x1):
     grid_mn = []
     for Y in range(y0, y1):
         for X in range(x0, x1):
             if not mask[Y, X]:
                 grid_mn.append(grd(X, Y, outf))
+    return grid_mn
 
 
-def apply_init(grid:grd)->grd: 
+
+
+
+
+# Create the gridcell objects
+if sombrero:
+    grid_mn = create_gridcell_objects(mask,grd, 175, 176, 235, 236)
+else:
+    grid_mn = create_gridcell_objects(mask,grd, y0, y1, x0, x1)
+
+
+
+def apply_init(grid: grd) -> grd: 
     # wraper to the grd method
     grid.init_caete_dyn(input_path, stime, co2_data,
                         pls_table, tsoil, ssoil, hsoil)
@@ -382,7 +380,7 @@ def apply_fun(grid:grd, allometry = allom)->grd:
         grid.run_caete_allom('19790101','19891231', spinup=5, 
                    fix_co2='1980', save=False, nutri_cycle=False)
     else:
-        grid.run_caete('19790101','19891231', spinup=5, 
+        grid.run_caete('19790101', '19891231', spinup=5, 
                    fix_co2='1980', save=False, nutri_cycle=False)
     return grid
 
@@ -515,12 +513,16 @@ if __name__ == "__main__":
     print("Saving db - This will take some hours\n")
 
     #save either h5 from allometry or without allometry
-    print("\n\nSaving netCDF4 files")
-    h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
     if allom:
         write_h5_allom(dump_folder)
-        h52nc_allom(h5path, nc_outputs)
+        #print("\n\nSaving netCDF4 files for allometry version")
+        print('\n\nNot saving netCDF4 files')
+        #h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+        #h52nc_allom(h5path, nc_outputs)
+        #print(time.ctime())
     else:
         write_h5(dump_folder)
+        print("\n\nSaving netCDF4 files")
+        h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
         h52nc(h5path, nc_outputs)
-    print(time.ctime())
+        print(time.ctime())

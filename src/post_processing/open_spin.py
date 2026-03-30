@@ -1,13 +1,20 @@
 import joblib
-import os
 import matplotlib.pyplot as plt
+import os
 
 # Get user input for the run name
-run_name = input('run name: ')
-grd = input('lat-long: ')
+# run_name = input('run name: ')
+run_name = "lu"
+# grd = input('lat-long: ')
+grd = "186-239"
+
+
+outputs_folder = "/home/luana/Documents/outputs_JUSTRUNNED_CAETE_just_bia_and_precision/"
+# outputs_folder = "/home/amazonfaceme/biancarius/CAETE-DVM-alloc-allom/outputs/"
+
 
 # Set the path to the data directory
-path = f'/home/amazonfaceme/biancarius/CAETE-DVM-alloc-allom/outputs/{run_name}/gridcell{grd}'
+path = f'{outputs_folder}{run_name}/gridcell{grd}'
 
 # Change the current working directory to the specified path
 os.chdir(path)
@@ -17,6 +24,9 @@ contents = os.listdir()
 
 # Filter files that start with "spin" to get all spins
 spins = [item.replace("spin", "").replace(".pkz", "") for item in contents if item.startswith("spin")]
+spins.sort()
+print(spins)
+
 
 # Iterate over all spins
 for spin in spins:

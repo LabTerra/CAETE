@@ -42,7 +42,7 @@ module global_par
    real(r_8),parameter,public :: rcmin = 100                     ! ResistÊncia estomática mínima s/m
    real(r_8),parameter,public :: cmin = 1.0D-6                   ! Minimum to survive kg m-2
    ! real(r_8),parameter,public :: wmax = 500.0                    ! Maximum water soil capacity (Kg m-2)
-   real(r_8),parameter,public :: vcmax = 0.00004 !50.0D-5 
+   real(r_8),parameter,public :: vcmax = 0.00004 !50.0D-5
    real(r_8),parameter,public :: csru = 0.5D0                    ! Root attribute
    real(r_8),parameter,public :: alfm = 1.391D0                  ! Root attribute
    real(r_8),parameter,public :: gm = 3.26D0 * 86400D0           ! (*86400 transform s/mm to dia/mm)
@@ -77,7 +77,6 @@ module global_par
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
    real(r_8), parameter, public :: h_turnover = 1./150.!1/50. !Sitch et al 2003
-
 
 end module global_par
 

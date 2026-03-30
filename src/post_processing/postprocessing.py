@@ -1,14 +1,13 @@
-import pktocsv_allspins as p 
-import src.post_processing.time_series as t
+import pktocsv_allspins2 as p2
+import pktocsv_allspins as p
+import time_series as t
 import os
-import joblib
-import pandas as pd
-import numpy as np
 
 #Choose the gridcell acronym to access the data
 #this step is to facilitate accessing the folder where the results were saved
 while True:
-    grd_acro = input('Gridcell acronym [AFL, ALP, FEC, MAN, CAX, NVX]: ')
+    # grd_acro = input('Gridcell acronym [AFL, ALP, FEC, MAN, CAX, NVX]: ')
+    grd_acro = "MAN"
 
     if grd_acro == 'ALP':
         grd = '188-213'
@@ -34,16 +33,21 @@ while True:
 
 
 while True:
-    server = input('Are you running in the server? y/n ')
+    # server = input('Are you running in the server? y/n ')
+    server = "n"
 
     if server == 'y':
         # Set the main_path accordingly for server
-        main_path = f'/home/amazonfaceme/biancarius/CAETE-DVM-alloc-allom/outputs/'
+        outputs_path = f'/home/amazonfaceme/biancarius/CAETE-DVM-alloc-allom/outputs/'
         break
     elif server == 'n':
         # Set the main_path accordingly for local machine
-        main_path = '/home/bianca/bianca/CAETE-DVM-alloc-allom/'
+        # outputs_path = '/home/bianca/bianca/CAETE-DVM-alloc-allom/'
+        outputs_path = '/home/luana/Documents/outputs_JUSTRUNNED_CAETE_just_bia_and_precision'
         break
+
+
+
 # run_names = ['ALP_30prec_1y']
 # run_names = [
     
@@ -74,61 +78,47 @@ while True:
 #     'CAX_30prec_7y']
 
 run_names = [
-   'test_marcela']
-    
+#    'test_marcela']
+   'lu']
 
+start_year = 1979
+end_year   = 1989
+# start_date = '19790101'
+# end_date = '19891231'
 
 # run_name = input('Run name: ')
 for run_name in run_names:
     print('GRDDDDD == ', grd)
-    path = f"../outputs/{run_name}/gridcell{grd}"
+    grd_path = f"{outputs_path}/{run_name}/gridcell{grd}"
     grd_name = f"gridcell{grd}"
-
-
-    start_year = 1979
-    end_year   = 2017
 
     run_breaks_hist1 = []
     run_breaks_hist2 = []
 
-
     for year in range(start_year, end_year, 1):
-        #Crie as datas de início e fim no formato 'YYYYMMDD'
-        start_date = f"{year}0101"
-        end_date = f"{year}1231"
-    
         # Obtenha o número do spin 
-        spin_id = str((year - start_year) // 1 + 1).zfill(2)
+        spin_id = str((year - start_year) + 1).zfill(2)
 
         # Adicione a tupla à lista run_breaks_hist
-        run_breaks_hist1.append((start_date, end_date, spin_id))
+        # Crie as datas de início e fim no formato 'YYYYMMDD'
+        # run_breaks_hist1.append((f"{year}0101", f"{year}1231", spin_id))
+        run_breaks_hist1.append((f"{start_year}0101", f"{end_year}1231", spin_id))
 
+    # # Convert spins to csvs
+    # for date_range in run_breaks_hist1:
+    #     start_date, end_date, spin_id = date_range
+    #     print(f"Spin: {spin_id}...")
+    #     file = p2.read_pkz(spin_id, grd_path)
+    #     # print(file)
+    #     p.pkz2csv(file, grd_path, grd_name, run_name, int(spin_id), date_range, grd_acro)
 
-    for year in range(start_year, end_year, 1):
-        #Crie as datas de início e fim no formato 'YYYYMMDD'
-        start_date = f"{year}0101"
-        end_date = f"{year}1231"
-    
+    # Navigate to the specified folder to access spins
+    os.chdir(grd_path)
 
-        # Adicione a tupla à lista run_breaks_hist
-        run_breaks_hist2.append((start_date, end_date))
-
-
-    # # Process spins 1 to ..
     for date_range in run_breaks_hist1:
-
-        start_date, end_date, spin_id = date_range
-        file = p.read_pkz(int(spin_id), run_name, grd_name, grd_acro)
-        p.pkz2csv(file, path, grd_name, run_name, int(spin_id), date_range, grd_acro)
-
-    # # Navigate to the specified folder to access spins
-    os.chdir(f'{main_path}{run_name}/{grd_name}/')
-
-    for date_range in run_breaks_hist2:
-        print('Joining together all time series, dates, and spins =====',date_range)
+        print('Joining together all time series, dates, and spins =====', date_range)
 
     print('Plotting')
-    t.join_plot(start_date, end_date, run_breaks_hist2, main_path, run_name, grd_name)
-
-
-
+    start_date = f"{start_year}0101"
+    end_date = f"{start_year}1231"
+    t.join_plot(start_date, end_date, run_breaks_hist1, grd_path, run_name)

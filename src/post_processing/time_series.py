@@ -22,16 +22,16 @@
 #into a CSV file. Additionally, the script generates a plot of the NPP time series 
 #against dates and saves it as a PNG image. 
 
-import numpy as np
+# import numpy as np
 import joblib
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-import math
+# import math
 
 #Joining together all time series, dates, and spins
-def join_plot(start_date, end_date, run_breaks_hist, main_path, run_name, grd_name): # Initialize lists to store all time series, dates, and spins
-    
+def join_plot(start_date, end_date, run_breaks_hist, grd_folderpath, run_name): # Initialize lists to store all time series, dates, and spins
+
     variables_to_plot = ['photo', 'ar', 'npp',  'lai', 'f5', 'evapm', 'cleaf', 'cwood', 'croot', 'csap', 'cheart', 'csto', 'wue', 'ls']
 
     all_dates = []
@@ -39,7 +39,7 @@ def join_plot(start_date, end_date, run_breaks_hist, main_path, run_name, grd_na
     all_data = {variable: [] for variable in variables_to_plot}
 
     # Iterate over all available spins
-    for spin, (start_date, end_date) in enumerate(run_breaks_hist, start=1):
+    for spin, (start_date, end_date, x) in enumerate(run_breaks_hist, start=1):
         # Load data for the current spin
         with open(f"spin{spin:02d}.pkz", 'rb') as fh:
             dt = joblib.load(fh)
@@ -68,27 +68,26 @@ def join_plot(start_date, end_date, run_breaks_hist, main_path, run_name, grd_na
     # Convert the 'Date' column to the datetime data type if it's not already
     df['Date'] = pd.to_datetime(df['Date'])
 
-# # Create a figure and an array of subplots based on the number of variables
+    # Create a figure and an array of subplots based on the number of variables
     num_variables = len(variables_to_plot) 
     num_rows = (num_variables + 1) // 4  # Ensure at least 1 row
     fig, axs = plt.subplots(nrows = 5, ncols = 3, figsize=(15, 5 * num_rows), sharex=True)
 
-# # Flatten the axs array to handle 1D indexing
+    # Flatten the axs array to handle 1D indexing
     axs = axs.flatten()
 
-# # Iterate over variables and plot each one
+    # Iterate over variables and plot each one
     for i, variable in enumerate(variables_to_plot):
         axs[i].plot(df['Date'], df[variable])
         axs[i].set_ylabel(variable)
         axs[i].set_title(f'Time Series of {variable}')
-    # 
+
     # Adjust the layout to prevent title overlap
     plt.tight_layout()
-    # 
-        
+
     # Save the plot as an image
-    plt.savefig(os.path.join(f'{main_path}{run_name}/{grd_name}/', f'timeseries_{run_name}_all_variables.png'))
-    # 
+    plt.savefig(os.path.join(f'{grd_folderpath}/', f'timeseries_{run_name}_all_variables.png'))
+
     # Display the subplots
     plt.show()
 
