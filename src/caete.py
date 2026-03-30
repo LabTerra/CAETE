@@ -50,7 +50,8 @@ npls = gp.npls
 runplotp = False
 
 while True:
-    maskp = input("THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+    # maskp = input("THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+    maskp = "a"
     if maskp == 'b':
         mask = np.load("../input/mask/mask_raisg-360-720.npy")
         break
@@ -63,7 +64,8 @@ while True:
         break
 
 while True:
-    version_allom = input('Which version? (1: allom/2: nutri_cycle) ')
+    # version_allom = input('Which version? (1: allom/2: nutri_cycle) ')
+    version_allom = "1"
 
     if version_allom == '1':
         allom = True

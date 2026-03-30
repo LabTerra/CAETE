@@ -83,7 +83,8 @@ FUNCALLS = 0
 
 def check_start():
     while True:
-        i = input("---RUN IN SOMBRERO(y/n): ")
+        # i = input("---RUN IN SOMBRERO(y/n): ")
+        i = "n"
         if i == 'y':
             r = True
             break
@@ -126,8 +127,9 @@ def check_seed():
         if choice == 'n':
             return None
 
-# 'seed' value can be either a number or None
-seed = check_seed()
+# # 'seed' value can be either a number or None
+# seed = check_seed()
+seed = 888
 
 
 # Water saturation, field capacity & wilting point (maps of 0.5° res)
@@ -155,8 +157,9 @@ hsoil = (theta_sat, psi_sat, soil_texture)
 
 if not sombrero:
     print("Set the folder to store outputs:")
-    outf = input(
-        "Give a name to your run (ASCII letters and numbers only. No spaces): ")
+    # outf = input(
+    #     "Give a name to your run (ASCII letters and numbers only. No spaces): ")
+    outf = "lu3003"
     dump_folder = Path(f'../outputs/{outf}').resolve()
     nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
     print("\n")
@@ -165,7 +168,8 @@ if not sombrero:
     print(f"The final netCDF files will be stored at: {nc_outputs}\n")
 
 if not sombrero:
-    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
+    # zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
+    zone = "c"
     if zone in ['c', 's', 'e', 'nw']:
         print("Running in the zone:", zone)
         pass
