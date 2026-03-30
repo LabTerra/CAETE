@@ -1240,7 +1240,10 @@ class grd:
                 self.vp_ocp = daily_output['ocpavg'][self.vp_lsid]
                 self.ls[step] = self.vp_lsid.size
 
-                
+
+                print(f"spin: {s} | step: {step} | ls: {self.vp_lsid.size}")
+
+
                 #no living PLS
 
                 #when there is no need to save (spinup)
