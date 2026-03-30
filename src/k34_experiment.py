@@ -109,7 +109,7 @@ def make_table_HD():
     """ Call this function to build a PLS table filled with adapted EV for the K34 site
     This may take some time"""
     def lplss():
-        pls_table = pls.table_gen(NPLS)
+        pls_table = pls.table_gen(NPLS, seed = seed)
         print("FST")
         k34_plot = mod.plot(-2.61, -60.20, 'k34-CUI')
 
@@ -129,7 +129,7 @@ def make_table_HD():
         while True:
             print("REPEAT ...")
             print(f"ARR SHP: {arr1.shape}")
-            pls_table = pls.table_gen(NPLS)
+            pls_table = pls.table_gen(NPLS, seed = seed)
             k34_plot = mod.plot(-2.61, -60.20, 'k34-CUI')
             k34_plot.init_plot(sdata=sdata, stime_i=stime_i, co2=co2,
                                pls_table=pls_table, tsoil=tsoil,
@@ -365,7 +365,7 @@ if __name__ == "__main__":
     # ld = run_experiment(pls_table)
 
     # INTERMEDIATE FD
-    # pls_table = pls.table_gen(NPLS, Path("./k34_PLS_TABLE/"))
+    # pls_table = pls.table_gen(NPLS, Path("./k34_PLS_TABLE/"), seed = seed)
     pls_table = read_pls_table("./k34_PLS_TABLE/pls_attrs-1000.csv")
     md = run_experiment(pls_table)
 

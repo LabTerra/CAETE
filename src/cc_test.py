@@ -34,6 +34,13 @@ wsoil = 360.0  # mm
 e = 0.00005  # mm/s
 
 
+# Set random seed if defined
+seed = None
+# seed = 999
+if seed:
+    np.random.seed(seed = seed)
+
+
 pls = np.random.randint(0, 999)
 # calc N fixed
 # Calculate before all to subtract npp

@@ -108,8 +108,9 @@ def get_spin(grd: mod.grd, spin) -> dict:
 
 
 if __name__ == "__main__":
-    pass
-    pls_table = pls.table_gen(1000, Path("./CAX_PLS_TABLE"))
+    seed = None
+
+    pls_table = pls.table_gen(1000, Path("./CAX_PLS_TABLE"), seed)
     cax = run_experiment(pls_table)
 
 

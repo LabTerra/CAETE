@@ -186,6 +186,12 @@ if __name__ == "__main__":
 
     wp = soil_water(ws1, ws2, fc1, fc2, wp1, wp2)
 
+    # Set random seed if defined
+    seed = None
+    # seed = 999
+    if seed:
+        np.random.seed(seed = seed)
+
     for x in range(5000):
         evapo = 5 if np.random.normal() > 0 else 0
         roff = wp._update_pool(evapo, evapo)

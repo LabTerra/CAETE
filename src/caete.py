@@ -1043,7 +1043,8 @@ class grd:
                   fix_co2=None,
                   save=True,
                   nutri_cycle=True,
-                  afex=False):
+                  afex=False,
+                  seed = None):
         """ start_date [str]   "yyyymmdd" Start model execution
 
             end_date   [str]   "yyyymmdd" End model execution
@@ -1244,6 +1245,11 @@ class grd:
 
                 #when there is no need to save (spinup)
                 if self.vp_lsid.size < 1 and not save:
+
+                    # Set random seed if defined
+                    if seed:
+                        rd.seed(seed)
+
                     self.vp_lsid = np.sort(
                         np.array(
                             rd.sample(list(np.arange(gp.npls)), int(gp.npls - 5))))
@@ -1531,7 +1537,8 @@ class grd:
                         spinup = 0,
                         fix_co2 = None,
                         save = True,
-                        nutri_cycle = False):
+                        nutri_cycle = False,
+                        seed = None):
             
         """ start_date [str]   "yyyymmdd" Start model execution
 
@@ -1750,6 +1757,10 @@ class grd:
 
                 #when there is no need to save (spinup)
                 if self.vp_lsid.size < 1 and not save:
+                    # Set random seed if defined
+                    if seed:
+                        rd.seed(seed)
+
                     self.vp_lsid = np.sort(
                         np.array(
                             rd.sample(list(np.arange(gp.npls)), int(gp.npls - 5))))

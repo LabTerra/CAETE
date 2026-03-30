@@ -50,7 +50,6 @@ def vec_ranging(values, new_min, new_max):
 
     return np.array(output, dtype=np.float64)
 
-
 def check_viability(trait_values, wood):
     """ Check the viability of allocation(a) & residence time(ŧ) combinations.
         Some PLS combinations of allocation coefficients and residence times
@@ -73,7 +72,6 @@ def check_viability(trait_values, wood):
             return False
         return True
 
-
 def assertion_data_size(dsize):
     """ Assertion of datasets sizes """
 
@@ -82,7 +80,6 @@ def assertion_data_size(dsize):
     diffw = int(dsize - diffg)
     assert diffg + diffw == dsize
     return diffg, diffw
-
 
 def turnover_combinations(verbose=False):
     """CREATE the residence time and allocation combinations"""
@@ -133,8 +130,7 @@ def turnover_combinations(verbose=False):
 
     return a1, a2
 
-
-def calc_ratios1(NPLS):
+def calc_ratios1(NPLS, seed = None):
     # LEAF POOL
     # Reich, P. B., & Oleksyn, J. (2004). 
     # Global patterns of plant leaf N and P in relation to temperature and latitude. 
@@ -191,12 +187,15 @@ def calc_ratios1(NPLS):
     # np.save("./NP1.npy", x1)
     #===========================
 
+    # Set random seed if defined
+    if seed:
+        np.random.seed(seed = seed)
+        
     idx = np.random.randint(0, x1.shape[0], size=NPLS)
     sampleNP = x1[idx, :]
     return sampleNP
 
-
-def calc_ratios2(NPLS):
+def calc_ratios2(NPLS, seed = None):
     # WOOD POOL
     # Heineman, K. D., Turner, B. L., & Dalling, J. W. (2016). 
     # Variation in wood nutrients along a tropical soil fertility gradient. 
@@ -251,11 +250,15 @@ def calc_ratios2(NPLS):
 
     #===========================  
 
+    # Set random seed if defined
+    if seed:
+        np.random.seed(seed = seed)
+    
     idx = np.random.randint(0, x1.shape[0], size=NPLS)
     sampleNP = x1[idx, :]
     return sampleNP
 
-def calc_ratios3(NPLS):
+def calc_ratios3(NPLS, seed = None):
     # FINE ROOT POOL
     # Iversen, C., McCormack, M., Baer, J., Powell, A., Chen, W., Collins, C.,
     # Fan, Y., Fanin, N., Freschet, G., Guo, D., Hogan JA, Kou, L., Laughlin, D.,
@@ -318,13 +321,22 @@ def calc_ratios3(NPLS):
     
     #===========================
 
+    # Set random seed if defined
+    if seed:
+        np.random.seed(seed = seed)
+    
     idx = np.random.randint(0, x1.shape[0], size=NPLS)
     sampleNP = x1[idx, :]
     return sampleNP
 
-
-def table_gen(NPLS, fpath=None):
-    """AKA main - generate a trait table for CAETÊ - save it to a .csv"""
+def table_gen(NPLS, fpath=None, seed = None):
+    """AKA main - generate a trait table for CAETÊ - save it to a .csv
+    
+    Arguments:
+    - NPLS: Number of PLSs to generate table
+    - fpath (optional): If defined, save table to this path
+    - seed (optional): If defined, set seed for random numbers generator
+    """
 
     diffg, diffw = assertion_data_size(NPLS)
     plsa_wood, plsa_grass = turnover_combinations(True)
@@ -335,6 +347,10 @@ def table_gen(NPLS, fpath=None):
 
     # REVER O TEMPO DE RESIDÊNCIA DAS RAÌZES FINAS - VARIAR ENTRE 1 mes e 2 anos
     index0 = 0
+
+    # Set random seed if defined
+    if seed:
+        np.random.seed(seed = seed)
 
     # rtime = vec_ranging(np.random.beta(2, 4, r_ceil),
     #                     0.083333, 2)
@@ -410,11 +426,13 @@ def table_gen(NPLS, fpath=None):
     # Nitrogen and Phosphorus content in carbon pools
     # C : N : P
 
-    leaf = calc_ratios1(NPLS)
+    seed = 999
+
+    leaf = calc_ratios1(NPLS, seed)
     leaf_n2c = leaf[:, 0]
     leaf_p2c = leaf[:, 1]
 
-    wood = calc_ratios2(NPLS)
+    wood = calc_ratios2(NPLS, seed)
     awood_n2c = wood[:, 0]
     awood_p2c = wood[:, 1]
 
@@ -423,7 +441,7 @@ def table_gen(NPLS, fpath=None):
     np.place(awood_n2c, test, 0.0)
     np.place(awood_p2c, test, 0.0)
 
-    root = calc_ratios3(NPLS)
+    root = calc_ratios3(NPLS, seed)
     froot_n2c = root[:, 0]
     froot_p2c = root[:, 1]
 

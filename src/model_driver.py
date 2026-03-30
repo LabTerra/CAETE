@@ -64,7 +64,7 @@ import bz2
 import copy
 import multiprocessing as mp
 from pathlib import Path
-from random import shuffle
+import random as rd
 
 import joblib
 from netCDF4 import Dataset
@@ -102,6 +102,32 @@ zone = ""
 y0, y1 = 0, 0
 x0, x1 = 0, 0
 folder = "central"
+
+
+# Check if user wants to set seed
+def check_seed():
+    """Function to ask if user want to set seed for random numbers generation. 
+    If defined, seed is set for all np.random operations, allowing CAETE to generate
+    always the same results with the same seed. If not set, the numpy random numbers
+    generation process will use the default seed."""
+
+    while True:
+        choice = input("Run CAETE setting seed for random numbers generation? (y/n): ")
+
+        if choice == 'y':
+            while True:
+                seed = input("Set seed: ")
+                if seed.isdigit():
+                    seed = int(seed)
+                    print(f"Using seed: {seed} for random numbers generation!")
+                    return seed
+                print("Error: Please enter a valid number for seed!")
+
+        if choice == 'n':
+            return None
+
+# 'seed' value can be either a number or None
+seed = check_seed()
 
 
 # Water saturation, field capacity & wilting point (maps of 0.5° res)
@@ -243,7 +269,7 @@ if sombrero:
         run_breaks = rbrk[0]
         rbrk_index = 0
         # save the attributes table to the HISTORICAL OBSERVED RUN - It will be used in all other experiments
-        pls_table = pls.table_gen(npls, dump_folder)
+        pls_table = pls.table_gen(npls, dump_folder, seed = seed)
 
     else:
         clim_and_soil_data = Path(os.path.join(model_root, Path("historical")))
@@ -272,7 +298,7 @@ if sombrero:
         #     pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
         # else:
         print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
-        pls_table = pls.table_gen(npls, dump_folder)
+        pls_table = pls.table_gen(npls, dump_folder, seed = seed)
 
     with open("stime.txt", 'w') as fh:
         fh.writelines([f"{stime['units']}\n",
@@ -314,7 +340,7 @@ else:
                        f"{rbrk_index}\n"])
 
     # FUNCTIONAL TRAITS DATA
-    # pls_table = pls.table_gen(npls, dump_folder)
+    # pls_table = pls.table_gen(npls, dump_folder, seed = seed)
     # from parameters import pls_path, ATTR_FILENAME
     # if pls_path.exists():
     #     from caete_utils import read_pls_table
@@ -325,7 +351,7 @@ else:
     #     pls_table = read_pls_table(out=Path(os.path.join(dump_folder, ATTR_FILENAME)))
     # else:
     print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
-    pls_table = pls.table_gen(npls, dump_folder)
+    pls_table = pls.table_gen(npls, dump_folder, seed = seed)
 
 
 # # Create the gridcell objects
@@ -352,8 +378,14 @@ def apply_init(grid:grd)->grd:
     return grid
 
 
-def chunks(lst, chunck_size):
-    shuffle(lst)
+def chunks(lst, chunck_size, seed = None):
+
+    # Set random seed if defined
+    if seed:
+        rd.seed(seed)
+
+    rd.shuffle(lst)
+
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), chunck_size):
         yield lst[i:i + chunck_size]
@@ -380,20 +412,20 @@ def apply_spin(grid:grd)->grd:
 def apply_fun(grid:grd, allometry = allom)->grd:
     if allom:
         grid.run_caete_allom('19790101','19891231', spinup=5, 
-                   fix_co2='1980', save=False, nutri_cycle=False)
+                   fix_co2='1980', save=False, nutri_cycle=False, seed = seed)
     else:
         grid.run_caete('19790101', '19891231', spinup=5, 
-                   fix_co2='1980', save=False, nutri_cycle=False)
+                   fix_co2='1980', save=False, nutri_cycle=False, seed = seed)
     return grid
 
  
 def apply_fun0(grid:grd, allometry = allom)->grd:
     if allom:
         grid.run_caete_allom('19790101', '19891231', spinup=35,
-                   fix_co2='1980', save=True, nutri_cycle=False)
+                   fix_co2='1980', save=True, nutri_cycle=False, seed = seed)
     else:
         grid.run_caete('19790101', '19891231', spinup=35,
-                   fix_co2='1980', save=False)
+                   fix_co2='1980', save=False, seed = seed)
     return grid
 
 
@@ -406,9 +438,9 @@ def zip_gridtime(grd_pool, interval):
 
 def apply_funX(grid:grd, brk:list, allometry = allom)->grd:
     if allom:
-        grid.run_caete_allom(brk[0], brk[1], save = False, nutri_cycle=False)
+        grid.run_caete_allom(brk[0], brk[1], save = False, nutri_cycle=False, seed = seed)
     else:
-        grid.run_caete(brk[0], brk[1])
+        grid.run_caete(brk[0], brk[1], seed = seed)
     return grid
 
 # Garbage collection
@@ -468,7 +500,7 @@ if __name__ == "__main__":
                 result = p.map(fun, input)
                 # # Divide in chunks to leverage the work
                 # result = []
-                # for l in chunks(input, n_proc * 2):
+                # for l in chunks(input, n_proc * 2, seed):
                 #     r1 = p.map(fun, input)
                 # result += r1
         end_spinup = time.time() - start

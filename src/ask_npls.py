@@ -129,4 +129,3 @@ end module photo_par"""
 root = Path(os.getcwd()).resolve()
 with open(f"{root}/global.f90", 'w') as fh:
     fh.write(global_f90)
-    

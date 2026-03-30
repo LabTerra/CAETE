@@ -24,8 +24,11 @@ if pls_path.exists():
 
 #creates a new PLS table
 else:
+    
+    seed = 999
+
     print(f"WARNING: Creating a new PLS table for a historical simulated ({outf}) run ")
-    pls_table = pls.table_gen(npls, dump_folder)
+    pls_table = pls.table_gen(npls, dump_folder, seed = seed)
 
 # Soil Parameters
 # Water saturation, field capacity & wilting point
