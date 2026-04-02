@@ -65,13 +65,9 @@ import copy
 import multiprocessing as mp
 from pathlib import Path
 from random import shuffle
-
 import joblib
-from netCDF4 import Dataset
 import numpy as np
-
-import caete
-from caete import grd, mask, npls, print_progress, rbrk, allom
+from caete import grd, npls, print_progress, rbrk
 import plsgen as pls
 
 __author__ = "João Paulo Darela Filho"
@@ -79,151 +75,43 @@ __descr__ = """RUN CAETÊ"""
 
 FUNCALLS = 0
 
-#check which version will be runned (allom or nutri_cycle)
 
-def check_start():
-    while True:
-        i = input("---RUN IN SOMBRERO(y/n): ")
-        if i == 'y':
-            r = True
-            break
-        elif i == 'n':
-            r = False
-            break
-        else:
-            pass
-    return r
+# ===========================================================
+# Process arguments from command line or asks interactively
+# ===========================================================
+
+import caete_inputs
+
+zone, maskp, sombrero, allom, outf, climatology = caete_inputs.process_inputs()
+print(f"Zone: {zone}")
+print(f"Sombrero: {maskp}")
+print(f"sombrero: {sombrero}")
+print(f"allom: {allom}")
+print(f"outf: {outf}")
+print(f"climatology: {climatology}")
 
 
-# Check sombrero
-sombrero = check_start()
+# ===========================================================
 
-zone = ""
+# Init variables
 y0, y1 = 0, 0
 x0, x1 = 0, 0
 folder = "central"
 
-
-# Water saturation, field capacity & wilting point (maps of 0.5° res)
-# Topsoil
-map_ws = np.load("../input/soil/ws.npy")
-map_fc = np.load('../input/soil/fc.npy')
-map_wp = np.load('../input/soil/wp.npy')
-
-# Subsoil
-map_subws = np.load("../input/soil/sws.npy")
-map_subfc = np.load("../input/soil/sfc.npy")
-map_subwp = np.load("../input/soil/swp.npy")
-
-tsoil = (map_ws, map_fc, map_wp)
-ssoil = (map_subws, map_subfc, map_subwp)
-
-# Hydraulics
-theta_sat = np.load("../input/hydra/theta_sat.npy")
-psi_sat = np.load("../input/hydra/psi_sat.npy")
-soil_texture = np.load("../input/hydra/soil_text.npy")
-
-hsoil = (theta_sat, psi_sat, soil_texture)
+# Set mask
+mask = None
+if maskp == 'b':
+    mask = np.load("../input/mask/mask_raisg-360-720.npy")
+elif maskp == 'a':
+    mask = np.load("../input/mask/mask_BIOMA.npy")
+elif maskp == 'c':
+    mask = np.load("../input/mask/mask_raisg-360-720.npy")
 
 
-
-if not sombrero:
-    print("Set the folder to store outputs:")
-    outf = input(
-        "Give a name to your run (ASCII letters and numbers only. No spaces): ")
-    dump_folder = Path(f'../outputs/{outf}').resolve()
-    nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
-    print("\n")
-    print(
-        f"The raw model results & the PLS table will be saved at: {dump_folder}\n")
-    print(f"The final netCDF files will be stored at: {nc_outputs}\n")
-
-if not sombrero:
-    zone = input("Select a zone [c: central, s: south, e: east, nw: NW]")
-    if zone in ['c', 's', 'e', 'nw']:
-        print("Running in the zone:", zone)
-        pass
-    else:
-        print("Running in the zone: c")
-        zone = 'c'
-
-if zone == 'c':
-    # # Gridcell MAN: 186, 239
-    y0, y1 = 186, 187
-    x0, x1 = 239, 240
-
-    # y0, y1 = 175, 176
-    # x0, x1 = 235, 236
-    folder = "central"
-
-elif zone == 's':
-    # Gridcell AFL: 199-248
-    y0, y1 = 199, 200
-    x0, x1 = 248, 249 
-
-    #Gridcell FEC: 200-225
-    # y0, y1 = 200, 201
-    # x0, x1 = 225, 226
-
-    # y0, y1 = 200, 211
-    # x0, x1 = 225, 231
-    folder = "south"
-
-elif zone == 'nw':
-    # #Gridcell ALP: 188, 213
-    y0, y1 = 188, 189
-    x0, x1 = 213, 214
-
-    # y0, y1 = 168, 175
-    # x0, x1 = 225, 230
-    folder = "north_west"
-
-elif zone == 'e':
-    # #Gridcell CAX: 183, 257
-    # y0, y1 = 183, 184
-    # x0, x1 = 257, 258
-    folder = "east"
-
-    # y0, y1 = 190, 201
-    # x0, x1 = 255, 261
-elif zone == 'u':
-    y = y_grd
-    x = x_grd
-    folder = "gridcell"
-    # y0, y1 = 175, 176
-    # x0, x1 = 235, 236
-    # folder = "central"
-
-else:
-    assert sombrero
+print("=========================================================")
 
 
 if sombrero:
-    clim_list = ["HISTORICAL-RUN",
-                 "GFDL-ESM2M",
-                 "HadGEM2-ES",
-                 "IPSL-CM5A-LR",
-                 "MIROC5"]
-
-    # Select the location of input climate and soil data (for each grid cell )
-    CLIM_DATA_str = """
-        You have the option to run any of the historical climatologies:
-
-        HISTORICAL-RUN   1
-        GFDL-ESM2M       2
-        HadGEM2-ES       3
-        IPSL-CM5A-LR     4
-        MIROC5           5
-
-        Choose one:     _"""
-    while True:
-        climatology = input(CLIM_DATA_str)
-        if climatology in ['1', '2', '3', '4', '5']:
-            climatology = int(climatology)
-            outf = clim_list[climatology - 1]
-            break
-        else:
-            pass
     # SELECT MODEL -HISTORICAL SPINUP + RUN
     s_data = Path("/home/amazonfaceme/shared_data").resolve()
     model_root = Path(os.path.join(s_data, Path(outf)))
@@ -244,7 +132,6 @@ if sombrero:
         rbrk_index = 0
         # save the attributes table to the HISTORICAL OBSERVED RUN - It will be used in all other experiments
         pls_table = pls.table_gen(npls, dump_folder)
-
     else:
         clim_and_soil_data = Path(os.path.join(model_root, Path("historical")))
         clim_metadata = Path(os.path.join(
@@ -279,16 +166,60 @@ if sombrero:
                        f"{stime['calendar']}\n",
                        f"{outf}-ISIMIP2b-hist\n",
                        f"{rbrk_index}\n"])
-        
-    
-    
+
     nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
-    print(f"The raw model results & the PLS table will be saved at: {dump_folder}\n")
-    print(f"The final netCDF files will be stored at: {nc_outputs}\n")
-    
-        
+    print(f"  The raw model results & the PLS table will be saved at: {dump_folder}")
+    print(f"  The final netCDF files will be stored at: {nc_outputs}")
+
 else:
     assert not sombrero
+
+    dump_folder = Path(f'../outputs/{outf}').resolve()
+    nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
+    print(f"   The raw model results & the PLS table will be saved at: {dump_folder}")
+    print(f"   The final netCDF files will be stored at: {nc_outputs}")
+
+    if zone == 'c':
+        # # Gridcell MAN: 186, 239
+        folder = "central"
+        y0, y1 = 186, 187
+        x0, x1 = 239, 240
+
+        # y0, y1 = 175, 176
+        # x0, x1 = 235, 236
+
+    elif zone == 's':
+        # Gridcell AFL: 199-248
+        folder = "south"
+        y0, y1 = 199, 200
+        x0, x1 = 248, 249 
+
+        #Gridcell FEC: 200-225
+        # y0, y1 = 200, 201
+        # x0, x1 = 225, 226
+
+        # y0, y1 = 200, 211
+        # x0, x1 = 225, 231
+
+    elif zone == 'e':
+        # #Gridcell CAX: 183, 257
+        folder = "east"
+        # y0, y1 = 183, 184
+        # x0, x1 = 257, 258
+
+        # y0, y1 = 190, 201
+        # x0, x1 = 255, 261
+
+    elif zone == 'nw':
+        # #Gridcell ALP: 188, 213
+        folder = "north_west"
+        y0, y1 = 188, 189
+        x0, x1 = 213, 214
+
+        # y0, y1 = 168, 175
+        # x0, x1 = 225, 230
+
+
     # HISTORICAL OBSERVED DATA
     s_data = Path("../input").resolve()
     clim_and_soil_data = Path(folder)
@@ -336,7 +267,6 @@ if sombrero:
         for X in range(235, 236):
             if not mask[Y, X]:
                 grid_mn.append(grd(X, Y, outf))
-
 else:
     grid_mn = []
     for Y in range(y0, y1):
@@ -345,10 +275,36 @@ else:
                 grid_mn.append(grd(X, Y, outf))
 
 
+
+print("=========================================================")
+
+
+# Water saturation, field capacity & wilting point (maps of 0.5° res)
+# Topsoil
+map_ws = np.load("../input/soil/ws.npy")
+map_fc = np.load('../input/soil/fc.npy')
+map_wp = np.load('../input/soil/wp.npy')
+
+# Subsoil
+map_subws = np.load("../input/soil/sws.npy")
+map_subfc = np.load("../input/soil/sfc.npy")
+map_subwp = np.load("../input/soil/swp.npy")
+
+tsoil = (map_ws, map_fc, map_wp)
+ssoil = (map_subws, map_subfc, map_subwp)
+
+# Hydraulics
+theta_sat = np.load("../input/hydra/theta_sat.npy")
+psi_sat = np.load("../input/hydra/psi_sat.npy")
+soil_texture = np.load("../input/hydra/soil_text.npy")
+
+hsoil = (theta_sat, psi_sat, soil_texture)
+
+
 def apply_init(grid:grd)->grd: 
     # wraper to the grd method
     grid.init_caete_dyn(input_path, stime, co2_data,
-                        pls_table, tsoil, ssoil, hsoil)
+                        pls_table, tsoil, ssoil, hsoil, mask)
     return grid
 
 

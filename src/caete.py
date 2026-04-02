@@ -47,36 +47,7 @@ print(f"RUNNING CAETÊ with {gp.npls} Plant Life Strategies")
 # GLOBAL
 out_ext = ".pkz"
 npls = gp.npls
-runplotp = False
 
-while True:
-    maskp = input("THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
-    if maskp == 'b':
-        mask = np.load("../input/mask/mask_raisg-360-720.npy")
-        break
-    if maskp == 'a':
-        mask = np.load("../input/mask/mask_BIOMA.npy")
-        break
-    if maskp == 'c':
-        mask = np.load("../input/mask/mask_raisg-360-720.npy")
-        runplotp = True
-        break
-
-while True:
-    version_allom = input('Which version? (1: allom/2: nutri_cycle) ')
-
-    if version_allom == '1':
-        allom = True
-        print('')
-        print('You are using the version considering allometry constraints without nutrient cycle')
-        print('')
-        break
-    if version_allom == '2':
-        allom = False
-        print('')
-        print('You are using the version with fix proportion to allocation and considering nutrient cycle')
-        print('')
-        break
 
 
 Pan_Amazon_RECTANGLE = "y = 160:221 x = 201:272"
@@ -822,7 +793,7 @@ class grd:
             dump(data_obj, fh, compress=('zlib', 3), protocol=4)
         self.flush_data = 0
 
-    def init_caete_dyn(self, input_fpath, stime_i, co2, pls_table, tsoil, ssoil, hsoil):
+    def init_caete_dyn(self, input_fpath, stime_i, co2, pls_table, tsoil, ssoil, hsoil, mask):
         """ PREPARE A GRIDCELL TO RUN
             input_fpath:(str or pathlib.Path) path to Files with climate and soil data
             co2: (list) a alist (association list) with yearly cCO2 ATM data(yyyy\t[CO2]\n)
@@ -2022,7 +1993,7 @@ class plot(grd):
 
         self.plot = True
 
-    def init_plot(self, sdata, stime_i, co2, pls_table, tsoil, ssoil, hsoil):
+    def init_plot(self, sdata, stime_i, co2, pls_table, tsoil, ssoil, hsoil, mask):
         """ PREPARE A GRIDCELL TO RUN With PLOT OBSERVED DATA
             sdata : python dict with the proper structure - see the input files e.g. CAETE-DVM/input/central/input_data_175-235.pbz2
             stime_i:  python dict with the proper structure - see the input files e.g. CAETE-DVM/input/central/ISIMIP_HISTORICAL_METADATA.pbz2

@@ -18,7 +18,6 @@
 # Templates for tables of CAETÊ
 from caete_module import global_par as gp
 import tables as tb
-from caete import allom
 
 
 __author__ = "JPDarela"

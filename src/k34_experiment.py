@@ -18,6 +18,21 @@ from aux_plot import get_var
 
 from sklearn.cluster import KMeans
 
+
+
+while True:
+    maskp = input("THREE MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+    if maskp == 'b':
+        mask = np.load("../input/mask/mask_raisg-360-720.npy")
+        break
+    if maskp == 'a':
+        mask = np.load("../input/mask/mask_BIOMA.npy")
+        break
+    if maskp == 'c':
+        mask = np.load("../input/mask/mask_raisg-360-720.npy")
+        break
+
+
 idxT = pd.date_range("2000-01-01", "2015-12-31", freq='D', closed=None)
 
 dt = pd.read_csv("../k34/MetData_AmzFACE2000_2015_CAETE.csv")
@@ -115,7 +130,7 @@ def make_table_HD():
 
         k34_plot.init_plot(sdata=sdata, stime_i=stime_i, co2=co2,
                            pls_table=pls_table, tsoil=tsoil,
-                           ssoil=ssoil, hsoil=hsoil)
+                           ssoil=ssoil, hsoil=hsoil, mask=mask)
 
         k34_plot = apply_spin(k34_plot)
 
@@ -133,7 +148,7 @@ def make_table_HD():
             k34_plot = mod.plot(-2.61, -60.20, 'k34-CUI')
             k34_plot.init_plot(sdata=sdata, stime_i=stime_i, co2=co2,
                                pls_table=pls_table, tsoil=tsoil,
-                               ssoil=ssoil, hsoil=hsoil)
+                               ssoil=ssoil, hsoil=hsoil, mask=mask)
             k34_plot = apply_spin(k34_plot)
             print("RUNNING")
             k34_plot.run_caete('20000102', '20151231', 10, save=True, nutri_cycle=False)
@@ -217,7 +232,7 @@ def run_experiment(pls_table):
     # Fill the plot object with input data
     k34_plot.init_plot(sdata=sdata, stime_i=stime_i, co2=co2,
                        pls_table=pls_table, tsoil=tsoil,
-                       ssoil=ssoil, hsoil=hsoil)
+                       ssoil=ssoil, hsoil=hsoil, mask=mask)
 
     # Apply a numerical spinup in the soil pools of resources
     k34_plot = apply_spin(k34_plot)
