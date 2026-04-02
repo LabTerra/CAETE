@@ -426,8 +426,6 @@ def table_gen(NPLS, fpath=None, seed = None):
     # Nitrogen and Phosphorus content in carbon pools
     # C : N : P
 
-    seed = 999
-
     leaf = calc_ratios1(NPLS, seed)
     leaf_n2c = leaf[:, 0]
     leaf_p2c = leaf[:, 1]
