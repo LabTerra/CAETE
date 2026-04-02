@@ -129,8 +129,10 @@ hsoil = (theta_sat, psi_sat, soil_texture)
 
 if not sombrero:
     print("Set the folder to store outputs:")
-    outf = input(
-        "Give a name to your run (ASCII letters and numbers only. No spaces): ")
+    # outf = input(
+    #     "Give a name to your run (ASCII letters and numbers only. No spaces): ")
+    # outf = "lu3003"
+    outf = "lu0104"
     dump_folder = Path(f'../outputs/{outf}').resolve()
     nc_outputs = Path(os.path.join(dump_folder, Path("nc_outputs"))).resolve()
     print("\n")
@@ -379,11 +381,11 @@ def apply_spin(grid:grd)->grd:
 
 def apply_fun(grid:grd, allometry = allom)->grd:
     if allom:
-        grid.run_caete_allom('19790101','19891231', spinup=5, 
-                   fix_co2='1980', save=False, nutri_cycle=False)
+        grid.run_caete_allom('19790101','19891231', spinup=2, 
+                   fix_co2='1980', save=True, nutri_cycle=False, seed = seed)
     else:
-        grid.run_caete('19790101','19891231', spinup=5, 
-                   fix_co2='1980', save=False, nutri_cycle=False)
+        grid.run_caete('19790101', '19891231', spinup=2, 
+                   fix_co2='1980', save=True, nutri_cycle=False, seed = seed)
     return grid
 
  
@@ -483,44 +485,44 @@ if __name__ == "__main__":
     result = applyXy(apply_fun, _spinup_)
     del _spinup_
 
-    result1 = applyXy(apply_fun0, result)
-    del result
+    # result1 = applyXy(apply_fun0, result)
+    # del result
 
-    # Save Ground 0 # END OF SPINUP
-    g0_path = Path(os.path.join(
-        dump_folder, Path(f"CAETE_STATE_START_{outf}_.pkz"))).resolve()
-    with open(g0_path, 'wb') as fh2:
-        print(f"Saving gridcells with init(POST-SPINUP) state in: {g0_path}\n")
-        joblib.dump(result1, fh2, compress=('zlib', 1), protocol=4)
+    # # Save Ground 0 # END OF SPINUP
+    # g0_path = Path(os.path.join(
+    #     dump_folder, Path(f"CAETE_STATE_START_{outf}.pkz"))).resolve()
+    # with open(g0_path, 'wb') as fh2:
+    #     print(f"Saving gridcells with init(POST-SPINUP) state in: {g0_path}\n")
+    #     joblib.dump(result1, fh2, compress=('zlib', 1), protocol=4)
 
-    result = result1
-    del result1
+    # result = result1
+    # del result1
 
-    # RUNNING THE experiment
-    for i, brk in enumerate(run_breaks):
-        print(f"Applying model to the interval {brk[0]}-{brk[1]}")
-        result = zip_gridtime(result, (brk,))
-        result = applyXy(apply_funX, result)
+    # # RUNNING THE experiment
+    # for i, brk in enumerate(run_breaks):
+    #     print(f"Applying model to the interval {brk[0]}-{brk[1]}")
+    #     result = zip_gridtime(result, (brk,))
+    #     result = applyXy(apply_funX, result)
 
-    # Save FINAL STATE (TO feed CMIP5 proj. experiments)
-    g1_path = Path(os.path.join(
-        dump_folder, Path(f"CAETE_STATE_END_{outf}_.pkz"))).resolve()
-    with open(g1_path, 'wb') as fh2:
-        print(f"Saving gridcells with END state in: {g1_path}\n")
-        joblib.dump(result, fh2, compress=('zlib', 1), protocol=4)
+    # # Save FINAL STATE (TO feed CMIP5 proj. experiments)
+    # g1_path = Path(os.path.join(
+    #     dump_folder, Path(f"CAETE_STATE_END_{outf}.pkz"))).resolve()
+    # with open(g1_path, 'wb') as fh2:
+    #     print(f"Saving gridcells with END state in: {g1_path}\n")
+    #     joblib.dump(result, fh2, compress=('zlib', 1), protocol=4)
 
-    fh.close()
+    # fh.close()
 
-    print("\nEND OF MODEL EXECUTION ", time.ctime(), "\n\n")
-    print("Saving db - This will take some hours\n")
+    # print("\nEND OF MODEL EXECUTION ", time.ctime(), "\n\n")
+    # print("Saving db - This can take some minutes\n")
 
-    #save either h5 from allometry or without allometry
-    print("\n\nSaving netCDF4 files")
-    h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
-    if allom:
-        write_h5_allom(dump_folder)
-        h52nc_allom(h5path, nc_outputs)
-    else:
-        write_h5(dump_folder)
-        h52nc(h5path, nc_outputs)
-    print(time.ctime())
+    # #save either h5 from allometry or without allometry
+    # print("\n\nSaving netCDF4 files")
+    # h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+    # if allom:
+    #     write_h5_allom(dump_folder)
+    #     h52nc_allom(h5path, nc_outputs)
+    # else:
+    #     write_h5(dump_folder)
+    #     h52nc(h5path, nc_outputs)
+    # print(time.ctime())

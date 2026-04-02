@@ -21,6 +21,8 @@ Copyright 2017- LabTerra
 import os
 import sys
 import copy
+import csv
+import h5py
 import _pickle as pkl
 import random as rd
 from threading import Thread
@@ -257,37 +259,6 @@ def neighbours_index(pos, matrix):
     return neighbours
 
 
-# WARNING keep the lists of budget/carbon3 outputs updated with fortran code
-def catch_out_budget(out):
-    lst = ["evavg", "epavg", "phavg", "aravg", "nppavg",
-           "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
-           "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
-           "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
-           "limitation_status", "uptk_strat", 'cp', 'c_cost_cwm']
-
-    return dict(zip(lst, out))
-
-def catch_out_budget_allom (out):
-    #dly abbreviation for daily
-    #dly_c{compartment}: this is the carbon that will be the carbon's next day for each PLS
-    #dly_d{compartment}: delta carbon (Ct - Ct-1)
-
-    lst = ["dly_cleaf", "dly_cwood", "dly_croot","dly_csap","dly_cheart","dly_csto",
-           "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
-           "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
-           "evavg", "epavg", "phavg", "aravg", "nppavg", 
-           "laiavg","rcavg","f5avg","rmavg","rgavg",
-           "wueavg", "cueavg","vcmax","specific_la", "ocpavg"]
-    
-    return dict(zip(lst, out))
-
-
-def catch_out_carbon3(out):
-    lst = ['cs', 'snc', 'hr', 'nmin', 'pmin']
-
-    return dict(zip(lst, out))
-
-
 def find_coord(N, W):
     """ Given a pair of geographic (WGS84) coordinates (decimal degrees)
         returns the Y and X indices in the array (360,720//0.5° lon-lat)
@@ -333,7 +304,6 @@ def find_coord(N, W):
 
 
 class grd:
-
     """
     Defines the gridcell object - This object stores all the input data,
     the data comming from model runs for each grid point, all the state variables and all the metadata
@@ -359,15 +329,13 @@ class grd:
         self.realized_runs = []
         self.experiments = 1
         # counts the execution of a time slice (a call of self.run_spinup)
-        self.run_counter = 0
         self.neighbours = None
 
         self.ls = None          # Number of surviving plss//
         self.grid_filename = f"gridcell{self.xyname}" 
         self.out_dir = Path(
             "../outputs/{}/gridcell{}/".format(dump_folder, self.xyname)).resolve()
-        self.flush_data = None
-
+        
         # Time attributes
         self.time_index = None  # Array with the time stamps
         self.calendar = None    # Calendar name
@@ -416,7 +384,6 @@ class grd:
         self.cleaf = None
         self.cawood = None
         self.cfroot = None
-       
 
         self.area = None
         self.wue = None
@@ -513,7 +480,29 @@ class grd:
         self.rm_allom  = None
         self.rg_allom  = None
 
+    # WARNING keep the lists of budget/carbon3 outputs updated with fortran code
+    def catch_out_budget(out):
+        lst = ["evavg", "epavg", "phavg", "aravg", "nppavg",
+            "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
+            "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
+            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
+            "limitation_status", "uptk_strat", 'cp', 'c_cost_cwm']
 
+        return dict(zip(lst, out))
+
+    def catch_out_budget_allom (out):
+        #dly abbreviation for daily
+        #dly_c{compartment}: this is the carbon that will be the carbon's next day for each PLS
+        #dly_d{compartment}: delta carbon (Ct - Ct-1)
+
+        lst = ["dly_cleaf", "dly_cwood", "dly_croot","dly_csap","dly_cheart","dly_csto",
+            "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
+            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
+            "evavg", "epavg", "phavg", "aravg", "nppavg", 
+            "laiavg","rcavg","f5avg","rmavg","rgavg",
+            "wueavg", "cueavg","vcmax","specific_la", "ocpavg"]
+        
+        return dict(zip(lst, out))
 
     def _allocate_output_nosave(self, n):
         """allocate space for some tracked variables during spinup
@@ -547,7 +536,6 @@ class grd:
         self.hresp = np.zeros(shape=(n,), order='F')
         self.rcm = np.zeros(shape=(n,), order='F')
         self.f5 = np.zeros(shape=(n,), order='F')
-        self.runom = np.zeros(shape=(n,), order='F')
         self.evapm = np.zeros(shape=(n,), order='F')
         self.wsoil = np.zeros(shape=(n,), order='F')
         self.swsoil = np.zeros(shape=(n,), order='F')
@@ -563,14 +551,7 @@ class grd:
         self.pmin = np.zeros(shape=(n,), order='F')
         self.vcmax = np.zeros(shape=(n,), order='F')
         self.specific_la = np.zeros(shape=(n,), order='F')
-        self.nupt = np.zeros(shape=(2, n), order='F')
-        self.pupt = np.zeros(shape=(3, n), order='F')
-        self.litter_l = np.zeros(shape=(n,), order='F')
-        self.cwd = np.zeros(shape=(n,), order='F')
-        self.litter_fr = np.zeros(shape=(n,), order='F')
-        self.lnc = np.zeros(shape=(6, n), order='F')
-        self.storage_pool = np.zeros(shape=(3, n), order='F')
-        self.ls = np.zeros(shape=(n,), order='F')
+        
         self.carbon_costs = np.zeros(shape=(n,), order='F')
 
         self.area = np.zeros(shape=(npls, n), order='F')
@@ -625,72 +606,33 @@ class grd:
         
         self.area_allom = np.zeros(shape=(npls, n), order='F')
 
+    def _clean_variables_allom(self):
+        # Flush attrs (clear outputs)
+        self.emaxm = []
+        self.tsoil = []
+        self.ph_allom     = None
+        self.ar_allom     = None
+        self.npp_allom    = None
+        self.lai_allom    = None
+        self.rcm          = None
+        self.f5           = None
+        self.runom        = None
+        self.evapm        = None
+        self.wsoil        = None
+        self.swsoil       = None
+        self.rm_allom     = None
+        self.rg_allom     = None
+        self.cleaf_allom  = None
+        self.cwood_allom  = None
+        self.croot_allom  = None
+        self.csap_allom   = None
+        self.cheart_allom = None
+        self.csto_allom   = None
+        self.wue          = None
+        self.area_allom   = None
+        self.ls           = None
 
-    def _flush_output(self, run_descr, index):
-        """1 - Clean variables that receive outputs from the fortran subroutines
-           2 - Fill self.outputs dict with filepaths of output data
-           3 - Returns the output data to be writen
-
-           runs_descr: str a name for the files
-           index = tuple or list with the first and last values of the index time variable"""
-        to_pickle = {}
-        self.run_counter += 1
-        if self.run_counter < 10:
-            spiname = run_descr + "0" + str(self.run_counter) + out_ext
-        else:
-            spiname = run_descr + str(self.run_counter) + out_ext
-
-        self.outputs[spiname] = os.path.join(self.out_dir, spiname)
-
-        to_pickle = {'emaxm': np.array(self.emaxm),
-                    "tsoil": np.array(self.tsoil),
-                    "photo": self.photo,
-                    "aresp": self.aresp,
-                    'npp': self.npp,
-                    'lai': self.lai,
-                    'csoil': self.csoil,
-                    'inorg_n': self.inorg_n,
-                    'inorg_p': self.inorg_p,
-                    'sorbed_n': self.sorbed_n,
-                    'sorbed_p': self.sorbed_p,
-                    'snc': self.snc,
-                    'hresp': self.hresp,
-                    'rcm': self.rcm,
-                    'f5': self.f5,
-                    'runom': self.runom,
-                    'evapm': self.evapm,
-                    'wsoil': self.wsoil,
-                    'swsoil': self.swsoil,
-                    'rm': self.rm,
-                    'rg': self.rg,
-                    'cleaf': self.cleaf,
-                    'cawood': self.cawood,
-                    'cfroot': self.cfroot,
-                    'area': self.area,
-                    'wue': self.wue,
-                    'cue': self.cue,
-                    'cdef': self.cdef,
-                    'nmin': self.nmin,
-                    'pmin': self.pmin,
-                    'vcmax': self.vcmax,
-                    'specific_la': self.specific_la,
-                    'nupt': self.nupt,
-                    'pupt': self.pupt,
-                    'litter_l': self.litter_l,
-                    'cwd': self.cwd,
-                    'litter_fr': self.litter_fr,
-                    'lnc': self.lnc,
-                    'ls': self.ls,
-                    'lim_status': self.lim_status,
-                    'c_cost': self.carbon_costs,
-                    'u_strat': self.uptake_strategy,
-                    'storage_pool': self.storage_pool,
-                    'calendar': self.calendar,    # Calendar name
-                    'time_unit': self.time_unit,   # Time unit
-                    'sind': index[0],
-                    'eind': index[1]}
-            
-            
+    def _clean_variables(self):
         # Flush attrs (clear outputs)
         self.emaxm = []
         self.tsoil = []
@@ -737,24 +679,64 @@ class grd:
         self.carbon_costs = None,
         self.uptake_strategy = None
 
-        return to_pickle
-
-    def _flush_output_allom(self, run_descr, index):
-        """1 - Clean variables that receive outputs from the fortran subroutines
-           2 - Fill self.outputs dict with filepaths of output data
-           3 - Returns the output data to be writen
-
-           runs_descr: str a name for the files
+    def _get_outputs(self, index):
+        """ Returns the output data to be writen
            index = tuple or list with the first and last values of the index time variable"""
-        to_pickle = {}
-        self.run_counter += 1
-        if self.run_counter < 10:
-            spiname = run_descr + "0" + str(self.run_counter) + out_ext
-        else:
-            spiname = run_descr + str(self.run_counter) + out_ext
+        
+        to_pickle = {'emaxm': np.array(self.emaxm),
+                    "tsoil": np.array(self.tsoil),
+                    "photo": self.photo,
+                    "aresp": self.aresp,
+                    'npp': self.npp,
+                    'lai': self.lai,
+                    'csoil': self.csoil,
+                    'inorg_n': self.inorg_n,
+                    'inorg_p': self.inorg_p,
+                    'sorbed_n': self.sorbed_n,
+                    'sorbed_p': self.sorbed_p,
+                    'snc': self.snc,
+                    'hresp': self.hresp,
+                    'rcm': self.rcm,
+                    'f5': self.f5,
+                    'runom': self.runom,
+                    'evapm': self.evapm,
+                    'wsoil': self.wsoil,
+                    'swsoil': self.swsoil,
+                    'rm': self.rm,
+                    'rg': self.rg,
+                    'cleaf': self.cleaf,
+                    'cawood': self.cawood,
+                    'cfroot': self.cfroot,
+                    'area': self.area,
+                    'wue': self.wue,
+                    'cue': self.cue,
+                    'cdef': self.cdef,
+                    'nmin': self.nmin,
+                    'pmin': self.pmin,
+                    'vcmax': self.vcmax,
+                    'specific_la': self.specific_la,
+                    'nupt': self.nupt,
+                    'pupt': self.pupt,
+                    'litter_l': self.litter_l,
+                    'cwd': self.cwd,
+                    'litter_fr': self.litter_fr,
+                    'lnc': self.lnc,
+                    'ls': self.ls,
+                    'lim_status': self.lim_status,
+                    'c_cost': self.carbon_costs,
+                    'u_strat': self.uptake_strategy,
+                    'storage_pool': self.storage_pool,
+                    'calendar': self.calendar,
+                    'time_unit': self.time_unit,
+                    'sind': index[0],
+                    'eind': index[1]}
 
-        self.outputs[spiname] = os.path.join(self.out_dir, spiname)
-
+        return to_pickle
+    
+    def _get_outputs_allom(self, index):
+        """ Returns the output data to be writen
+           index = tuple or list with the first and last values of the index time variable"""
+        
         to_pickle = {'emaxm': np.array(self.emaxm),
                      'tsoil': np.array(self.tsoil),
                      'photo' : self.ph_allom,
@@ -779,48 +761,41 @@ class grd:
                      'area'  : self.area_allom,
                      'ls'    : self.ls,  
                      'calendar': self.calendar,
-                     'time_unit': self.time_unit,   # Time unit
+                     'time_unit': self.time_unit,
                      'sind': index[0],
                      'eind': index[1]}
-            
-            
-        # Flush attrs (clear outputs)
-        self.emaxm = []
-        self.tsoil = []
-        self.ph_allom     = None
-        self.ar_allom     = None
-        self.npp_allom    = None
-        self.lai_allom    = None
-        self.rcm          = None
-        self.f5           = None
-        self.runom        = None
-        self.evapm        = None
-        self.wsoil        = None
-        self.swsoil       = None
-        self.rm_allom     = None 
-        self.rg_allom     = None
-        self.cleaf_allom  = None
-        self.cwood_allom  = None
-        self.croot_allom  = None
-        self.csap_allom   = None
-        self.cheart_allom = None
-        self.csto_allom   = None
-        self.wue          = None
-        self.area_allom   = None
-        self.ls           = None 
-       
+
         return to_pickle
 
-    def _save_output(self, data_obj):
-        """Compress and save output data
-        data_object: dict; the dict returned from _flush_output"""
-        if self.run_counter < 10:
-            fpath = "spin{}{}{}".format(0, self.run_counter, out_ext)
-        else:
-            fpath = "spin{}{}".format(self.run_counter, out_ext)
-        with open(self.outputs[fpath], 'wb') as fh:
-            dump(data_obj, fh, compress=('zlib', 3), protocol=4)
-        self.flush_data = 0
+    def _save_output(self, data_obj, spin_id):
+        ext = ".csv"
+        # ext = ".pkz"
+
+        spin_filepath = os.path.join(self.out_dir, f"spin{spin_id:02d}{ext}")
+
+
+        # TEST
+        # TEST
+        # TEST
+        with h5py.File(spin_filepath.replace(".csv",".h5"), 'w') as f:
+            for key, value in data_obj.items():
+                if isinstance(value, np.ndarray):
+                    f.create_dataset(key, data=value)
+                else:
+                    f.attrs[key] = value
+        # TEST
+        # TEST
+        # TEST
+
+
+        if ext == ".pkz":
+            with open(spin_filepath, 'wb') as fh:
+                dump(data_obj, fh, compress=('zlib', 3), protocol=4)
+        elif ext == ".csv":
+            with open(spin_filepath, 'w', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=data_obj.keys())
+                writer.writeheader()
+                writer.writerow(data_obj)
 
     def init_caete_dyn(self, input_fpath, stime_i, co2, pls_table, tsoil, ssoil, hsoil):
         """ PREPARE A GRIDCELL TO RUN
@@ -960,8 +935,6 @@ class grd:
         self.vp_dcst_allom = np.zeros(shape=(npls,), order='F')
         self.vp_ocp_allom = np.zeros(shape=(npls,), order='F')
 
-
-
         self.outputs = dict()
         self.filled = True
         gc.collect()
@@ -990,7 +963,6 @@ class grd:
 
         self.realized_runs.append((save_id, self.outputs.copy()))
         self.outputs = {}
-        self.run_counter = 0
         self.experiments += 1
 
     def change_clim_input(self, input_fpath, stime_i, co2): 
@@ -1035,6 +1007,12 @@ class grd:
         self.co2_data = copy.deepcopy(co2)
 
         return None
+
+    def catch_out_carbon3(self, out):
+        """catch_out_carbon3"""
+        lst = ['cs', 'snc', 'hr', 'nmin', 'pmin']
+        return dict(zip(lst, out))
+
 
     def run_caete(self,
                   start_date,
@@ -1089,6 +1067,7 @@ class grd:
             start_date[4:6]), int(start_date[6:]))
         end = cftime.real_datetime(int(end_date[:4]), int(
             end_date[4:6]), int(end_date[6:]))
+        
         # Check dates sanity
         assert start < end, "start > end"
         assert start >= self.start_date
@@ -1139,6 +1118,7 @@ class grd:
                 break
             
             if save:
+                self._allocate_output_nosave(steps.size)
                 self._allocate_output(steps.size)
                 self.save = True
             else:
@@ -1239,7 +1219,10 @@ class grd:
                 self.vp_ocp = daily_output['ocpavg'][self.vp_lsid]
                 self.ls[step] = self.vp_lsid.size
 
-                
+
+                # print(f"spin: {s} | step: {step} | ls: {self.vp_lsid.size}")
+
+
                 #no living PLS
 
                 #when there is no need to save (spinup)
@@ -1320,7 +1303,7 @@ class grd:
                                          self.cwd[step], self.litter_fr[step], self.lnc[:, step],
                                          self.sp_csoil, self.sp_snc)
 
-                soil_out = catch_out_carbon3(s_out)
+                soil_out = self.catch_out_carbon3(s_out)
 
                 # Organic C N & P
                 self.sp_csoil = soil_out['cs']
@@ -1512,9 +1495,9 @@ class grd:
                         else:
                             break
 
-                self.flush_data = self._flush_output(
-                    'spin', (start_index, end_index))
-                sv = Thread(target=self._save_output, args=(self.flush_data,))
+                output_data = self._get_outputs((start_index, end_index))
+                self._clean_variables()
+                sv = Thread(target = self._save_output, args=(output_data, s+1))
                 sv.start()
         if save:
             while True:
@@ -1745,6 +1728,10 @@ class grd:
                 self.vp_lsid = np.where(daily_output_allom['ocpavg'] > 0.0)[0]
                 self.vp_ocp_allom = daily_output_allom['ocpavg'][self.vp_lsid]
                 self.ls[step] = self.vp_lsid.size
+
+                
+                # print(f"spin: {s} | step: {step} | ls: {self.vp_lsid.size}")
+                
                 
                 #no living PLS
 
@@ -1851,11 +1838,11 @@ class grd:
                     
                     self.area_allom[self.vp_lsid, step] = self.vp_ocp_allom
 
-
-                
                 if ABORT:
                     rwarn("No living PLS - ABORT")
+
             gc.collect()
+
             if save:
                 if s > 0:
                     while True:
@@ -1863,9 +1850,10 @@ class grd:
                             sleep(0.5)
                         else:
                             break
-                self.flush_data = self._flush_output_allom(
-                    'spin', (start_index, end_index))
-                sv = Thread(target = self._save_output, args=(self.flush_data,))
+                
+                output_data = self._get_outputs_allom((start_index, end_index))
+                self._clean_variables_allom()
+                sv = Thread(target = self._save_output, args=(output_data, s+1))
                 sv.start()
         if save:
             while True:
@@ -1911,6 +1899,7 @@ class grd:
             start_date[4:6]), int(start_date[6:]))
         end = cftime.real_datetime(int(end_date[:4]), int(
             end_date[4:6]), int(end_date[6:]))
+        
         # Check dates sanity
         assert start < end, "start > end"
         assert start >= self.start_date
@@ -2008,7 +1997,7 @@ class grd:
             s_out = soil_dec.carbon3(self.soil_temp, water / self.wmax_mm, ll, cwd, rl, lnc,
                                      self.sp_csoil, self.sp_snc)
 
-            soil_out = catch_out_carbon3(s_out)
+            soil_out = self.catch_out_carbon3(s_out)
             self.sp_csoil = soil_out['cs']
             self.sp_snc = soil_out['snc']
 
