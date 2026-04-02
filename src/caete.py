@@ -1023,7 +1023,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
 
         return None
 
-    @profile
+    # @profile
     def run_gridcell(self,
                   start_date: str,
                   end_date: str,
@@ -2022,7 +2022,7 @@ if __name__ == '__main__':
     try:
         skip = sys.argv[1] == "pass"
     except:
-        skip = False
+        pass
 
     if skip:
         # Skip all
@@ -2058,6 +2058,7 @@ if __name__ == '__main__':
 
         # Set PROF_M to True (in the header of this script) to
         # enable memory profiling with memory_profiler. Keep PROF_M = False to disable memory profiling.
+        # Add the @profile decorator a method of grd_mt that you want to profile (suggestion: run_gridcell method of grd_mt)).
         if PROF_M:
             if not is_running_under_mprof():
                 print("PROF_M is set to True, but the script was not invoked with mprof.\n"

@@ -18,12 +18,13 @@
 # Makefile for UNIX-like systems. To be used with gnu-make + gcc + gfortran + f2py
 # This Makefile is used to build the caete_module.
 # It also can build a fortran executable for debugging purposes.
-# This is not implemented in the windows version.
+# Check Makefile_win for the windows version.
 
 # Requires python 3.11 - 3.14
 # Use bash
 SHELL := /bin/bash
 
+## Set compile time flags
 # NCEP Available Energy model flag
 NCEP_AE_FLAG = -DNCEP_AE
 
