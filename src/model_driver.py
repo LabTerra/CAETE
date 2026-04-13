@@ -515,16 +515,12 @@ if __name__ == "__main__":
     print("Saving db - This will take some hours\n")
 
     #save either h5 from allometry or without allometry
+    h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
+    print("\n\nSaving netCDF4 files...")
     if allom:
         write_h5_allom(dump_folder)
-        #print("\n\nSaving netCDF4 files for allometry version")
-        print('\n\nNot saving netCDF4 files')
-        #h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
-        #h52nc_allom(h5path, nc_outputs)
-        #print(time.ctime())
+        h52nc_allom(h5path, nc_outputs)
     else:
         write_h5(dump_folder)
-        print("\n\nSaving netCDF4 files")
-        h5path = Path(os.path.join(dump_folder, Path('CAETE.h5'))).resolve()
         h52nc(h5path, nc_outputs)
-        print(time.ctime())
+    print(time.ctime())
