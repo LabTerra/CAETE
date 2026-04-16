@@ -49,7 +49,7 @@ module alloc2
 
     subroutine allocation2(step,ri, p, dt, npp, leaf_in, wood_in, root_in, sap_in, heart_in, sto_in&
         &, leaf_out, wood_out, root_out, sap_out, heart_out, sto_out&
-        &, leaf_req, leaf_inc_min, root_inc_min)
+        &, leaf_req, leaf_inc_min, root_inc_min,height_pls)
     
         
         !VARIABLE INPUTS
@@ -91,6 +91,7 @@ module alloc2
         real(r_8), intent(out) :: leaf_req
         real(r_8), intent(out) :: leaf_inc_min
         real(r_8), intent(out) :: root_inc_min
+        real(r_8), intent(out) :: height_pls
 
         !INTERNAL VARIABLES
 
@@ -228,11 +229,8 @@ module alloc2
       
         ! call functions to allocation logic
         height = height_calc(wood_in_ind, sap_in_ind, leaf_in_ind, wd_allom)
-        ! print*, 'height', height
-      
-        ! if (height.le.0.0D0) then
-        !     print*, 'HEIGHT LE 0', wood_in_ind
-        ! endif
+ 
+        height_pls = height
 
         ! !leaf requirement
         leaf_req = leaf_req_calc(sap_in_ind, height, p, sla_allom, wd_allom)

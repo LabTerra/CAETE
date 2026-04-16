@@ -328,7 +328,7 @@ def find_coord(N, W):
         while Xc > lon[Xind]:
             Xind += 1
     
-    print('XY', Yind, Xind)
+    #print('XY', Yind, Xind)
     return Yind, Xind
 
 
@@ -436,6 +436,7 @@ class grd:
         self.lim_status = None
         self.uptake_strategy = None
         self.carbon_costs = None
+        self.height_pft = None
 
         # WATER POOLS
         # Water content for each soil layer
@@ -769,9 +770,9 @@ class grd:
                      'swsoil': self.swsoil,
                      'rm'    : self.rm_allom,      
                      'rg'    : self.rg_allom,
-                     'cleaf' : self.cleaf_allom,
-                     'cwood' : self.cwood_allom,
-                     'croot' : self.croot_allom,
+                     'cleaf'  : self.cleaf_allom,
+                     'cawood' : self.cwood_allom,
+                     'cfroot' : self.croot_allom,
                      'csap'  : self.csap_allom,
                      'cheart': self.cheart_allom,
                      'csto'  : self.csto_allom,
@@ -1043,7 +1044,8 @@ class grd:
                   fix_co2=None,
                   save=True,
                   nutri_cycle=True,
-                  afex=False):
+                  afex=False,
+                  light_competition=True):
         """ start_date [str]   "yyyymmdd" Start model execution
 
             end_date   [str]   "yyyymmdd" End model execution
@@ -1131,6 +1133,9 @@ class grd:
             co2 = find_co2(int(fix_co2))
             fix_co2_p = True
 
+            # Set light competition flag in Fortran module
+            gp.light_comp = 1 if light_competition else 0
+
         for s in range(spin):
             
             if ABORT:
@@ -1199,6 +1204,9 @@ class grd:
                 dca   = np.zeros(npls, order='F')
                 dcf   = np.zeros(npls, order='F')
                 uptk_costs = np.zeros(npls, order='F')
+
+                # No light competition during soil spinup
+                gp.light_comp = 0
 
                 sto[0, self.vp_lsid] = self.vp_sto[0, :]
                 sto[1, self.vp_lsid] = self.vp_sto[1, :]
@@ -1531,7 +1539,8 @@ class grd:
                         spinup = 0,
                         fix_co2 = None,
                         save = True,
-                        nutri_cycle = False):
+                        nutri_cycle = False,
+                        light_competition=True):
             
         """ start_date [str]   "yyyymmdd" Start model execution
 
@@ -1628,6 +1637,9 @@ class grd:
                 fix_co2)) == int, "The string(\"yyyy\") for the fix_co2 argument must be an year between 1901-2016"
             co2 = find_co2(int(fix_co2))
             fix_co2_p = True
+
+            # Set light competition flag in Fortran module
+            gp.light_comp = 1 if light_competition else 0
 
         for s in range(spin):
             
@@ -1953,6 +1965,8 @@ class grd:
         dca = self.vp_dca
         dcf = self.vp_dcf
         uptk_costs = np.zeros(npls, order='F')
+        # No light competition during soil spinup
+        gp.light_comp = 0
 
         for step in range(steps.size):
             loop += 1

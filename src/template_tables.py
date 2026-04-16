@@ -26,7 +26,11 @@ __author__ = "JPDarela"
 #Group 1 allometry
 G1_1d_allom = {'emaxm',
                'tsoil',
-               'photo'}
+               'photo',
+               'evapm',
+               'cleaf',
+               'cawood',
+               'cfroot'}
 
 # Group 1
 G1_1d = ['emaxm',
@@ -100,9 +104,13 @@ class run_g1_allom(tb.IsDescription):
     grid_y = tb.Int16Col(dflt=0, pos=2)
     grid_x = tb.Int16Col(dflt=0, pos=3)
     #Fluxes
-    emaxm = tb.Float64Col(dflt=0.0, pos=4)
-    tsoil = tb.Float64Col(dflt=0.0, pos=5)
-    photo = tb.Float64Col(dflt=0.0, pos=6)
+    emaxm  = tb.Float64Col(dflt=0.0, pos=4)
+    tsoil  = tb.Float64Col(dflt=0.0, pos=5)
+    photo  = tb.Float64Col(dflt=0.0, pos=6)
+    evapm  = tb.Float64Col(dflt=0.0, pos=7)
+    cleaf  = tb.Float64Col(dflt=0.0, pos=8)
+    cawood = tb.Float64Col(dflt=0.0, pos=9)
+    cfroot = tb.Float64Col(dflt=0.0, pos=10)
 
 class run_g1(tb.IsDescription):
     """ Row template for CAETÊ output data"""

@@ -39,14 +39,14 @@ module budget_allom
       &, specific_la_1, ocpavg)
 
       use types
-      use global_par, only: ntraits, npls
+      use global_par, only: ntraits, npls, light_comp
       use alloc
       use productivity
       use omp_lib
 
       use, intrinsic :: ieee_arithmetic
 
-      use photo, only: pft_area_frac, sto_resp
+      use photo
       use water, only: evpot2, penman, available_energy, runoff
       use alloc2
 
@@ -86,13 +86,6 @@ module budget_allom
       real(r_8),dimension(npls),intent(in) :: dheart_in
       real(r_8),dimension(npls),intent(in) :: dsto_in
 
-
-
-      
-
-      
-
-
       !==========================================================================
 
       !==========================================================================
@@ -115,8 +108,6 @@ module budget_allom
       real(r_8),dimension(npls),intent(out) :: dsap_out
       real(r_8),dimension(npls),intent(out) :: dheart_out
       real(r_8),dimension(npls),intent(out) :: dsto_out
-
-
 
 
       real(r_8),dimension(npls),intent(out) :: ocpavg    ! [0-1] Gridcell occupation
@@ -145,9 +136,6 @@ module budget_allom
       real(r_8), intent(out) :: csap_grd
       real(r_8), intent(out) :: cheart_grd
       real(r_8), intent(out) :: csto_grd
-
-
-
 
 
       !==========================================================================
@@ -198,7 +186,6 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: root_inc_min
 
 
-
       !Carbon vegetation pools (auxiliar for internal convertions)
       real(r_8),dimension(:), allocatable :: cleaf_pls_aux
       real(r_8),dimension(:), allocatable :: cwood_pls_aux
@@ -223,7 +210,6 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: dsap_pls_aux
       real(r_8),dimension(:), allocatable :: dheart_pls_aux
       real(r_8),dimension(:), allocatable :: dsto_pls_aux
-
 
 
       !Carbon Cycle
@@ -263,6 +249,21 @@ module budget_allom
       real(r_8),    dimension(npls) :: ocp_mm    ! TODO include cabon of dead plssss in the cicle? (not implemented)
       real(r_8),dimension(:),allocatable :: ocp_coeffs !occupancy coefficients for each PLS
 
+      ! [LIGHT COMP] Novas variaveis para o pre-loop de competicao por luz.
+      ! O dossel compartilhado e construido UMA VEZ antes do loop paralelo,
+      ! garantindo que todas as PLS competem pelo mesmo perfil de extincao.
+      real(r_8) :: max_height
+      integer(i_4) :: nl_shared      ! numero de camadas do dossel compartilhado
+      integer(i_4) :: n_pre, p_pre   ! contadores do pre-loop
+      real(r_8)    :: lsize_shared   ! tamanho de cada camada (m)
+      real(r_8)    :: idx_pre        ! LAI de uma PLS no pre-loop
+      real(r_8)    :: lused_pre      ! luz absorvida por camada no pre-loop
+      real(r_8), allocatable :: lai_layer(:)   ! LAI agregado de todas as PLS por camada
+      real(r_8), allocatable :: linc_layer(:)  ! luz incidente em cada camada
+      real(r_8), allocatable :: lavai_layer(:) ! luz disponivel saindo de cada camada
+      real(r_8), dimension(:), allocatable :: height_pls
+      real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
+
 
       !===========================================================================
 
@@ -288,10 +289,6 @@ module budget_allom
          dheart(i) = dheart_in(i)
          dsto(i)   = dsto_in(i)
          
-
-         
-         ! cleaf_out(i) = cleaf_pls(i) + 1.
-         ! print*,'cleaf_in',cleaf_in(i), i
       
       enddo
 
@@ -305,8 +302,7 @@ module budget_allom
       nlen = sum(run)    ! New length for the arrays in the main loop
                          ! get the total number of alives
 
-      ! print*, 'nlen ====>', nlen
-
+      
       allocate(lp(nlen))
       allocate(ocp_coeffs(nlen))
       allocate(idx_grasses(nlen))
@@ -323,12 +319,30 @@ module budget_allom
       
       ! Identify grasses
       idx_grasses(:) = 1.0D0
-      
+
       do p = 1, nlen
          if (awood_aux(lp(p)) .le. 0.0D0) idx_grasses(p) = 0.0D0
          !This variable multipies ocp_coeffs for the wood tissues. If it is
          !a grass it turns the ocp_coeffs for wood_tissues = 0
       enddo
+
+      ! Pre-compute heights from current carbon stocks.
+      ! height_pls must exist before the canopy pre-loop (which uses it for
+      ! layer assignment) and before max_height (which sizes the canopy).
+      ! Uses the same conversion as allocation2: kgC/m2 * 1D3 -> gC/ind.
+      allocate(height_pls(nlen))
+      height_pls(:) = 0.0D0
+      do p_pre = 1, nlen
+         ri = lp(p_pre)
+         if (awood_aux(ri) .gt. 0.0D0) then
+            height_pls(p_pre) = height_calc( &
+               (csap_pls(ri) + cheart_pls(ri)) * 1.0D3, &
+               csap_pls(ri) * 1.0D3,                    &
+               cleaf_pls(ri) * 1.0D3,                   &
+               dt(19,ri))
+         end if
+      end do
+      max_height = maxval(height_pls(:))
 
       !dimensioning according to alive PLSs
       allocate(evap(nlen))
@@ -381,6 +395,100 @@ module budget_allom
       emax = evpot2(p0,temp,rh,available_energy(temp))
       soil_temp = ts
 
+      ! ====================================================================
+      ! [LIGHT COMP] PRE-LOOP: construcao do dossel compartilhado (sequencial)
+      ! Agrega o LAI de TODAS as PLS vivas em suas camadas e propaga a luz
+      ! de cima para baixo UMA VEZ. O resultado (linc_layer) e passado para
+      ! cada PLS no loop paralelo, garantindo competicao real por luz.
+      ! Referencia logica: Beer-Lambert aplicado ao dossel agregado.
+      ! ====================================================================
+      nl_shared    = max(1, nint(max_height / 5.0D0))
+      lsize_shared = max_height / real(nl_shared, r_8)
+
+      if (max_height .le. 0.0D0) then
+         lsize_shared = 5.0D0  ! valor padrão seguro
+         nl_shared    = 1
+      end if
+ 
+      allocate(lai_layer(nl_shared))
+      allocate(linc_layer(nl_shared))
+      allocate(lavai_layer(nl_shared))
+      lai_layer(:)   = 0.0D0
+      linc_layer(:)  = 0.0D0
+      lavai_layer(:) = 0.0D0
+ 
+      ! Passo 1: acumula LAI de todas as PLS vivas em suas respectivas camadas
+      ! Gramineas (cawood = 0, height = 0) sao excluidas do pre-loop:
+      ! elas recebem ipar total diretamente em photosynthesis_rate e nao
+      ! competem por camadas do dossel. Inclui-las causaria acumulo de LAI
+      ! incorreto na camada 1.
+      do p_pre = 1, nlen
+         ri = lp(p_pre)
+ 
+         ! Pula gramineas — sem madeira nao ocupam camadas do dossel
+         if (cwood_pls(ri) .le. 0.0D0) cycle
+ 
+         ! [LIGHT COMP] LAI ponderado pela ocupacao real da PLS na grid.
+         ! leaf_area_index retorna LAI como se a PLS ocupasse 1 m2 inteiro.
+         ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
+         ! de modo que o dossel compartilhado reflita a contribuicao proporcional
+         ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
+         idx_pre = leaf_area_index(cleaf_pls(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
+         if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
+         ! Aloca o LAI na camada correta
+         do n_pre = 1, nl_shared
+            if (n_pre .eq. 1) then
+               if (lsize_shared * real(n_pre, r_8) .ge. height_pls(p_pre)) then
+                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
+                  exit  ! [FIX] Exit após PLS ser alocada na camada correta —
+                        ! sem exit a PLS seria alocada em multiplas camadas
+
+               end if
+            else
+               if ((lsize_shared * real(n_pre, r_8) .ge. height_pls(p_pre)) .and. &
+                   (lsize_shared * real(n_pre-1, r_8) .lt. height_pls(p_pre))) then
+                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
+                  exit  
+               end if
+            end if
+         end do
+      end do
+ 
+      ! [LIGHT COMP] Teto de LAI por camada — evita extincao total durante spin-up.
+      ! Durante o spin-up todas as PLS tem altura baixa e se concentram nas
+      ! camadas inferiores, causando LAI agregado impossivel (ex: 30-300 m2/m2).
+      ! O teto de 10.0 e conservador: e maior que o LAI total maximo do dossel
+      ! em equilibrio (~8.75 m2/m2 na versão sem competição), portanto nunca
+      ! sera atingido em condicoes normais --- so limita o spin-up.
+
+      do n_pre = 1, nl_shared
+         if (lai_layer(n_pre) .gt. 10.0D0) lai_layer(n_pre) = 10.0D0
+      end do
+
+      ! Passo 2: propaga luz de cima para baixo pelo dossel completo
+      if (light_comp .eq. 1) then
+         ! Competição por luz ATIVA (Beer-Lambert + Gap Dynamics)
+         do n_pre = nl_shared, 1, -1
+            if (n_pre .eq. nl_shared) then
+               linc_layer(n_pre) = real(ipar, r_8)
+            else
+               linc_layer(n_pre) = lavai_layer(n_pre + 1)
+            end if
+            lused_pre = linc_layer(n_pre) * (1.0D0 - gap_fraction) * (1.0D0 - dexp(-0.5D0 * lai_layer(n_pre)))
+            lavai_layer(n_pre)  = linc_layer(n_pre) - lused_pre
+         end do
+      else
+         ! Competição por luz DESLIGADA(spin-up): todas as camadas recebem ipar completo
+         do n_pre = 1, nl_shared
+            linc_layer(n_pre) = real(ipar, r_8)
+            lavai_layer(n_pre) = real(ipar, r_8)
+         end do
+      end if
+      
+      ! ====================================================================
+      ! [LIGHT COMP] FIM DO PRE-LOOP
+      ! ====================================================================
+
       ! FAZER NUmthreads função de nlen pra otimizar a criação de trheads
       if (nlen .le. 20) then
          call OMP_SET_NUM_THREADS(1)
@@ -397,8 +505,6 @@ module budget_allom
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED)
 
-
-
       do p = 1,nlen
          
          ri = lp(p) !get the correspondentt value of for that specific pls (don't lose the original PLS index)
@@ -407,47 +513,33 @@ module budget_allom
          !here ri is real index. The outputs use p to save memory, but at the end of the doc
          !it is transformed in p
 
+         ! [LIGHT COMP] Passa linc_layer (luz incidente por camada do dossel
+         ! compartilhado) e nl_shared (numero de camadas) para prod/photosynthesis_rate.
+         ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
+         ! agregado de todas as PLS (pre-loop acima).
+         !
+         ! [SUN/SHADE FIX] max_height removido da chamada: nao e mais argumento de prod
+         ! desde a introducao do esquema de competicao por luz ([LIGHT COMP]), que
+         ! substituiu o uso de max_height pelo dossel compartilhado linc_layer/nl_shared.
+         ! A presenca de max_height aqui causava desalinhamento de argumentos (35 vs 34).
+         call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
+               &, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               &, height_pls(p), linc_layer, nl_shared, lsize_shared&
+               &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
+               &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
          
-         
-         call prod(dt1, ocp_wood(ri), catm, temp, soil_temp, p0, w, ipar&
-            &, rh, emax, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
-            &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p)&
-            &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
+         !call prod(dt1, ocp_wood(ri), catm, temp, soil_temp, p0, w, ipar&
+         !   &, rh, emax, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+         !   &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p)&
+         !   &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
 
-
-         ! if (p.eq.1259)then
-            ! print*,'_____________'
-            ! print*, 'cleaf_pls',cleaf_pls(p), p
-            ! print*, 'cleaf_pls2',cleaf_pls2(p), p
-            ! print*, 'dleaf aux', dleaf_pls_aux(p), p
-            ! print*, 'ph', ph(p), p
-            ! print*, 'nppa', nppa(p), p
-            ! print*, 'rm', rm(p), p
-            ! print*, 'ar', ar(p), p
-            ! print*, 'rg', rg(p), p
-   
-            ! print*,'_____________'
-         ! endif
          
          evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
-         ! if (p.eq.1460)then
-            ! print*, ''
-            ! print*, 'csap in', csap_pls(ri), p, step
-         ! endif
          
          call allocation2(step, ri, p, dt1,nppa(p)&
             &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_pls(ri)&
             &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
-            &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
-         ! if (p.eq.1460) then
-         ! if(csap_pls2(p).eq.0.0D0)then
-         !    print*, 'leaf out alloc', cleaf_pls2(p), step,p
-         !    print*, 'sap out alloc', csap_pls2(p), step,p
-         ! endif
-         ! endif
-         ! print*, 'wood', cwood_pls2(p), p
-         ! print*, 'sap', csap_pls2(p), p
-         ! print*, 'heart', cheart_pls2(p), p
+            &,leaf_req(p), leaf_inc_min(p), root_inc_min(p),height_pls(p))
          
 
          !Carbon use efficiency & Delta C
@@ -685,6 +777,7 @@ module budget_allom
       deallocate(csap_int)
       deallocate(cheart_int)
       deallocate(csto_int)
+      deallocate(height_pls)
 
       deallocate(dleaf_pls_aux)
       deallocate(dwood_pls_aux)
@@ -692,6 +785,12 @@ module budget_allom
       deallocate(dsap_pls_aux)
       deallocate(dheart_pls_aux)
       deallocate(dsto_pls_aux)
+
+      ! [LIGHT COMP] Desaloca arrays do dossel compartilhado
+      deallocate(lai_layer)
+      deallocate(linc_layer)
+      deallocate(lavai_layer)
+
 
    end subroutine daily_budget_allom
  

@@ -26,8 +26,8 @@ module budget
 contains
 
    subroutine daily_budget(dt, w1, w2, ts, temp, p0, ipar, rh&
-        &, mineral_n, labile_p, on, sop, op,catm, sto_budg_in, cl1_in, ca1_in, cf1_in, nleaf_in, nwood_in&
-        &, nroot_in, uptk_costs_in, wmax_in, evavg, epavg, phavg, aravg, nppavg&
+        &, mineral_n, labile_p, on, sop, op, catm, sto_budg_in, cl1_in, ca1_in, cf1_in, nleaf_in, nwood_in&
+        &, droot_in, uptk_costs_in, wmax_in, evavg, epavg, phavg, aravg, nppavg&
         &, laiavg, rcavg, f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft&
         &, cfrootavg_pft, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg&
         &, vcmax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
@@ -35,14 +35,16 @@ contains
 
 
       use types
-      use global_par, only: ntraits, npls, light_comp
+      use global_par, only: ntraits, npls
       use alloc
       use productivity
       use omp_lib
+
       use, intrinsic :: ieee_arithmetic
 
       use photo
       use water, only: evpot2, penman, available_energy, runoff
+      use alloc2
 
       !     ----------------------------INPUTS-------------------------------
       real(r_8),dimension(ntraits,npls),intent(in) :: dt
@@ -64,9 +66,9 @@ contains
       real(r_8),dimension(npls),intent(in) :: cl1_in  ! initial BIOMASS cleaf compartment kgm-2
       real(r_8),dimension(npls),intent(in) :: cf1_in  !                 froot
       real(r_8),dimension(npls),intent(in) :: ca1_in  !                 cawood
-      real(r_8),dimension(npls),intent(in) :: nleaf_in  ! CHANGE IN cVEG (DAILY BASIS) TO GROWTH RESP
-      real(r_8),dimension(npls),intent(in) :: nroot_in  ! k gm-2
-      real(r_8),dimension(npls),intent(in) :: nwood_in  ! k gm-2
+      real(r_8),dimension(npls),intent(in) :: dleaf_in  ! CHANGE IN cVEG (DAILY BASIS) TO GROWTH RESP
+      real(r_8),dimension(npls),intent(in) :: droot_in  ! k gm-2
+      real(r_8),dimension(npls),intent(in) :: dwood_in  ! k gm-2
       real(r_8),dimension(npls),intent(in) :: uptk_costs_in ! g m-2
 
 
@@ -105,7 +107,6 @@ contains
       real(r_8),dimension(npls),intent(out) ::  npp2pay_1 ! C costs of N/P uptake
       real(r_8),dimension(4),intent(out) :: cp ! Aux cp(1:3) CVEG C POOLS cp(4) Auxiliary to HR
       real(r_8),intent(out) :: c_cost_cwm
-      
       !     -----------------------Internal Variables------------------------
       integer(i_4) :: p, counter, nlen, ri, i, j
       real(r_8),dimension(ntraits) :: dt1 ! Store one PLS attributes array (1D)
@@ -119,11 +120,10 @@ contains
       real(r_8),parameter :: tsnow = -1.0D0
       real(r_8),parameter :: tice  = -2.5D0
 
-      real(r_8),dimension(npls) :: cl1_pft, cf1_pft, ca1_pft
+      real(r_8), dimension(npls) :: cl1_pft, cf1_pft, ca1_pft, cs1_pft, ch1_pft
       real(r_8) :: soil_temp
       real(r_8) :: emax
       real(r_8) :: w                               !Daily soil moisture storage (mm)
-      real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
 
       real(r_8),dimension(:),allocatable :: ocp_coeffs
 
@@ -165,29 +165,13 @@ contains
       integer(i_2),dimension(:,:),allocatable   :: limitation_status ! D0=3
       integer(i_4), dimension(:, :),allocatable :: uptk_strat        ! D0=2
       INTEGER(i_4), dimension(:), allocatable :: lp ! index of living PLSs/living grasses
-      real(r_8),dimension(:), allocatable :: crown_int
-      real(r_8),dimension(:), allocatable :: height_int
-      ! real(r_8),dimension(:), allocatable :: fpc_grid_int
 
-      real(r_8), dimension(npls) :: awood_aux, nleaf, nwood, nroot, uptk_costs, pdia_aux, dwood_aux
+      real(r_8), dimension(npls) :: awood_aux, dleaf, dwood, droot, uptk_costs, pdia_aux
       real(r_8), dimension(3,npls) :: sto_budg
       real(r_8) :: soil_sat, ar_aux
       real(r_8), dimension(:), allocatable :: idx_grasses, idx_pdia
-      real(r_8), dimension(npls) :: diameter_aux, crown_aux,height_aux
-      real(r_8), dimension(npls) :: delta_biomass
-      real(r_8) :: max_height
-
-      ! [LIGHT COMP] Novas variaveis para o pre-loop de competicao por luz.
-      ! O dossel compartilhado e construido UMA VEZ antes do loop paralelo,
-      ! garantindo que todas as PLS competem pelo mesmo perfil de extincao.
-      integer(i_4) :: nl_shared      ! numero de camadas do dossel compartilhado
-      integer(i_4) :: n_pre, p_pre   ! contadores do pre-loop
-      real(r_8)    :: lsize_shared   ! tamanho de cada camada (m)
-      real(r_8)    :: idx_pre        ! LAI de uma PLS no pre-loop
-      real(r_8)    :: lused_pre      ! luz absorvida por camada no pre-loop
-      real(r_8), allocatable :: lai_layer(:)   ! LAI agregado de todas as PLS por camada
-      real(r_8), allocatable :: linc_layer(:)  ! luz incidente em cada camada
-      real(r_8), allocatable :: lavai_layer(:) ! luz disponivel saindo de cada camada
+      
+      
       
       !     START
       !     --------------
@@ -198,14 +182,17 @@ contains
       do i = 1,npls
          awood_aux(i) = dt(7,i)
          pdia_aux(i) = dt(17,i)
-         dwood_aux(i) = dt(18,i)
-         !sla_aux(i) = dt(19,i)
          cl1_pft(i) = cl1_in(i)
          ca1_pft(i) = ca1_in(i)
          cf1_pft(i) = cf1_in(i)
-         nleaf(i) = nleaf_in(i)
-         nwood(i) = nwood_in(i)
-         nroot(i) = nroot_in(i)
+
+         !(sapwood and heartwood compartment)
+         cs1_pft(i) = 0.1D0 * ca1_pft(i)
+         ch1_pft(i) = 0.9D0 * ca1_pft(i)
+
+         dleaf(i) = dleaf_in(i)
+         dwood(i) = dwood_in(i)
+         droot(i) = droot_in(i)
          uptk_costs(i) = uptk_costs_in(i)
          do j = 1,3
             sto_budg(j,i) = sto_budg_in(j,i)
@@ -221,14 +208,7 @@ contains
       call pft_area_frac(cl1_pft, cf1_pft, ca1_pft, awood_aux,&
       &                  ocpavg, ocp_wood, run, ocp_mm)
 
-      call pls_allometry(dt, ca1_pft,awood_aux, height_aux, diameter_aux,&
-      &                   crown_aux)
-
-      max_height = maxval(height_aux(:))
-
-
       nlen = sum(run)    ! New length for the arrays in the main loop
-
       allocate(lp(nlen))
       allocate(ocp_coeffs(nlen))
       allocate(idx_grasses(nlen))
@@ -292,107 +272,11 @@ contains
       allocate(cf2(nlen))
       allocate(ca2(nlen))
       allocate(day_storage(3,nlen))
-      allocate(crown_int(nlen))
-      allocate(height_int(nlen))
 
       !     Maximum evapotranspiration   (emax)
       !     =================================
       emax = evpot2(p0,temp,rh,available_energy(temp))
       soil_temp = ts
-
-      ! ====================================================================
-      ! [LIGHT COMP] PRE-LOOP: construcao do dossel compartilhado (sequencial)
-      ! Agrega o LAI de TODAS as PLS vivas em suas camadas e propaga a luz
-      ! de cima para baixo UMA VEZ. O resultado (linc_layer) e passado para
-      ! cada PLS no loop paralelo, garantindo competicao real por luz.
-      ! Referencia logica: Beer-Lambert aplicado ao dossel agregado.
-      ! ====================================================================
-      nl_shared    = max(1, nint(max_height / 5.0D0))
-      lsize_shared = max_height / real(nl_shared, r_8)
-
-      if (max_height .le. 0.0D0) then
-         lsize_shared = 5.0D0  ! valor padrão seguro
-         nl_shared    = 1
-      end if
- 
-      allocate(lai_layer(nl_shared))
-      allocate(linc_layer(nl_shared))
-      allocate(lavai_layer(nl_shared))
-      lai_layer(:)   = 0.0D0
-      linc_layer(:)  = 0.0D0
-      lavai_layer(:) = 0.0D0
- 
-      ! Passo 1: acumula LAI de todas as PLS vivas em suas respectivas camadas
-      ! Gramineas (cawood = 0, height = 0) sao excluidas do pre-loop:
-      ! elas recebem ipar total diretamente em photosynthesis_rate e nao
-      ! competem por camadas do dossel. Inclui-las causaria acumulo de LAI
-      ! incorreto na camada 1.
-      do p_pre = 1, nlen
-         ri = lp(p_pre)
- 
-         ! Pula gramineas — sem madeira nao ocupam camadas do dossel
-         if (ca1_pft(ri) .le. 0.0D0) cycle
- 
-          ! [LIGHT COMP] LAI ponderado pela ocupacao real da PLS na grid.
-         ! leaf_area_index retorna LAI como se a PLS ocupasse 1 m2 inteiro.
-         ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
-         ! de modo que o dossel compartilhado reflita a contribuicao proporcional
-         ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
-         idx_pre = leaf_area_index(cl1_pft(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
-         if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
-         ! Aloca o LAI na camada correta
-         do n_pre = 1, nl_shared
-            if (n_pre .eq. 1) then
-               if (lsize_shared * real(n_pre, r_8) .ge. height_aux(ri)) then
-                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
-                  exit  ! [FIX] Exit após PLS ser alocada na camada correta —
-                        ! sem exit a PLS seria alocada em multiplas camadas
-                  
-               end if
-            else
-               if ((lsize_shared * real(n_pre, r_8) .ge. height_aux(ri)) .and. &
-                   (lsize_shared * real(n_pre-1, r_8) .lt. height_aux(ri))) then
-                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
-                  exit  
-               end if
-            end if
-         end do
-      end do
- 
-      ! [LIGHT COMP] Teto de LAI por camada — evita extincao total durante spin-up.
-      ! Durante o spin-up todas as PLS tem altura baixa e se concentram nas
-      ! camadas inferiores, causando LAI agregado impossivel (ex: 30-300 m2/m2).
-      ! O teto de 10.0 e conservador: e maior que o LAI total maximo do dossel
-      ! em equilibrio (~8.75 m2/m2 na versão sem competição), portanto nunca
-      ! sera atingido em condicoes normais --- so limita o spin-up.
-
-      do n_pre = 1, nl_shared
-         if (lai_layer(n_pre) .gt. 10.0D0) lai_layer(n_pre) = 10.0D0
-      end do
-
-      ! Passo 2: propaga luz de cima para baixo pelo dossel completo
-      if (light_comp .eq. 1) then
-         ! Competição por luz ATIVA (Beer-Lambert + Gap Dynamics)
-         do n_pre = nl_shared, 1, -1
-            if (n_pre .eq. nl_shared) then
-               linc_layer(n_pre) = real(ipar, r_8)
-            else
-               linc_layer(n_pre) = lavai_layer(n_pre + 1)
-            end if
-            lused_pre = linc_layer(n_pre) * (1.0D0 - gap_fraction) * (1.0D0 - dexp(-0.5D0 * lai_layer(n_pre)))
-            lavai_layer(n_pre)  = linc_layer(n_pre) - lused_pre
-         end do
-      else
-         ! Competição por luz DESLIGADA(spin-up): todas as camadas recebem ipar completo
-         do n_pre = 1, nl_shared
-            linc_layer(n_pre) = real(ipar, r_8)
-            lavai_layer(n_pre) = real(ipar, r_8)
-         end do
-      end if
-
-      ! ====================================================================
-      ! [LIGHT COMP] FIM DO PRE-LOOP
-      ! ====================================================================
 
       !     Productivity & Growth (ph, ALLOCATION, aresp, vpd, rc2 & etc.) for each PLS
       !     =====================
@@ -412,11 +296,7 @@ contains
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
       !$OMP PRIVATE(p, ri, carbon_in_storage, testcdef, sr, dt1, mr_sto, growth_stoc, ar_aux)
-
-      
       do p = 1,nlen
-
-         ! print*, 'survivers', p
 
          carbon_in_storage = 0.0D0
          testcdef = 0.0D0
@@ -425,25 +305,10 @@ contains
          ri = lp(p)
          dt1 = dt(:,ri) ! Pick up the pls functional attributes list
 
-         height_int(p) = height_aux(ri)
-         crown_int(p) = crown_aux(ri)
-         ! fpc_grid_int(p) = fpc_grid1(ri)
-
-         ! [LIGHT COMP] Passa linc_layer (luz incidente por camada do dossel
-         ! compartilhado) e nl_shared (numero de camadas) para prod/photosynthesis_rate.
-         ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
-         ! agregado de todas as PLS (pre-loop acima).
-         !
-         ! [SUN/SHADE FIX] max_height removido da chamada: nao e mais argumento de prod
-         ! desde a introducao do esquema de competicao por luz ([LIGHT COMP]), que
-         ! substituiu o uso de max_height pelo dossel compartilhado linc_layer/nl_shared.
-         ! A presenca de max_height aqui causava desalinhamento de argumentos (35 vs 34).
-
-         call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&
-               &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
+         call prod(dt1, ocp_wood(ri),catm, temp, soil_temp, p0, w, ipar, rh, emax&
+               &, cl1_pft(ri), cs1_pft(ri), cf1_pft(ri), dleaf(ri), dwood(ri), droot(ri)&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
-               &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+               &, wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
 
          evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
 
@@ -465,19 +330,17 @@ contains
 
          ! calculate maintanance respirarion of stored C
          mr_sto = sto_resp(temp, storage_out_bdgt(:,p))
-         if (isnan(mr_sto)) mr_sto = 0.0D0
+         if (ieee_is_nan(mr_sto)) mr_sto = 0.0D0
          if (mr_sto .gt. 0.1D2) mr_sto = 0.0D0
          storage_out_bdgt(1,p) = max(0.0D0, (storage_out_bdgt(1,p) - mr_sto))
 
          !     Carbon/Nitrogen/Phosphorus allocation/deallocation
          !     =====================================================
-
          call allocation (dt1,nppa(p),uptk_costs(ri), soil_temp, w, tra(p)&
             &, mineral_n,labile_p, on, sop, op, cl1_pft(ri),ca1_pft(ri)&
             &, cf1_pft(ri),storage_out_bdgt(:,p),day_storage(:,p),cl2(p),ca2(p)&
             &, cf2(p),litter_l(p),cwd(p), litter_fr(p),nupt(:,p),pupt(:,p)&
             &, lit_nut_content(:,p), limitation_status(:,p), npp2pay(p), uptk_strat(:, p), ar_aux)
-
 
          ! Estimate growth of storage C pool
          ar_fix_hr(p) = ar_aux
@@ -503,19 +366,13 @@ contains
             cue(p) = nppa(p)/ph(p)
          endif
 
-         delta_cveg(1,p) = cl2(p) - cl1_pft(ri)  !kg m-2
+         delta_cveg(1,p) = cl2(p) - cl1_pft(ri)  ! kg m-2
          if(dt1(4) .lt. 0.0D0) then
             delta_cveg(2,p) = 0.0D0
          else
             delta_cveg(2,p) = ca2(p) - ca1_pft(ri)
          endif
          delta_cveg(3,p) = cf2(p) - cf1_pft(ri)
-
-         if(dt1(4) .lt. 0.0D0) then
-            delta_biomass(p) = delta_cveg(1,p) + delta_cveg(3,p)
-         else 
-            delta_biomass(p) = delta_cveg(1,p) + delta_cveg(2,p) + delta_cveg(3,p)
-         endif
 
          ! Mass Balance
 
@@ -546,9 +403,8 @@ contains
 
       enddo ! end pls_loop (p)
       !$OMP END PARALLEL DO
-
       epavg = emax !mm/day
-      
+
       ! FILL OUTPUT DATA
       evavg = 0.0D0
       rcavg = 0.0D0
@@ -570,7 +426,6 @@ contains
       lit_nut_content_1(:) = 0.0D0
       nupt_1(:) = 0.0D0
       pupt_1(:) = 0.0D0
-      
 
       cleafavg_pft(:) = 0.0D0
       cawoodavg_pft(:) = 0.0D0
@@ -580,7 +435,6 @@ contains
       limitation_status_1(:,:) = 0
       uptk_strat_1(:,:) = 0
       npp2pay_1(:) = 0.0
-      
 
       ! CALCULATE CWM FOR ECOSYSTEM PROCESSES
 
@@ -588,8 +442,8 @@ contains
       do p = 1, nlen
          if(ieee_is_nan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
       enddo
-
-       evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      
+      evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
       phavg = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
       aravg = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
       nppavg = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
@@ -612,10 +466,6 @@ contains
       cp(2) = sum(ca1_int * (ocp_coeffs * idx_grasses), mask= .not. ieee_is_nan(ca1_int))
       cp(3) = sum(cf1_int * ocp_coeffs, mask= .not. ieee_is_nan(cf1_int))
       cp(4) = sum(ar_fix_hr * (ocp_coeffs * idx_pdia), mask= .not. ieee_is_nan(ar_fix_hr))
-
-      !print*, 'GPP', phavg
-
-
       ! FILTER BAD VALUES
       do p = 1,2
          do i = 1, nlen
@@ -671,8 +521,8 @@ contains
          limitation_status_1(:,ri) = limitation_status(:,p)
          uptk_strat_1(:,ri) = uptk_strat(:,p)
          npp2pay_1(ri) = npp2pay(p)
-
       enddo
+
 
       deallocate(lp)
       deallocate(evap)
@@ -713,15 +563,8 @@ contains
       DEALLOCATE(idx_grasses)
       DEALLOCATE(idx_pdia)
       DEALLOCATE(ar_fix_hr)
-      deallocate(height_int)
-      deallocate(crown_int)
-      deallocate(ocp_coeffs)
 
-      ! [LIGHT COMP] Desaloca arrays do dossel compartilhado
-      deallocate(lai_layer)
-      deallocate(linc_layer)
-      deallocate(lavai_layer)
-
+      
    end subroutine daily_budget
 
 end module budget

@@ -114,11 +114,20 @@ def time_queries(interval):
 def get_var_metadata_allom(var):
 
     vunits = {'header': ['long_name', 'unit', 'standart_name'],
-              
-              'emaxm': ['potent. evapotrasnpiration', 'kg m-2 day-1', 'etpot'],
-              'tsoil': ['soil_temperature', 'celcius', 'soil_temp'],
-              'photo': ['gross primary productivity', 'kg m-2 year-1', 'gpp']}
-    
+
+              'emaxm':  ['potent. evapotrasnpiration', 'kg m-2 day-1', 'etpot'],
+              'tsoil':  ['soil_temperature', 'celcius', 'soil_temp'],
+              'photo':  ['gross primary productivity', 'kg m-2 year-1', 'gpp'],
+              'evapm':  ['evapotranspiration', 'kg m-2 day-1', 'et'],
+              'cleaf':  ['C in leaves', 'kg m-2', 'cleaf'],
+              'cawood': ['C in woody tissues', 'kg m-2', 'cawood'],
+              'cfroot': ['C in fine roots', 'kg m-2', 'cfroot']}
+
+    out = {}
+    for v in var:
+        out[v] = vunits[v]
+    return out
+
 
 def get_var_metadata(var):
 
@@ -259,72 +268,66 @@ def write_daily_output_allom(arr, var, var_attrs, time_index, nc_out):
         nc_filename = os.path.join(nc_out, Path(
             f'{v}_{t0}-{tf}.nc4'))
         with dt(nc_filename, mode='w', format='NETCDF4') as rootgrp:
-            # dimensions  & variables
-
+            # dimensions & variables
             rootgrp.createDimension("latitude", lat.size)
             rootgrp.createDimension("longitude", lon.size)
             rootgrp.createDimension("bnds", size=2)
             rootgrp.createDimension("time", None)
 
-            # BOUNDS
-            # TB = rootgrp.createVariable(
-            #     "time_bnds", tbnds.dtype, ("time", "bnds"))
             YB = rootgrp.createVariable(
                 "lat_bnds", lat_bnds.dtype, ("latitude", "bnds"))
             XB = rootgrp.createVariable(
                 "lon_bnds", lon_bnds.dtype, ("longitude", "bnds"))
-            # nb = rootgrp.createVariable("nb", int, ("nb",))
 
             time = rootgrp.createVariable("time", np.float64, ("time",))
-
             latitude = rootgrp.createVariable(
                 "latitude", lat.dtype, ("latitude",))
             longitude = rootgrp.createVariable(
                 "longitude", lon.dtype, ("longitude",))
-            # var_ = rootgrp.createVariable(varname=var_attrs[v][2], datatype=np.float64,
-            #                               dimensions=(
-            #                                   "time", "latitude", "longitude",),
-            #                               zlib=True, fill_value=NO_DATA[0], fletcher32=True)
+            var_ = rootgrp.createVariable(varname=var_attrs[v][2], datatype=np.float64,
+                                          dimensions=(
+                                              "time", "latitude", "longitude",),
+                                          zlib=True, fill_value=NO_DATA[0], fletcher32=True)
+
             # attributes
-            # rootgrp
-            # rootgrp.description = var_attrs[v][0] + " from CAETÊ-ALLOMETRY OUTPUT"
-            # rootgrp.source = "CAETE model outputs "
-            # rootgrp.experiment = EXPERIMENT
+            rootgrp.description = var_attrs[v][0] + " from CAETÊ-ALLOMETRY OUTPUT"
+            rootgrp.source = "CAETE model outputs"
+            rootgrp.experiment = EXPERIMENT
 
-            # # time
-            # time.units = time_units
-            # time.calendar = calendar
-            # time.axis = 'T'
-            # time[...] = time_index
-            # # TB[...] = tbnds
+            # time
+            time.units = time_units
+            time.calendar = calendar
+            time.axis = 'T'
+            time[...] = time_index
 
-            # # lat
-            # latitude.units = u"degrees_north"
-            # latitude.long_name = u"latitude"
-            # latitude.standart_name = u"latitude"
-            # latitude.axis = u'Y'
-            # latitude[...] = lat
-            # YB[...] = lat_bnds
+            # lat
+            latitude.units = u"degrees_north"
+            latitude.long_name = u"latitude"
+            latitude.standart_name = u"latitude"
+            latitude.axis = u'Y'
+            latitude[...] = lat
+            YB[...] = lat_bnds
 
-            # # lon
-            # longitude.units = "degrees_east"
-            # longitude.long_name = "longitude"
-            # longitude.standart_name = "longitude"
-            # longitude.axis = u'X'
-            # longitude[...] = lon
-            # XB[...] = lon_bnds
-            # # var
-            # var_.long_name = var_attrs[v][0]
-            # var_.units = var_attrs[v][1]
-            # var_.standard_name = var_attrs[v][2]
-            # var_.missing_value = NO_DATA[0]
+            # lon
+            longitude.units = "degrees_east"
+            longitude.long_name = "longitude"
+            longitude.standart_name = "longitude"
+            longitude.axis = u'X'
+            longitude[...] = lon
+            XB[...] = lon_bnds
 
-            # # WRITING DATA
-            # out_arr = np.fliplr(arr[i])
-            # var_[:, :, :] = np.ma.masked_array(
-            #     out_arr, mask=out_arr == NO_DATA[0])
-            # print_progress(i + 1, len(var), prefix='Progress:',
-            #                suffix='Complete')
+            # var
+            var_.long_name = var_attrs[v][0]
+            var_.units = var_attrs[v][1]
+            var_.standard_name = var_attrs[v][2]
+            var_.missing_value = NO_DATA[0]
+
+            # WRITING DATA
+            out_arr = np.fliplr(arr[i])
+            var_[:, :, :] = np.ma.masked_array(
+                out_arr, mask=out_arr == NO_DATA[0])
+            print_progress(i + 1, len(var), prefix='Progress:',
+                           suffix='Complete')
 
 def write_daily_output(arr, var, flt_attrs, time_index, nc_out):
 
@@ -647,8 +650,8 @@ def create_ncG1_allom(table, interval, nc_out):
         print(f"\n\nCreating output folder at{nc_out.resolve()}")
     elif out_data:
         print(f"\n\nSaving outputs in {nc_out.resolve()}")
-    
-    vars = ['photo']
+
+    vars = ['photo', 'evapm', 'cleaf', 'cawood', 'cfroot']
 
     dates = time_queries(interval)
     dm1 = len(dates)
@@ -665,8 +668,11 @@ def create_ncG1_allom(table, interval, nc_out):
     print('day0 = ', cftime.num2date(start, time_units, calendar))
     print('dayf = ', cftime.num2date(stop, time_units, calendar))
 
-    photo = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
-   
+    photo  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    evapm  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cleaf  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cawood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cfroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     print("\nQuerying data from file FOR", end=': ')
     for v in vars:
@@ -675,23 +681,16 @@ def create_ncG1_allom(table, interval, nc_out):
     print_progress(0, len(dates), prefix='Progress:', suffix='Complete')
     for i, day in enumerate(dates):
         out = table.read_where(day)
-        photo[i, :, :] = assemble_layer(
-            out['grid_y'], out['grid_x'], out['photo'])
-      
+        photo[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['photo'])
+        evapm[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['evapm'])
+        cleaf[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['cleaf'])
+        cawood[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cawood'])
+        cfroot[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cfroot'])
 
-        print_progress(i + 1,
-                       len(dates),
-                       prefix='Progress:',
-                       suffix='Complete')
-    
-    vars = ['photo']
-    print('VAR ATTRS ===-', vars)
-    print('TYPE ATTRS', type(vars))
-    arr = (photo)
+        print_progress(i + 1, len(dates), prefix='Progress:', suffix='Complete')
 
+    arr = (photo, evapm, cleaf, cawood, cfroot)
     var_attrs = get_var_metadata_allom(vars)
-    print('VAR ATTRS ===-', var_attrs)
-    print('TYPE ATTRS', type(var_attrs))
     write_daily_output_allom(arr, vars, var_attrs, time_index, nc_out)
 
 def create_ncG1(table, interval, nc_out):

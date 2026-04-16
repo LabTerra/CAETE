@@ -42,7 +42,7 @@ module global_par
    real(r_8),parameter,public :: rcmin = 100                     ! ResistÊncia estomática mínima s/m
    real(r_8),parameter,public :: cmin = 1.0D-6                   ! Minimum to survive kg m-2
    ! real(r_8),parameter,public :: wmax = 500.0                    ! Maximum water soil capacity (Kg m-2)
-   real(r_8),parameter,public :: vcmax = 0.00004 !50.0D-5 
+   real(r_8),parameter,public :: vcmax = 0.00004 !50.0D-5
    real(r_8),parameter,public :: csru = 0.5D0                    ! Root attribute
    real(r_8),parameter,public :: alfm = 1.391D0                  ! Root attribute
    real(r_8),parameter,public :: gm = 3.26D0 * 86400D0           ! (*86400 transform s/mm to dia/mm)
@@ -55,13 +55,15 @@ module global_par
    real(r_8),parameter, public :: ncs = (1.0/330.0)         !(gN/gC) from Smith et al 2001
 
    !allometric parameters
-   !real(r_8), parameter, public :: dwood = 0.74*1.D6 !provisory
    real(r_8), parameter, public :: pi = 3.1415926536
-   real(r_8), parameter, public :: k_allom2 = 20.
-   real(r_8), parameter, public :: k_allom3 = 0.8
+   real(r_8), parameter, public :: k_allom1 = 250.0
+   real(r_8), parameter, public :: k_allom2 = 40.
+   real(r_8), parameter, public :: k_allom3 = 0.67
    real(r_8), parameter, public :: klatosa =  10000.0
    !# real(r_8), parameter, public :: sla_allom = 0.023 !provisory !m2/g
    real(r_8), parameter, public :: ltor = 0.77302587552347657
+   real(r_8), parameter, public :: krp = 1.6  
+   integer(i_4),public :: light_comp = 1  ! 1 = ON, 0 = OFF (default ON)
 
    !allocation parameters
    real(r_8), parameter, public :: tol = 0.0000001
@@ -77,7 +79,6 @@ module global_par
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
    real(r_8), parameter, public :: h_turnover = 1./150.!1/50. !Sitch et al 2003
-
 
 end module global_par
 
