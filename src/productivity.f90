@@ -26,7 +26,7 @@ module productivity
 
 contains
 
-  ! [LIGHT COMP] Assinatura atualizada: recebe linc_layer, nl_shared e lsize_shared
+  ! [LIGHT COMP] Prod recebe linc_layer, nl_shared e lsize_shared
   ! vindos do pre-loop de budget.f90, onde o dossel compartilhado foi calculado.
     subroutine prod(dt,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&

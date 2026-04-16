@@ -329,7 +329,7 @@ module budget_allom
       ! Pre-compute heights from current carbon stocks.
       ! height_pls must exist before the canopy pre-loop (which uses it for
       ! layer assignment) and before max_height (which sizes the canopy).
-      ! Uses the same conversion as allocation2: kgC/m2 * 1D3 -> gC/ind.
+      ! Uses the same conversion as allocation2: kgC/m2 * 1D3 -> gC.
       allocate(height_pls(nlen))
       height_pls(:) = 0.0D0
       do p_pre = 1, nlen
@@ -425,7 +425,7 @@ module budget_allom
       do p_pre = 1, nlen
          ri = lp(p_pre)
  
-         ! Pula gramineas — sem madeira nao ocupam camadas do dossel
+         ! Pula gramineas - sem madeira nao ocupam camadas do dossel
          if (cwood_pls(ri) .le. 0.0D0) cycle
  
          ! [LIGHT COMP] LAI ponderado pela ocupacao real da PLS na grid.
@@ -433,6 +433,7 @@ module budget_allom
          ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
+
          idx_pre = leaf_area_index(cleaf_pls(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
@@ -517,11 +518,7 @@ module budget_allom
          ! compartilhado) e nl_shared (numero de camadas) para prod/photosynthesis_rate.
          ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
          ! agregado de todas as PLS (pre-loop acima).
-         !
-         ! [SUN/SHADE FIX] max_height removido da chamada: nao e mais argumento de prod
-         ! desde a introducao do esquema de competicao por luz ([LIGHT COMP]), que
-         ! substituiu o uso de max_height pelo dossel compartilhado linc_layer/nl_shared.
-         ! A presenca de max_height aqui causava desalinhamento de argumentos (35 vs 34).
+
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
@@ -548,7 +545,6 @@ module budget_allom
          else
             cue(p) = nppa(p)/ph(p)
          endif
-
 
          !Mass balance (c deficit)
          c_def(p) = c_def(p)/2.73791D0 ! transforms to year
