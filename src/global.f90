@@ -48,7 +48,7 @@ module global_par
    real(r_8),parameter,public :: gm = 3.26D0 * 86400D0           ! (*86400 transform s/mm to dia/mm)
    real(r_8),parameter,public :: sapwood = 0.05D0                ! Fraction of wood tissues that are sapwood
    real(r_8),parameter,public :: ks = 0.25                       ! P Sorption
-   integer(i_4),parameter,public :: npls = 6000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
+   integer(i_4),parameter,public :: npls = 1000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
    integer(i_4),parameter,public :: ntraits = 20                 ! Number of traits for each PLS
    real(r_8),parameter, public :: ncl = (1.0/60.0)          !(gN/gC) used in maintenance respiration (from Scheiter & Higgins 2008)
    real(r_8),parameter, public :: ncf = (1.0/60.0)          !(gN/gC)
@@ -108,7 +108,7 @@ module photo_par
         p20 = 0.10D0         ,&          !Critical humidity deficit (kg/kg)
         p25 = 9.1D-5         ,&          !Maximum gross photosynthesis rate (molCO2/m2/s)
         p26 = 0.50D0         ,&          !light extinction coefficient for IPAR/sun (0.5/sen90)
-        p27 = 1.50D0         ,&          !light extinction coefficient for IPAR/shade (0.5/sen20)
+        p27 = 0.80D0         ,&          !diffuse light extinction coefficient (De Pury & Farquhar 1997)
         alphap = 0.0913D0    ,&          ! 0.0913 parameter for v4m. Hard to explain. See Chen et al. 1994
         vpm25 =  85.0D0      ,&          ! µmol m-2 s-1 PEPcarboxylase CO2 saturated rate of carboxilation at 25°C
         h_vpm = 185075.0D0   ,&          ! Arrhenius eq. constant

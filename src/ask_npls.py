@@ -116,7 +116,7 @@ module photo_par
         p20 = 0.10D0         ,&          !Critical humidity deficit (kg/kg)
         p25 = 9.1D-5         ,&          !Maximum gross photosynthesis rate (molCO2/m2/s)
         p26 = 0.50D0         ,&          !light extinction coefficient for IPAR/sun (0.5/sen90)
-        p27 = 1.50D0         ,&          !light extinction coefficient for IPAR/shade (0.5/sen20)
+        p27 = 0.80D0         ,&          !light extinction coefficient for IPAR/shade (0.5/sen20)
         alphap = 0.0913D0    ,&          ! 0.0913 parameter for v4m. Hard to explain. See Chen et al. 1994
         vpm25 =  85.0D0      ,&          ! µmol m-2 s-1 PEPcarboxylase CO2 saturated rate of carboxilation at 25°C
         h_vpm = 185075.0D0   ,&          ! Arrhenius eq. constant

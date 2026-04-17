@@ -28,7 +28,7 @@ module alloc2
 
     use types
     use global_par
-    
+
     implicit none
     private
 
@@ -139,8 +139,7 @@ module alloc2
         !used to identify wood/non wood strategies
         real(r_8) :: awood
 
-        !variant trait
-        !(SLA - m2/g)
+        !(SLA - m2/gC)
         real(r_8) :: sla_allom
          !(WD - g/cm3)
         real(r_8) :: wd_allom
@@ -154,7 +153,7 @@ module alloc2
         
         !take the allocation proportion to wood (to identify) the grasses
         awood = dt(7)
-        sla_allom = dt(18)
+        sla_allom = dt(18)  ! sla_random from plsgen.py (m2/gC)
         wd_allom = dt(19) !*1.D6
 
         !initializing variables
@@ -757,7 +756,7 @@ module alloc2
         real(r_8) :: heart_turnover
 
         !!Fixed turnover
-        leaf_turn = leaf_in_ind*l_turnover 
+        leaf_turn = leaf_in_ind*l_turnover
         root_turn = root_in_ind*r_turnover
         sap_turn = sap_in_ind*s_turnover
 
@@ -771,7 +770,7 @@ module alloc2
         ! root_turnover = dt(5)
         ! heart_turnover = dt(4)
         ! sap_turnover  = dt(20)
-        
+
         ! ! print*,'sap turnover', sap_turnover
 
         ! leaf_turn = leaf_in_ind/leaf_turnover
@@ -779,12 +778,12 @@ module alloc2
         ! root_turn = root_in_ind/root_turnover
 
         ! sap_turn = sap_in_ind/sap_turnover
-        
+
         ! !heartwood incorporates the dead tissue from sapwood
         ! heart_turn = (heart_in_ind/heart_turnover) + sap_turn
         ! ! heart_turn = (heart_in_ind*h_turnover) + sap_turn
 
-        
+
         ! sto_turn = sto_in_ind*sto_turnover
 
        

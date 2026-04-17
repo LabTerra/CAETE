@@ -250,8 +250,9 @@ module budget_allom
       real(r_8),dimension(:),allocatable :: ocp_coeffs !occupancy coefficients for each PLS
 
       ! [LIGHT COMP] Novas variaveis para o pre-loop de competicao por luz.
-      ! O dossel compartilhado e construido UMA VEZ antes do loop paralelo,
+      ! O dossel compartilhado e construido antes do loop paralelo,
       ! garantindo que todas as PLS competem pelo mesmo perfil de extincao.
+
       real(r_8) :: max_height
       integer(i_4) :: nl_shared      ! numero de camadas do dossel compartilhado
       integer(i_4) :: n_pre, p_pre   ! contadores do pre-loop
@@ -288,8 +289,6 @@ module budget_allom
          dsap(i)   = dsap_in(i)
          dheart(i) = dheart_in(i)
          dsto(i)   = dsto_in(i)
-         
-      
       enddo
 
       w = w1 + w2        
@@ -329,7 +328,7 @@ module budget_allom
       ! Pre-compute heights from current carbon stocks.
       ! height_pls must exist before the canopy pre-loop (which uses it for
       ! layer assignment) and before max_height (which sizes the canopy).
-      ! Uses the same conversion as allocation2: kgC/m2 * 1D3 -> gC.
+      ! Uses the same conversion as allocation2.F90: kgC/m2 * 1D3 -> gC.
       allocate(height_pls(nlen))
       height_pls(:) = 0.0D0
       do p_pre = 1, nlen
@@ -398,7 +397,7 @@ module budget_allom
       ! ====================================================================
       ! [LIGHT COMP] PRE-LOOP: construcao do dossel compartilhado (sequencial)
       ! Agrega o LAI de TODAS as PLS vivas em suas camadas e propaga a luz
-      ! de cima para baixo UMA VEZ. O resultado (linc_layer) e passado para
+      ! de cima para baixo. O resultado (linc_layer) e passado para
       ! cada PLS no loop paralelo, garantindo competicao real por luz.
       ! Referencia logica: Beer-Lambert aplicado ao dossel agregado.
       ! ====================================================================
@@ -441,8 +440,7 @@ module budget_allom
             if (n_pre .eq. 1) then
                if (lsize_shared * real(n_pre, r_8) .ge. height_pls(p_pre)) then
                   lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
-                  exit  ! [FIX] Exit após PLS ser alocada na camada correta —
-                        ! sem exit a PLS seria alocada em multiplas camadas
+                  exit  !Exit após PLS ser alocada na camada correta
 
                end if
             else
@@ -455,7 +453,7 @@ module budget_allom
          end do
       end do
  
-      ! [LIGHT COMP] Teto de LAI por camada — evita extincao total durante spin-up.
+      ! [LIGHT COMP] Teto de LAI por camada - evita extincao total durante spin-up.
       ! Durante o spin-up todas as PLS tem altura baixa e se concentram nas
       ! camadas inferiores, causando LAI agregado impossivel (ex: 30-300 m2/m2).
       ! O teto de 10.0 e conservador: e maior que o LAI total maximo do dossel
@@ -504,7 +502,8 @@ module budget_allom
       endif
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
-      !$OMP DEFAULT(SHARED)
+      !$OMP DEFAULT(SHARED) &
+      !$OMP PRIVATE(p, ri, dt1)
 
       do p = 1,nlen
          
@@ -590,18 +589,6 @@ module budget_allom
          if (cheart_int(p).lt.0.0D0) cheart_int(p) = 0.0D0
          if (csto_int(p).lt.0.0D0)   csto_int(p) = 0.0D0
          if (cwood_int(p).lt.0.0D0)  cwood_int(p) = 0.0D0
-
-         
-               ! print*, 'after allocation and c def inside bdgt',p
-               ! print*, 'l', cleaf_int(p)
-               ! print*, 'w', cwood_int(p)
-               ! print*, 'r', croot_int(p)
-               ! print*, 'sap', csap_int(p)
-               ! print*, 'h', cheart_int(p)
-               ! print*, 'sto', csto_int(p)
-               ! print*, 'ph', ph(p)
-               ! print*, 'c_def', c_def(p)
-
       
          !estimate growth of storage pool (acho que isso vai ser dentro da alloc)
          !calculate storage growth respi(onde isso?)
@@ -610,7 +597,6 @@ module budget_allom
          ! mr_sto = 0.0D0
          ! sr = 0.0D0
 
-         
          
          !calculating deltas
          if (dt1(7) .gt. 0.0D0)then

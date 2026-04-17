@@ -408,7 +408,7 @@ def zip_gridtime(grd_pool, interval):
 
 def apply_funX(grid:grd, brk:list, allometry = allom)->grd:
     if allom:
-        grid.run_caete_allom(brk[0], brk[1], save = False, nutri_cycle=False)
+        grid.run_caete_allom(brk[0], brk[1], save = True, nutri_cycle=False)
     else:
         grid.run_caete(brk[0], brk[1])
     return grid

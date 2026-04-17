@@ -678,6 +678,7 @@ contains
    subroutine photosynthesis_rate(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
         & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
         & f1ab_sun, f1ab_shade)
+
       ! [SUN/SHADE] Added f1ab_sun and f1ab_shade as additional outputs.
       ! These carry the leaf-level assimilation rate computed separately for the
       ! sunlit (I_sun = aux_ipar) and shaded (I_shade = aux_ipar*exp(-p27*sunlai))
@@ -713,10 +714,8 @@ contains
       real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
       real(r_8),intent(out) :: amax ! light saturated PH rate
       ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
-      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 — sun  leaves (I_sun = aux_ipar)
-      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 — shade leaves (I_shade attenuated)
-
-
+      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar)
+      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
 
       real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
       real(r_8) :: mgama,vm_in      !Photo-respiration compensation point (Pa)
@@ -801,13 +800,11 @@ contains
 
       ! =====================================================================
       !          ++++++++++++    LIGHT COMPETITION     ++++++++++++
-      !                        --- new structure ---
+      !                  --- new structure (B.Cardeli) ---
       !        
-      ! The previous block reconstructed the canopy for each PLS individually,
-      ! leading to incorrect extinction (accounting for only one PLS's LAI at a time).
-      ! Now, the subroutine receives linc_layer already calculated with the 
-      ! aggregated LAI of ALL living PLS, and simply locates the current PLS's 
-      ! layer to read the correct incident light.
+      ! This subroutine receives linc_layer already calculated with the 
+      ! aggregated LAI of ALL living PLS (calculated in budget.F90 and budget_allom.F9),
+      ! and simply locates the current PLS's layer to read the correct incident light.
       ! =====================================================================
  
       ! Grass (awood = 0) receives 80% of IPAR
@@ -815,8 +812,9 @@ contains
          aux_ipar = ipar - (ipar * 0.20)
  
       else
+         ![LIGH_COMP]
          ! Locates the PLS's layer and reads linc_layer
-         ! [LIGHT COMP] aux_ipar = linc of the specific layer where the PLS is located
+         ! aux_ipar = linc of the specific layer where the PLS is located
          ! (Light reaching that layer after extinction by the canopy layers above,
          !  pre-calculated in the budget.f90 loop using the full canopy profile)
          aux_ipar = real(ipar, r_8) ! default: topo do dossel
@@ -847,9 +845,9 @@ contains
       ! with LAI_sun = (1 - exp(-p26*LAI)) / p26 (De Pury & Farquhar 1997).
       ! p26 = beam (sun) extinction coefficient; p27 = diffuse (shade) extinction coefficient.
       lai_loc    = leaf_area_index(cleaf, sla)
-      sunlai_loc = (1.0D0 - dexp(-p26 * lai_loc)) / p26
+      sunlai_loc = (1.0D0 - exp(-p26 * lai_loc)) / p26
       I_sun   = aux_ipar
-      I_shade = aux_ipar * dexp(-p27 * sunlai_loc)
+      I_shade = aux_ipar * exp(-p27 * sunlai_loc)
 
       if(c4 .eq. 0) then
          !====================-C3 PHOTOSYNTHESIS-===============================
@@ -877,7 +875,7 @@ contains
          !    aux_ipar = ipar - (ipar * 0.20)
          ! endif
 
-         ! [SUN/SHADE FIX] Sun leaves use I_sun = aux_ipar (unchanged from original)
+         ! [SUN/SHADE FIX] Sun leaves use I_sun = aux_ipar (unchanged from default logic)
          jl = p4*(1.0D0-p5)*I_sun*((ci-mgama)/(ci+(p6*mgama)))
          amax = jl
 
@@ -943,7 +941,7 @@ contains
          !    aux_ipar = ipar - (ipar * 0.20)
          ! endif
 
-         ! [SUN/SHADE] Sun leaves use I_sun = aux_ipar (unchanged from original)
+         ! [SUN/SHADE] Sun leaves use I_sun = aux_ipar (unchanged from default)
          ipar1 = I_sun * 1.0D6  ! µmol m-2 s-1 - 1e6 converts mol to µmol
 
          !maximum PEPcarboxylase rate Arrhenius eq. (Dependence on temperature)
@@ -1249,6 +1247,7 @@ contains
       ! real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0
       ! real(r_8), parameter :: a1 = 15.0D0, a2 = 0.04D0
       real(r_8), parameter :: a1 = 15.0D0, a2 = 0.03D0
+
       !   Autothrophic respiration
       !   ========================
       !   Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
@@ -1262,11 +1261,11 @@ contains
          csa = cs1_mr
          ! rms64 = ((n2cw * (csa * 1.0D3)) * a1 * exp(a2 * temp))
          rms64 = ((ncs * (csa * 1.0D3)) * a1 * exp(a2 * temp))
-         
+
       else
          rms64 = 0.0
       endif
-      
+
       rml64 = ((ncl*(cl1_mr*1.0D3))*a1*exp(a2 * temp))
             ! rml64 = ((n2cl * (cl1_mr * 1.0D3)) * a1 * exp(a2 * temp))
 
@@ -1274,9 +1273,9 @@ contains
 
       ! rml64 = 0.3*((cl1_mr*1.0D3)/(1.0/29.0))*1.6180
       ! print*, 'rml64 lpj', rml64
-      
+
       rmf64 = ((ncf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
-! 
+!
       ! rmf64 = ((n2cf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
 
       rm64 = (rml64 + rmf64 + rms64) * 1.0D-3
@@ -1328,7 +1327,6 @@ contains
        rm = 0.0
     endif
     return
-
 
  end function sto_resp
 

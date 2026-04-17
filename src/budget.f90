@@ -123,7 +123,6 @@ contains
       real(r_8) :: soil_temp
       real(r_8) :: emax
       real(r_8) :: w                               !Daily soil moisture storage (mm)
-      real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
 
       real(r_8),dimension(:),allocatable :: ocp_coeffs
 
@@ -185,6 +184,7 @@ contains
       real(r_8)    :: lsize_shared   ! tamanho de cada camada (m)
       real(r_8)    :: idx_pre        ! LAI de uma PLS no pre-loop
       real(r_8)    :: lused_pre      ! luz absorvida por camada no pre-loop
+      real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
       real(r_8), allocatable :: lai_layer(:)   ! LAI agregado de todas as PLS por camada
       real(r_8), allocatable :: linc_layer(:)  ! luz incidente em cada camada
       real(r_8), allocatable :: lavai_layer(:) ! luz disponivel saindo de cada camada
@@ -303,7 +303,7 @@ contains
       ! ====================================================================
       ! [LIGHT COMP] PRE-LOOP: construcao do dossel compartilhado (sequencial)
       ! Agrega o LAI de TODAS as PLS vivas em suas camadas e propaga a luz
-      ! de cima para baixo UMA VEZ. O resultado (linc_layer) e passado para
+      ! de cima para baixo. O resultado (linc_layer) e passado para
       ! cada PLS no loop paralelo, garantindo competicao real por luz.
       ! Referencia logica: Beer-Lambert aplicado ao dossel agregado.
       ! ====================================================================
@@ -324,13 +324,13 @@ contains
  
       ! Passo 1: acumula LAI de todas as PLS vivas em suas respectivas camadas
       ! Gramineas (cawood = 0, height = 0) sao excluidas do pre-loop:
-      ! elas recebem ipar total diretamente em photosynthesis_rate e nao
+      ! elas recebem 80% do ipar total diretamente em photosynthesis_rate e nao
       ! competem por camadas do dossel. Inclui-las causaria acumulo de LAI
       ! incorreto na camada 1.
       do p_pre = 1, nlen
          ri = lp(p_pre)
  
-         ! Pula gramineas — sem madeira nao ocupam camadas do dossel
+         ! Pula gramineas - sem madeira nao ocupam camadas do dossel
          if (ca1_pft(ri) .le. 0.0D0) cycle
  
           ! [LIGHT COMP] LAI ponderado pela ocupacao real da PLS na grid.
@@ -345,8 +345,7 @@ contains
             if (n_pre .eq. 1) then
                if (lsize_shared * real(n_pre, r_8) .ge. height_aux(ri)) then
                   lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
-                  exit  ! [FIX] Exit após PLS ser alocada na camada correta —
-                        ! sem exit a PLS seria alocada em multiplas camadas
+                  exit  ! Exit após PLS ser alocada na camada correta -
                   
                end if
             else
@@ -359,12 +358,12 @@ contains
          end do
       end do
  
-      ! [LIGHT COMP] Teto de LAI por camada — evita extincao total durante spin-up.
+      ! [LIGHT COMP] Teto de LAI por camada - evita extincao total durante spin-up.
       ! Durante o spin-up todas as PLS tem altura baixa e se concentram nas
       ! camadas inferiores, causando LAI agregado impossivel (ex: 30-300 m2/m2).
       ! O teto de 10.0 e conservador: e maior que o LAI total maximo do dossel
       ! em equilibrio (~8.75 m2/m2 na versão sem competição), portanto nunca
-      ! sera atingido em condicoes normais --- so limita o spin-up.
+      ! sera atingido em condicoes normais --- ATTENTION: so limita o spin-up.
 
       do n_pre = 1, nl_shared
          if (lai_layer(n_pre) .gt. 10.0D0) lai_layer(n_pre) = 10.0D0
@@ -433,11 +432,6 @@ contains
          ! compartilhado) e nl_shared (numero de camadas) para prod/photosynthesis_rate.
          ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
          ! agregado de todas as PLS (pre-loop acima).
-         !
-         ! [SUN/SHADE FIX] max_height removido da chamada: nao e mais argumento de prod
-         ! desde a introducao do esquema de competicao por luz ([LIGHT COMP]), que
-         ! substituiu o uso de max_height pelo dossel compartilhado linc_layer/nl_shared.
-         ! A presenca de max_height aqui causava desalinhamento de argumentos (35 vs 34).
 
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&

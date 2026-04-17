@@ -30,7 +30,8 @@ G1_1d_allom = {'emaxm',
                'evapm',
                'cleaf',
                'cawood',
-               'cfroot'}
+               'cfroot',
+               'ls'}
 
 # Group 1
 G1_1d = ['emaxm',
@@ -111,6 +112,7 @@ class run_g1_allom(tb.IsDescription):
     cleaf  = tb.Float64Col(dflt=0.0, pos=8)
     cawood = tb.Float64Col(dflt=0.0, pos=9)
     cfroot = tb.Float64Col(dflt=0.0, pos=10)
+    ls     = tb.Float64Col(dflt=0.0, pos=11)
 
 class run_g1(tb.IsDescription):
     """ Row template for CAETÊ output data"""

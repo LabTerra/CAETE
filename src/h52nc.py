@@ -121,7 +121,8 @@ def get_var_metadata_allom(var):
               'evapm':  ['evapotranspiration', 'kg m-2 day-1', 'et'],
               'cleaf':  ['C in leaves', 'kg m-2', 'cleaf'],
               'cawood': ['C in woody tissues', 'kg m-2', 'cawood'],
-              'cfroot': ['C in fine roots', 'kg m-2', 'cfroot']}
+              'cfroot': ['C in fine roots', 'kg m-2', 'cfroot'],
+              'ls':     ['Living Plant Life Strategies', '1', 'ls']}
 
     out = {}
     for v in var:
@@ -651,7 +652,7 @@ def create_ncG1_allom(table, interval, nc_out):
     elif out_data:
         print(f"\n\nSaving outputs in {nc_out.resolve()}")
 
-    vars = ['photo', 'evapm', 'cleaf', 'cawood', 'cfroot']
+    vars = ['photo', 'evapm', 'cleaf', 'cawood', 'cfroot', 'ls']
 
     dates = time_queries(interval)
     dm1 = len(dates)
@@ -673,6 +674,7 @@ def create_ncG1_allom(table, interval, nc_out):
     cleaf  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
     cawood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
     cfroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    ls     = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     print("\nQuerying data from file FOR", end=': ')
     for v in vars:
@@ -681,15 +683,16 @@ def create_ncG1_allom(table, interval, nc_out):
     print_progress(0, len(dates), prefix='Progress:', suffix='Complete')
     for i, day in enumerate(dates):
         out = table.read_where(day)
-        photo[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['photo'])
-        evapm[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['evapm'])
-        cleaf[i, :, :]  = assemble_layer(out['grid_y'], out['grid_x'], out['cleaf'])
+        photo[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['photo'])
+        evapm[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['evapm'])
+        cleaf[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cleaf'])
         cawood[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cawood'])
         cfroot[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cfroot'])
+        ls[i,     :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['ls'])
 
         print_progress(i + 1, len(dates), prefix='Progress:', suffix='Complete')
 
-    arr = (photo, evapm, cleaf, cawood, cfroot)
+    arr = (photo, evapm, cleaf, cawood, cfroot, ls)
     var_attrs = get_var_metadata_allom(vars)
     write_daily_output_allom(arr, vars, var_attrs, time_index, nc_out)
 
