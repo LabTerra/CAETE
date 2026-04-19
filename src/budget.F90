@@ -348,7 +348,7 @@ contains
          evap(p) = penman(p0,temp,rh,ae,rc2(p)) !Actual evapotranspiration (evap, mm/day)
 
          ! Check if the carbon deficit can be compensated by stored carbon
-
+         ! TODO: Here the reserve C pool is used to compensate negative NPP. Is it a fair assumption?
          carbon_in_storage = sto_budg(1, ri)
          ! print *, "Carbon in storage: ", carbon_in_storage
          storage_out_bdgt(1, p) = carbon_in_storage
@@ -401,7 +401,7 @@ contains
          storage_out_bdgt(:,p) = day_storage(:,p)
 
          ! Calculate storage GROWTH respiration
-         sr = 0.25D0 * growth_stoc ! g m-2
+         sr = 0.25D0 * growth_stoc ! g m-2 ! TODO: move 0.25 to a parameter/config
          ! if(sr .gt. 1.0D2) sr = 0.0D0
          ar(p) = ar(p) + real(((sr + mr_sto) * 0.365242), kind=r_8) ! Convert g m-2 day-1 in kg m-2 year-1
          storage_out_bdgt(1, p) = storage_out_bdgt(1, p) - sr
@@ -420,7 +420,7 @@ contains
             cue(p) = nppa(p)/ph(p)
          endif
 
-         ! Mass Balance. If ar > A then the population is not able to maintain itself. It loses the C
+         ! Mass Balance. If ar > gpp then the population is not able to maintain itself. It loses the C
          ! c_def in g m-2 and cx2 in kg m-2
          if (c_def(p) .gt. 0.0) then
             ! Calculate the total carbon available

@@ -154,10 +154,6 @@ from caete_module import budget as model # type: ignore
 from caete_module import soil_dec        # type: ignore
 from caete_module import water as st     # type: ignore
 
-
-# Define env var for runtime: NCEP_AE
-os.environ
-
 # Memory profiling flag. Set to True in order to enable memory profiling
 # We use mprof. In order to profile this program from command line, use:
 # $ mprof --multiprocessing --include-children caete.py (see: https://pypi.org/project/memory-profiler/)
@@ -1023,7 +1019,7 @@ class grd_mt(state_zero, climate, time, soil, gridcell_output):
 
         return None
 
-    # @profile
+    @profile
     def run_gridcell(self,
                   start_date: str,
                   end_date: str,
