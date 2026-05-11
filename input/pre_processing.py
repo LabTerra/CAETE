@@ -1,299 +1,453 @@
-import os
-from pathlib import Path
-import _pickle as pkl
+"""Pre-processing of input data to feed CAETÊ.
+
+Reads ISIMIP-style NetCDF climate data and soil nutrient ``.npy`` arrays and
+writes one bzip2-pickle file per land gridcell, plus a single metadata file,
+in the format consumed by :mod:`caete` (see ``input/creating_caete_input_files.md``
+for the full format specification).
+
+Layout expected for the raw climate data::
+
+    {climate_data}/{dataset}/{mode}_raw/*_{var}_*.nc[4]
+
+with ``{var}`` ∈ ``{hurs, tas, pr, ps, rsds}``. Output files are written to
+``./{dataset}/{mode}/`` next to this script. The metadata file is named
+``ISIMIP_HISTORICAL_METADATA.pbz2`` and per-gridcell files are named
+``input_data_{Y}-{X}.pbz2`` with **global** ``(Y, X)`` indices on the
+360 × 720 grid (see ``geos.py``).
+
+Configuration lives in ``pre_processing.toml``; CLI flags override defaults.
+
+Originally authored by jpdarela (Mon Dec 28 18:08:27 -03 2020). Rewritten to
+use a vectorized I/O pipeline while preserving the on-disk layout
+(filenames, dict keys, metadata file name) of the legacy producer.
+"""
+
+from __future__ import annotations
+
+import argparse
 import bz2
+import concurrent.futures
+import os
+import sys
+import tomllib
+from copy import deepcopy
+from pathlib import Path
+
+import _pickle as pkl
 import numpy as np
-from netCDF4 import MFDataset
+from netCDF4 import Dataset, MFDataset, MFTime  # type: ignore
 
-__wat__ = "Pre-processing of input data to feed CAETÊ"
-__author__ = "jpdarela"
-__date__ = "Mon Dec 28 18:08:27 -03 2020"
-__descr__ = """ This script works in the folowing manner: Given a directory (raw_data) with
-                input climatic data in the form of netCDF files the script opens these files as
-                MFDataset objects. THen the metadata of the climatic data is compiled from the source
-                files and writen to a file in the output folder (clim_data). This folder will store
-                the files with input data for each gridcell for all climatic and soil variables. Each
-                gridcell will have one file with all variables for the entire timespan covered by the
-                netCDF files.
-                """
-
-# GLOBAL VARIABLES (paths)
-
-CLIMATIC_DATA = "historical_ISIMIP-v3"
-ANCILLARY_OUTPUT = "ISIMIP_HISTORICAL_METADATA.pbz2"
+from geos import pan_amazon_region
 
 
-# FOLDER IN THE SERVER WHERE ALL data IS stored FOR ALL USERS
-shared_data = Path("/home/amazonfaceme/shared_data/")
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
-# INPUT NETCDF FILES WITH historical CLIMATIC DATA
-raw_data = Path(os.path.join(
-    shared_data, Path(CLIMATIC_DATA)))
+# These are the variables CAETÊ expects in every per-gridcell .pbz2 file.
+CLIMATE_VARS: tuple[str, ...] = ("hurs", "tas", "pr", "ps", "rsds")
+SOIL_VARS: tuple[str, ...] = ("tn", "tp", "ap", "ip", "op")
 
-# INPUT FILES WITH SOIL DATA (NUTRIENTS)
-soil_data = Path(os.path.join(shared_data, "soil"))
+# Filename used by the legacy producer; kept identical for backward compat.
+METADATA_FILENAME = "ISIMIP_HISTORICAL_METADATA.pbz2"
 
-# OUTPUT FOLDER - WILL STORE THE DATA THAT WILL RUN CAETÊ
-clim_data = Path(os.path.join(shared_data, "HISTORICAL-RUN"))
+GRID_SHAPE = (360, 720)
 
-# Load Pan Amazon mask
-mask = np.load(os.path.join(
-    shared_data, Path("mask/mask_raisg-360-720.npy")))
-
-
-# Classes and functions to help data transformation
-
-
-class ds_metadata:
-    """ Helper to collect and save the netCDF files ancillary data"""
-
-    def __init__(self, dsets):
-        self.ds_dict = [ds.__dict__ for ds in dsets]
-        self.data = None
-        self.ok = False
-        self.fpath = None
-        self.time = {"standard_name": None,
-                     "units": None,
-                     "calendar": None,
-                     "time_index": None}
-
-        self.lat = {"standard_name": None,
-                    "units": None,
-                    "axis": None,
-                    "lat_index": None}
-
-        self.lon = {"name": None,
-                    "units": None,
-                    "axis": None,
-                    "lon_index": None}
-        return None
-
-    def fill_metadata(self, ds):
-        self.time["standard_name"] = ds.variables['time'].standard_name
-        self.time["units"] = ds.variables['time'].units
-        self.time["calendar"] = ds.variables['time'].calendar
-        self.time["time_index"] = ds.variables['time'][:]
-
-        self.lat["standard_name"] = ds.variables['lat'].standard_name
-        self.lat["units"] = ds.variables['lat'].units
-        self.lat["axis"] = ds.variables['lat'].axis
-        self.lat["lat_index"] = ds.variables['lat'][:]
-
-        self.lon["standard_name"] = ds.variables['lon'].standard_name
-        self.lon["units"] = ds.variables['lon'].units
-        self.lon["axis"] = ds.variables['lon'].axis
-        self.lon["lon_index"] = ds.variables['lon'][:]
-        self.ok = True
-
-        self.data = (self.time, self.lat, self.lon)
-
-    def write(self, fpath):
-        assert self.ok, 'INcomplte data, apply fill_metadata first'
-        self.fpath = fpath
-        with bz2.BZ2File(self.fpath, mode='w') as fh:
-            pkl.dump(self.data, fh)
+# ANSI colors for friendlier console output.
+_C_BLUE = "\033[94m"
+_C_RED = "\033[91m"
+_C_CYAN = "\033[96m"
+_C_GREEN = "\033[92m"
+_C_RESET = "\033[0m"
 
 
-class input_data:
-    """ Helper to transform and write data for CAETÊ input"""
+# ---------------------------------------------------------------------------
+# CLI & configuration
+# ---------------------------------------------------------------------------
 
-    def __init__(self, y, x, dpath):
-        self.y = y
-        self.x = x
-        self.filename = f"input_data_{self.y}-{self.x}.pbz2"
-        self.dpath = Path(dpath)
-        self.fpath = Path(os.path.join(self.dpath, self.filename))
-        self.vars = ["hurs", "tas", "ps", "pr",
-                     "rsds", "tn", "tp", "ap", "ip", "op"]
-        self.data = {"hurs": None,
-                     "tas": None,
-                     "ps": None,
-                     "pr": None,
-                     "rsds": None,
-                     "tn": None,
-                     "tp": None,
-                     "ap": None,
-                     "ip": None,
-                     "op": None}
-
-        self.cache = True if self.fpath.exists() else False
-        self.loaded = True
-
-    def _clean_memory(self):
-        self.loaded = False
-        self.data = {"hurs": None,
-                     "tas": None,
-                     "ps": None,
-                     "pr": None,
-                     "rsds": None,
-                     "tn": None,
-                     "tp": None,
-                     "ap": None,
-                     "ip": None,
-                     "op": None}
-
-    def _load_dict(self, var, DATA):
-        assert var in self.vars, "Variable does not exists"
-        assert self.data[var] is None, "Variable already sat"
-        self.data[var] = DATA
-
-    def load(self):
-        assert self.cache == True, "There is no cache data"
-        assert self.dpath.exists()
-        with bz2.BZ2File(self.fpath, mode='r') as fh:
-            self.data = pkl.load(fh)
-            self.loaded = True
-
-    def write(self):
-        assert self.loaded, "Data struct not loaded in memory for file write"
-        assert self.dpath.exists()
-        with bz2.BZ2File(self.fpath, mode='w') as fh:
-            pkl.dump(self.data, fh)
-            self.cache = True
-            self.loaded = False
-            self._clean_memory()
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        description=__doc__.split("\n", 1)[0],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p.add_argument("--dataset", type=str, default=None,
+                   help="Dataset folder name (overrides toml).")
+    p.add_argument("--mode", type=str, default=None,
+                   help="Mode subfolder (e.g. obsclim, spinclim).")
+    p.add_argument("--mask-file", type=str, default=None,
+                   help="Override mask file path from toml.")
+    p.add_argument("--test", action="store_true",
+                   help="Validate previously written .pbz2 files against raw NetCDF.")
+    return p
 
 
-# HElpers to open and load clmatic and soil datasets
-def read_clim_data(var):
-
-    if var == 'hurs':
-        ds_hurs = MFDataset(os.path.join(raw_data, "hurs_*.nc4"))
-        dt = ds_hurs.variables['hurs'][:]
-        no_data = ds_hurs.variables['hurs'].missing_value
-        ds_hurs.close()
-        return dt, no_data
-
-    elif var == 'tas':
-        ds_tas = MFDataset(os.path.join(raw_data, "tas_*.nc4"))
-        dt = ds_tas.variables['tas'][:]
-        no_data = ds_tas.variables['tas'].missing_value
-        ds_tas.close()
-        return dt, no_data
-
-    elif var == 'pr':
-        ds_pr = MFDataset(os.path.join(raw_data, "pr_*.nc4"))
-        dt = ds_pr.variables['pr'][:]
-        no_data = ds_pr.variables['pr'].missing_value
-        ds_pr.close()
-        return dt, no_data
-
-    elif var == 'ps':
-        ds_ps = MFDataset(os.path.join(raw_data, "ps_*.nc4"))
-        dt = ds_ps.variables['ps'][:]
-        no_data = ds_ps.variables['ps'].missing_value
-        ds_ps.close()
-        return dt, no_data
-
-    elif var == 'rsds':
-        ds_rsds = MFDataset(os.path.join(raw_data, "rsds_*.nc4"))
-        dt = ds_rsds.variables['rsds'][:]
-        no_data = ds_rsds.variables['rsds'].missing_value
-        ds_rsds.close()
-        return dt, no_data
-
-# Open soil Stuff
+def _load_config(toml_path: Path) -> dict:
+    if not toml_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {toml_path}")
+    with open(toml_path, "rb") as fh:
+        return tomllib.load(fh)
 
 
-def read_soil_data(var):
-    if var == 'tn':
-        return np.load(os.path.join(soil_data, Path('total_n_PA.npy')))
-    elif var == 'tp':
-        return np.load(os.path.join(soil_data, Path('total_p.npy')))
-    elif var == 'ap':
-        return np.load(os.path.join(soil_data, Path('avail_p.npy')))
-    elif var == 'ip':
-        return np.load(os.path.join(soil_data, Path('inorg_p.npy')))
-    elif var == 'op':
-        return np.load(os.path.join(soil_data, Path('org_p.npy')))
+# ---------------------------------------------------------------------------
+# NetCDF helpers
+# ---------------------------------------------------------------------------
+
+def open_clim_dataset(raw_data: Path, var: str) -> Dataset | MFDataset:
+    """Open ``var``'s NetCDF file(s) under ``raw_data`` as a single dataset."""
+    files = sorted(raw_data.glob(f"*_{var}_*"))
+    if not files:
+        raise FileNotFoundError(
+            f"No NetCDF file for variable {var!r} in {raw_data}"
+        )
+    if len(files) == 1:
+        return Dataset(str(files[0]))
+    return MFDataset([str(f) for f in files])
 
 
-def main():
-    # SAVE METADATA
-    dss = (MFDataset(os.path.join(raw_data, "hurs_*.nc4")),
-           MFDataset(os.path.join(raw_data, "tas_*.nc4")),
-           MFDataset(os.path.join(raw_data, "pr_*.nc4")),
-           MFDataset(os.path.join(raw_data, "ps_*.nc4")),
-           MFDataset(os.path.join(raw_data, "rsds_*.nc4")))
+def get_time_var(ds: Dataset | MFDataset):
+    """Return the time variable, wrapped in ``MFTime`` for ``MFDataset``."""
+    if isinstance(ds, MFDataset):
+        return MFTime(ds.variables["time"])
+    return ds.variables["time"]
 
-    ancillary_data = ds_metadata(dss)
-    ancillary_data.fill_metadata(dss[0])
-    ancillary_data.write(os.path.join(
-        clim_data, ANCILLARY_OUTPUT))
 
-    for ds in dss:
+# ---------------------------------------------------------------------------
+# Vectorized climate variable extraction
+# ---------------------------------------------------------------------------
+
+def process_climate_variable(var: str, raw_data: Path, region: dict,
+                             local_mask: np.ndarray) -> np.ndarray:
+    """Read ``var`` for the regional bbox and return ``(n_stations, time)``.
+
+    The returned array has one row per *unmasked* gridcell (in row-major
+    ``(Y, X)`` order over ``local_mask``) and one column per time step.
+    Any masked entries are filled with the variable's regional mean.
+    """
+    print(f"  {_C_BLUE}reading{_C_RESET} {var} ...", flush=True)
+    ds = open_clim_dataset(raw_data, var)
+    try:
+        cube = ds.variables[var][
+            :,
+            region["ymin"]: region["ymax"],
+            region["xmin"]: region["xmax"],
+        ]  # (time, ny, nx) masked array
+    finally:
         ds.close()
-    del dss
 
-    # Create input templates
-    input_templates = []
-    # Check outputs dir
-    dir_check = True if clim_data.exists() else os.mkdir(clim_data)
+    valid = ~local_mask
+    # Vectorized fancy indexing → (time, n_stations) → transpose.
+    station = cube[:, valid].T  # ndarray-or-masked-array
 
-    for Y in range(360):
-        for X in range(720):
-            if not mask[Y][X]:
-                input_templates.append(input_data(Y, X, clim_data))
-    input_templates = np.array(input_templates, dtype=object)
+    # The model expects no masked / NaN values. Fill any masked entries
+    # with the regional mean of the variable; print a warning if any exist.
+    if np.ma.isMaskedArray(station):
+        n_masked = int(np.ma.count_masked(station))
+        if n_masked:
+            print(
+                f"  {_C_RED}warning:{_C_RESET} {n_masked} masked values "
+                f"in {var}; filling with regional mean.",
+                flush=True,
+            )
+        station = station.filled(float(station.mean()))
 
-    # HURS & soil:
-    hurs, no_data = read_clim_data('hurs')
-    tn = read_soil_data('tn')
-    tp = read_soil_data('tp')
-    ap = read_soil_data('ap')
-    ip = read_soil_data('ip')
-    op = read_soil_data('op')
+    print(
+        f"  extracted {station.shape[0]} stations × {station.shape[1]} timesteps for {var}",
+        flush=True,
+    )
+    return np.ascontiguousarray(station)
 
-    for grd in input_templates:
-        grd._load_dict('hurs', hurs[:, grd.y, grd.x].data.copy(order="F"))
-        grd._load_dict('tn', tn[grd.y, grd.x].copy(order="F"))
-        grd._load_dict('tp', tp[grd.y, grd.x].copy(order="F"))
-        grd._load_dict('ap', ap[grd.y, grd.x].copy(order="F"))
-        grd._load_dict('ip', ip[grd.y, grd.x].copy(order="F"))
-        grd._load_dict('op', op[grd.y, grd.x].copy(order="F"))
 
-        hurs[:, grd.y, grd.x] = no_data
-        grd.write()
+def read_soil(soil_data: Path, soil_files: dict, var: str) -> np.ndarray:
+    fname = soil_files[var]
+    arr = np.load(soil_data / fname)
+    if arr.shape != GRID_SHAPE:
+        raise ValueError(
+            f"Soil array {fname} has shape {arr.shape}; expected {GRID_SHAPE}"
+        )
+    return arr
 
-    del tn
-    del tp
-    del ap
-    del ip
-    del op
-    del hurs
 
-    tas, no_data = read_clim_data('tas')
-    for grd in input_templates:
-        grd.load()
-        grd._load_dict('tas', tas[:, grd.y, grd.x].data.copy(order="F"))
-        tas[:, grd.y, grd.x] = no_data
-        grd.write()
-    del tas
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
 
-    pr, no_data = read_clim_data('pr')
-    for grd in input_templates:
-        grd.load()
-        grd._load_dict('pr', pr[:, grd.y, grd.x].data.copy(order="F"))
-        pr[:, grd.y, grd.x] = no_data
-        grd.write()
-    del pr
+class DSMetadata:
+    """Collects coordinate metadata and writes the metadata pbz2 file.
 
-    ps, no_data = read_clim_data('ps')
-    for grd in input_templates:
-        grd.load()
-        grd._load_dict('ps', ps[:, grd.y, grd.x].data.copy(order="F"))
-        ps[:, grd.y, grd.x] = no_data
-        grd.write()
-    del ps
+    Mirrors the legacy ``ds_metadata`` class so the on-disk format is
+    unchanged: a 3-tuple ``(time, lat, lon)`` of plain dicts.
+    """
 
-    rsds, no_data = read_clim_data('rsds')
-    for grd in input_templates:
-        grd.load()
-        grd._load_dict('rsds', rsds[:, grd.y, grd.x].data.copy(order="F"))
-        rsds[:, grd.y, grd.x] = no_data
-        grd.write()
-    del rsds
+    def __init__(self) -> None:
+        self.time: dict = {
+            "standard_name": None, "units": None,
+            "calendar": None, "time_index": None,
+        }
+        self.lat: dict = {
+            "standard_name": None, "units": None,
+            "axis": None, "lat_index": None,
+        }
+        self.lon: dict = {
+            "standard_name": None, "units": None,
+            "axis": None, "lon_index": None,
+        }
+        self._ok = False
+
+    def fill(self, ds: Dataset | MFDataset, time_var) -> None:
+        self.time["standard_name"] = time_var.standard_name
+        self.time["units"] = time_var.units
+        self.time["calendar"] = time_var.calendar
+        self.time["time_index"] = time_var[:]
+
+        latv = ds.variables["lat"]
+        lonv = ds.variables["lon"]
+        self.lat["standard_name"] = latv.standard_name
+        self.lat["units"] = latv.units
+        self.lat["axis"] = latv.axis
+        self.lat["lat_index"] = latv[:]
+        self.lon["standard_name"] = lonv.standard_name
+        self.lon["units"] = lonv.units
+        self.lon["axis"] = lonv.axis
+        self.lon["lon_index"] = lonv[:]
+        self._ok = True
+
+    def write(self, fpath: Path) -> None:
+        if not self._ok:
+            raise RuntimeError("Metadata not filled; call fill() first.")
+        with bz2.BZ2File(fpath, mode="w") as fh:
+            pkl.dump((self.time, self.lat, self.lon), fh)
+
+
+class GridcellWriter:
+    """Per-gridcell .pbz2 manager.
+
+    ``y`` and ``x`` are stored as **global** indices on the 360×720 grid,
+    matching the legacy filename convention.
+    """
+
+    __slots__ = ("y", "x", "fpath", "_data")
+
+    def __init__(self, global_y: int, global_x: int, dpath: Path) -> None:
+        self.y = global_y
+        self.x = global_x
+        self.fpath = dpath / f"input_data_{self.y}-{self.x}.pbz2"
+        # Preserve dict key order: 5 climate then 5 soil.
+        self._data: dict = {k: None for k in CLIMATE_VARS + SOIL_VARS}
+
+    def set(self, var: str, value) -> None:
+        if var not in self._data:
+            raise KeyError(f"Unknown variable {var!r}")
+        # deepcopy avoids cross-cell aliasing for soil scalars (cheap)
+        # and is a no-op for the per-cell climate slices.
+        self._data[var] = deepcopy(value)
+
+    def load(self) -> None:
+        with bz2.BZ2File(self.fpath, mode="r") as fh:
+            self._data = pkl.load(fh)
+
+    def write(self) -> None:
+        with bz2.BZ2File(self.fpath, mode="w") as fh:
+            pkl.dump(self._data, fh)
+
+
+def _write_climate_var_to_cell(cell: GridcellWriter, var: str, ts: np.ndarray) -> None:
+    cell.load()
+    cell.set(var, ts)
+    cell.write()
+
+
+# ---------------------------------------------------------------------------
+# Main pipeline
+# ---------------------------------------------------------------------------
+
+def run(config: dict, dataset: str, mode: str, mask: np.ndarray,
+        out_dir: Path) -> None:
+    region = pan_amazon_region
+    if not (0 <= region["ymin"] < region["ymax"] < GRID_SHAPE[0]):
+        raise ValueError(f"Invalid y bounds: {region}")
+    if not (0 <= region["xmin"] < region["xmax"] < GRID_SHAPE[1]):
+        raise ValueError(f"Invalid x bounds: {region}")
+
+    raw_data = Path(config["climate_data"]) / dataset / f"{mode}_raw"
+    if not raw_data.exists():
+        raise FileNotFoundError(f"Raw climate folder not found: {raw_data}")
+
+    soil_data = Path(config["soil_data"]).resolve()
+    if not soil_data.exists():
+        raise FileNotFoundError(f"Soil data folder not found: {soil_data}")
+    soil_files: dict = config["soil_files"]
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Clean previous outputs (legacy behavior).
+    for old in out_dir.glob("*.pbz2"):
+        old.unlink()
+
+    print(f"{_C_BLUE}Raw climate folder:{_C_RESET} {raw_data}")
+    print(f"{_C_BLUE}Output folder:    {_C_RESET} {out_dir}")
+
+    # ---- Metadata ------------------------------------------------------
+    print(f"\n{_C_BLUE}1/4 Building metadata{_C_RESET}")
+    datasets = {v: open_clim_dataset(raw_data, v) for v in CLIMATE_VARS}
+    try:
+        time_vars = {v: get_time_var(datasets[v]) for v in CLIMATE_VARS}
+        ref = time_vars[CLIMATE_VARS[0]]
+        ref_arr = ref[:]
+        for v, tv in time_vars.items():
+            if tv.units != ref.units or tv.calendar != ref.calendar:
+                raise ValueError(
+                    f"time units/calendar mismatch for {v}: "
+                    f"({tv.units}, {tv.calendar}) vs ({ref.units}, {ref.calendar})"
+                )
+            if not np.array_equal(tv[:], ref_arr):
+                raise ValueError(f"time index mismatch for {v}")
+
+        meta = DSMetadata()
+        meta.fill(datasets[CLIMATE_VARS[0]], ref)
+        meta.write(out_dir / METADATA_FILENAME)
+        print(f"  wrote {METADATA_FILENAME} ({ref_arr.size} timesteps)")
+    finally:
+        for ds in datasets.values():
+            ds.close()
+
+    # ---- Build gridcell writers ---------------------------------------
+    print(f"\n{_C_BLUE}2/4 Selecting valid gridcells{_C_RESET}")
+    local_mask = mask[
+        region["ymin"]: region["ymax"],
+        region["xmin"]: region["xmax"],
+    ]
+    ny, nx = local_mask.shape
+    cells: list[GridcellWriter] = []
+    for ly in range(ny):
+        for lx in range(nx):
+            if not local_mask[ly, lx]:
+                cells.append(GridcellWriter(
+                    region["ymin"] + ly,
+                    region["xmin"] + lx,
+                    out_dir,
+                ))
+    print(f"  {len(cells)} land gridcells in region "
+          f"(box {ny}×{nx} = {ny*nx} cells, "
+          f"{int(local_mask.sum())} masked out)")
+
+    # ---- Soil data: write soil + initialize each cell file ------------
+    print(f"\n{_C_BLUE}3/4 Writing soil data{_C_RESET}")
+    soil_arrs = {v: read_soil(soil_data, soil_files, v) for v in SOIL_VARS}
+    for cell in cells:
+        for v in SOIL_VARS:
+            value = float(soil_arrs[v][cell.y, cell.x])
+            if value < 0:
+                raise ValueError(
+                    f"Negative soil {v}={value} at (y={cell.y}, x={cell.x})"
+                )
+            cell.set(v, value)
+        cell.write()
+    print(f"  wrote soil data for {len(cells)} cells")
+
+    # ---- Climate data: vectorized read, parallel write ----------------
+    print(f"\n{_C_BLUE}4/4 Writing climate data{_C_RESET}")
+    for var in CLIMATE_VARS:
+        station = process_climate_variable(var, raw_data, region, local_mask)
+        if station.shape[0] != len(cells):
+            raise RuntimeError(
+                f"Station count mismatch for {var}: "
+                f"{station.shape[0]} vs {len(cells)} cells"
+            )
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
+            futs = [
+                pool.submit(_write_climate_var_to_cell, cell, var, station[i])
+                for i, cell in enumerate(cells)
+            ]
+            concurrent.futures.wait(futs)
+            for f in futs:
+                exc = f.exception()
+                if exc is not None:
+                    raise exc
+
+    print(f"\n{_C_GREEN}Done.{_C_RESET} Outputs at: {out_dir}")
+
+
+# ---------------------------------------------------------------------------
+# Test harness
+# ---------------------------------------------------------------------------
+
+def _test_one(out_dir: Path, raw_data: Path, var: str,
+              y: int, x: int, sample: int = 500) -> bool:
+    fpath = out_dir / f"input_data_{y}-{x}.pbz2"
+    if not fpath.exists():
+        print(f"{_C_RED}MISSING{_C_RESET} {fpath}")
+        return False
+    with bz2.BZ2File(fpath, "r") as fh:
+        cell = pkl.load(fh)
+    ds = open_clim_dataset(raw_data, var)
+    try:
+        raw = ds.variables[var][:sample, y, x]
+    finally:
+        ds.close()
+    saved = cell[var][:sample]
+    ok = np.allclose(raw, saved)
+    err = float(np.mean(np.abs(np.asarray(raw) - np.asarray(saved))))
+    tag = f"{_C_CYAN}PASS{_C_RESET}" if ok else f"{_C_RED}FAIL{_C_RESET}"
+    print(f"  {tag} {var} cell ({y},{x}) mean|err|={err:.3e}")
+    return ok
+
+
+def run_tests(out_dir: Path, raw_data: Path, n_cells: int = 5,
+              sample: int = 500) -> None:
+    files = sorted(out_dir.glob("input_data_*-*.pbz2"))
+    if not files:
+        raise FileNotFoundError(f"No .pbz2 files in {out_dir}")
+    rng = np.random.default_rng()
+    pick = rng.choice(len(files), size=min(n_cells, len(files)), replace=False)
+    coords: list[tuple[int, int]] = []
+    for i in pick:
+        stem = files[i].stem.split("_")[-1]
+        y, x = stem.split("-")
+        coords.append((int(y), int(x)))
+    print(f"Testing cells: {coords}")
+    all_ok = True
+    for var in CLIMATE_VARS:
+        for y, x in coords:
+            if not _test_one(out_dir, raw_data, var, y, x, sample):
+                all_ok = False
+    print(f"\n{_C_GREEN if all_ok else _C_RED}"
+          f"{'ALL TESTS PASSED' if all_ok else 'SOME TESTS FAILED'}{_C_RESET}")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+
+    config = _load_config(Path("./pre_processing.toml"))
+    dataset = args.dataset or config.get("dataset")
+    mode = args.mode or config.get("mode")
+    if not dataset or not mode:
+        print(f"{_C_RED}--dataset and --mode required (or set in toml).{_C_RESET}")
+        return 2
+
+    mask_path = Path(args.mask_file) if args.mask_file else Path(config["mask_file"])
+    if not mask_path.exists():
+        print(f"{_C_RED}Mask file not found: {mask_path}{_C_RESET}")
+        return 2
+    mask = np.load(mask_path)
+    if mask.shape != GRID_SHAPE:
+        print(f"{_C_RED}Mask shape {mask.shape} != {GRID_SHAPE}{_C_RESET}")
+        return 2
+
+    out_dir = Path(f"./{dataset}/{mode}").resolve()
+
+    print(f"{_C_BLUE}CAETÊ pre-processing{_C_RESET}  dataset={dataset!r}  mode={mode!r}")
+
+    if args.test:
+        raw_data = Path(config["climate_data"]) / dataset / f"{mode}_raw"
+        run_tests(out_dir, raw_data)
+        return 0
+
+    run(config, dataset, mode, mask, out_dir)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,0 +1,35 @@
+# Configuration for input/pre_processing.py
+#
+# Expected raw climate data layout:
+#   {climate_data}/{dataset}/{mode}_raw/*_{var}_*.nc[4]
+#
+# where {var} is one of: hurs, tas, pr, ps, rsds.
+# CLI flags --dataset / --mode / --mask-file override the defaults below.
+
+# Root folder containing one subdirectory per dataset.
+climate_data = "C:\\Users\\darel\\Desktop"
+
+# Default dataset and mode (override on the CLI with --dataset / --mode).
+dataset = "20CRv3-ERA5_ISIMIP3a"
+mode = "obsclim"
+
+# Resolution settings (degrees). The pre-processor and geos.py assume 0.5°.
+yres = 0.5
+xres = 0.5
+
+# Land/region mask. Boolean (360, 720) array; True = masked out.
+mask_file = "./mask/mask_raisg-360-720.npy"
+
+# Folder containing the soil nutrient .npy files referenced under [soil_files].
+soil_data = "./soil"
+
+# Filenames of the soil nutrient arrays (all in g/m2). Resolved against soil_data.
+[soil_files]
+tn = "total_n.npy"
+tp = "total_p.npy"
+ap = "avail_p.npy"
+ip = "inorg_p.npy"
+op = "org_p.npy"
+
+
+
