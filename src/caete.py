@@ -42,25 +42,27 @@ from caete_module import photo as m
 from caete_module import soil_dec
 
 NO_DATA = [-9999.0, -9999.0]
-print(f"RUNNING CAETÊ with {gp.npls} Plant Life Strategies")
+# print(f"RUNNING CAETÊ with {gp.npls} Plant Life Strategies")
 # GLOBAL
 out_ext = ".pkz"
 npls = gp.npls
 runplotp = False
 
-while True:
-    maskp = input(
-        "TWO MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
-    if maskp == 'b':
-        mask = np.load("../input/mask/mask_raisg-360-720.npy")
-        break
-    if maskp == 'a':
-        mask = np.load("../input/mask/mask_BIOMA.npy")
-        break
-    if maskp == 'c':
-        mask = np.load("../input/mask/mask_raisg-360-720.npy")
-        runplotp = True
-        break
+# while True:
+#     maskp = input(
+#         "TWO MASK OPTIONS: AMAZON BIOME (a); PAN-AMAZON (b) OR PLOT RUN (c): ")
+#     if maskp == 'b':
+#         mask = np.load("../input/mask/mask_raisg-360-720.npy")
+#         break
+#     if maskp == 'a':
+#         mask = np.load("../input/mask/mask_BIOMA.npy")
+#         break
+#     if maskp == 'c':
+#         mask = np.load("../input/mask/mask_raisg-360-720.npy")
+#         runplotp = True
+#         break
+
+mask = np.load("../input/mask/mask_raisg-360-720.npy")
 
 Pan_Amazon_RECTANGLE = "y = 160:221 x = 201:272"
 
@@ -68,88 +70,70 @@ Pan_Amazon_CORNERS = {'ulc': (201, 160),
                       'lrc': (271, 220)}
 
 
-run_breaks_hist = [('19790101', '19801231'),
-                   ('19810101', '19821231'),
-                   ('19830101', '19841231'),
-                   ('19850101', '19861231'),
-                   ('19870101', '19881231'),
-                   ('19890101', '19901231'),
-                   ('19910101', '19921231'),
-                   ('19930101', '19941231'),
-                   ('19950101', '19961231'),
-                   ('19970101', '19981231'),
-                   ('19990101', '20001231'),
-                   ('20010101', '20021231'),
-                   ('20030101', '20041231'),
-                   ('20050101', '20061231'),
-                   ('20070101', '20081231'),
-                   ('20090101', '20101231'),
-                   ('20110101', '20121231'),
-                   ('20130101', '20141231'),
-                   ('20150101', '20161231')]
+def build_run_breaks(start, end, *, chunk_years=2, align="calendar"):
+    """Build a list of (start, end) date-string tuples covering [start, end].
 
-run_breaks_CMIP5_hist = [('19790101', '19801231'),
-                         ('19810101', '19821231'),
-                         ('19830101', '19841231'),
-                         ('19850101', '19861231'),
-                         ('19870101', '19881231'),
-                         ('19890101', '19901231'),
-                         ('19910101', '19921231'),
-                         ('19930101', '19941231'),
-                         ('19950101', '19961231'),
-                         ('19970101', '19981231'),
-                         ('19990101', '20001231'),
-                         ('20010101', '20021231'),
-                         ('20030101', '20041231'),
-                         ('20050101', '20051231')]
+    Each tuple has the format ('YYYYMMDD', 'YYYYMMDD'), matching the
+    convention used by `cf_date2str` and the HDF5 row keys.
 
-run_breaks_CMIP5_proj = [('20060101', '20071231'),
-                         ('20080101', '20091231'),
-                         ('20100101', '20111231'),
-                         ('20120101', '20131231'),
-                         ('20140101', '20151231'),
-                         ('20160101', '20171231'),
-                         ('20180101', '20191231'),
-                         ('20200101', '20211231'),
-                         ('20220101', '20231231'),
-                         ('20240101', '20251231'),
-                         ('20260101', '20271231'),
-                         ('20280101', '20291231'),
-                         ('20300101', '20311231'),
-                         ('20320101', '20331231'),
-                         ('20340101', '20351231'),
-                         ('20360101', '20371231'),
-                         ('20380101', '20391231'),
-                         ('20400101', '20411231'),
-                         ('20420101', '20431231'),
-                         ('20440101', '20451231'),
-                         ('20460101', '20471231'),
-                         ('20480101', '20491231'),
-                         ('20500101', '20511231'),
-                         ('20520101', '20531231'),
-                         ('20540101', '20551231'),
-                         ('20560101', '20571231'),
-                         ('20580101', '20591231'),
-                         ('20600101', '20611231'),
-                         ('20620101', '20631231'),
-                         ('20640101', '20651231'),
-                         ('20660101', '20671231'),
-                         ('20680101', '20691231'),
-                         ('20700101', '20711231'),
-                         ('20720101', '20731231'),
-                         ('20740101', '20751231'),
-                         ('20760101', '20771231'),
-                         ('20780101', '20791231'),
-                         ('20800101', '20811231'),
-                         ('20820101', '20831231'),
-                         ('20840101', '20851231'),
-                         ('20860101', '20871231'),
-                         ('20880101', '20891231'),
-                         ('20900101', '20911231'),
-                         ('20920101', '20931231'),
-                         ('20940101', '20951231'),
-                         ('20960101', '20971231'),
-                         ('20980101', '20991231')]
+    Parameters
+    ----------
+    start, end : str | datetime.date
+        Inclusive bounds. Strings must be 'YYYYMMDD'.
+    chunk_years : int, default 2
+        Number of years per chunk.
+    align : {'calendar', 'from_start'}, default 'calendar'
+        - 'calendar': every chunk except possibly the first starts on
+          Jan 1 and ends on Dec 31 of the last year in that chunk.
+          The first chunk starts at `start`; if `start` is not Jan 1,
+          the first chunk is shorter.
+        - 'from_start': chunks of exactly `chunk_years` calendar years
+          starting at `start` (i.e. `start + chunk_years*yr - 1 day`),
+          with no Dec-31 snapping.
+    """
+    import datetime as _dt
+
+    def _to_date(x):
+        if isinstance(x, str):
+            return _dt.date(int(x[0:4]), int(x[4:6]), int(x[6:8]))
+        if isinstance(x, _dt.datetime):
+            return x.date()
+        if isinstance(x, _dt.date):
+            return x
+        raise TypeError(f"Unsupported date type: {type(x)!r}")
+
+    def _fmt(d):
+        return f"{d.year:04d}{d.month:02d}{d.day:02d}"
+
+    if chunk_years < 1:
+        raise ValueError("chunk_years must be >= 1")
+    if align not in ("calendar", "from_start"):
+        raise ValueError("align must be 'calendar' or 'from_start'")
+
+    s = _to_date(start)
+    e = _to_date(end)
+    if e < s:
+        raise ValueError("end must be on or after start")
+
+    out = []
+    cur = s
+    while cur <= e:
+        if align == "calendar":
+            chunk_end = _dt.date(cur.year + chunk_years - 1, 12, 31)
+        else:  # from_start
+            chunk_end = _dt.date(cur.year + chunk_years, cur.month, cur.day) - _dt.timedelta(days=1)
+        if chunk_end > e:
+            chunk_end = e
+        out.append((_fmt(cur), _fmt(chunk_end)))
+        cur = chunk_end + _dt.timedelta(days=1)
+    return out
+
+
+run_breaks_hist = build_run_breaks('19010101', '20241231', chunk_years=10)
+
+run_breaks_CMIP5_hist = build_run_breaks('19790101', '20051231')
+
+run_breaks_CMIP5_proj = build_run_breaks('20060101', '20991231')
 
 
 rbrk = [run_breaks_hist, run_breaks_CMIP5_hist, run_breaks_CMIP5_proj]
@@ -771,18 +755,109 @@ class grd:
                   save=True,
                   nutri_cycle=True,
                   afex=False):
-        """ start_date [str]   "yyyymmdd" Start model execution
+        """Run the CAETÊ-DVM Fortran core for this gridcell over a date range.
 
-            end_date   [str]   "yyyymmdd" End model execution
+        Drives the daily Fortran subroutines (`daily_budget`, `carbon3`,
+        `soil_temp`, etc.), updates the gridcell state in place, and
+        optionally writes per-chunk output pickles to ``self.out_dir``.
 
-            spinup     [int]   Number of repetitions in spinup. 0 for no spinup
+        Parameters
+        ----------
+        start_date : str
+            Inclusive start date in ``"YYYYMMDD"`` format. Must lie within
+            ``[self.start_date, self.end_date]`` (the climate-input span)
+            and must be strictly before ``end_date``.
 
-            fix_co2    [Float] Fixed value for ATM [CO2]
-                       [int]   Fixed value for ATM [CO2]
-                       [str]   "yyyy" Corresponding year of an ATM [CO2]
+        end_date : str
+            Inclusive end date in ``"YYYYMMDD"`` format. Must lie within
+            ``[self.start_date, self.end_date]``.
 
-            This function run the fortran subroutines and manage data flux. It
-            is the proper CAETÊ-DVM execution in the start_date - end_date period
+        spinup : int, default 0
+            Number of times the Fortran loop is repeated over the
+            ``[start_date, end_date]`` window before returning.
+
+            - ``0`` — single forward pass (transient run).
+            - ``>0`` — that many repetitions; the gridcell state
+              (vegetation pools, soil pools, water) is carried across
+              repetitions, but climate is replayed from the start each
+              time. Used by the spinup phases in the driver.
+
+            When ``save=True``, every repetition flushes its own output
+            pickle (``spin01.pkz``, ``spin02.pkz``, ...). When
+            ``save=False``, no pickle is written but the in-memory state
+            still evolves.
+
+        fix_co2 : None | int | float | str, default None
+            Controls the atmospheric CO2 forcing.
+
+            - ``None`` — transient CO2: each year's value is read from
+              ``self.co2_data`` and linearly interpolated to the next
+              year on a daily basis.
+            - ``int`` or ``float`` (must be > 0) — use this fixed CO2
+              concentration (ppm) for every step. No interpolation.
+            - ``str`` — a 4-digit year (e.g. ``"1901"``); the CO2 value
+              for that year is looked up in ``self.co2_data`` and held
+              constant for the whole run. Used by the spinup phases.
+
+        save : bool, default True
+            If ``True``, allocate full daily output buffers, populate
+            them every step, and at the end of each spin repetition
+            flush them to a compressed pickle in ``self.out_dir`` (via
+            ``_flush_output`` / ``_save_output``) and append the path to
+            ``self.outputs``. The pickles are what ``write_h5`` later
+            reads.
+
+            If ``False``, allocate only the minimal state buffers
+            (``_allocate_output_nosave``) and write nothing. The daily
+            outputs are still computed inside the Fortran call, just not
+            stored. This is the spinup mode where you want pool states
+            to evolve but do not need per-day records.
+
+        nutri_cycle : bool, default True
+            Enable the soil nutrient (N and P) cycle update each step:
+            organic/inorganic pool transfers, sorption equilibria
+            (``sorbed_n_equil`` / ``sorbed_p_equil``), solution
+            equilibria, and plant uptake of organic N/P. When ``False``,
+            those updates are skipped and the soil mineral pools stay
+            (almost) frozen — used by phase-1 spinup to let vegetation
+            equilibrate against a static nutrient background before the
+            full biogeochemistry is switched on.
+
+        afex : bool, default False
+            Enable the AFEX (Amazon Fertilization EXperiment) nutrient
+            addition pulse. When ``True``, on day-of-year 365 of every
+            simulation year the file ``afex.cfg`` is read; its first
+            line must be ``N``, ``P``, or ``NP`` and selects which
+            available pool(s) receive an annual addition:
+
+            - ``N``  → ``sp_available_n += 12.5`` g N m⁻² yr⁻¹
+              (≈ 125 kg ha⁻¹ yr⁻¹)
+            - ``P``  → ``sp_available_p += 5.0``  g P m⁻² yr⁻¹
+              (≈  50 kg ha⁻¹ yr⁻¹)
+            - ``NP`` → both of the above.
+
+            Has no effect when ``False``; ``afex.cfg`` is not read in
+            that case.
+
+        Returns
+        -------
+        None
+            All results are stored on ``self`` (state pools) and, when
+            ``save=True``, in pickles registered in ``self.outputs``.
+
+        Notes
+        -----
+        - If, during the run, every Plant Life Strategy (PLS) goes
+          extinct, the gridcell is repopulated with a random subset
+          of PLS templates only when ``save=False`` (spinup); during a
+          transient run (``save=True``) the gridcell instead aborts
+          the remaining steps for that call and emits a
+          ``NO LIVING PLS - ABORT`` warning.
+        - The valid CO2 lookup range is whatever ``self.co2_data``
+          covers (the bundled file spans 1765-2024). The string form of
+          ``fix_co2`` is validated only as "parseable as int", so any
+          year outside that range will silently return ``None`` from
+          ``find_co2``.
         """
 
         assert self.filled, "The gridcell has no input data"
@@ -792,12 +867,15 @@ class grd:
         if self.plot is True:
             splitter = ","
         else:
-            splitter = "\t"
+            splitter = None  # split on any whitespace (tabs or spaces)
 
         def find_co2(year):
             for i in self.co2_data:
-                if int(i.split(splitter)[0]) == year:
-                    return float(i.split(splitter)[1].strip())
+                parts = i.split(splitter) if splitter else i.split()
+                if not parts or not parts[0].strip().lstrip('-').isdigit():
+                    continue
+                if int(parts[0]) == year:
+                    return float(parts[1].strip())
 
         def find_index(start, end):
             result = []
@@ -1235,12 +1313,15 @@ class grd:
         if self.plot:
             splitter = ","
         else:
-            splitter = "\t"
+            splitter = None  # split on any whitespace (tabs or spaces)
 
         def find_co2(year):
             for i in self.co2_data:
-                if int(i.split(splitter)[0]) == year:
-                    return float(i.split(splitter)[1].strip())
+                parts = i.split(splitter) if splitter else i.split()
+                if not parts or not parts[0].strip().lstrip('-').isdigit():
+                    continue
+                if int(parts[0]) == year:
+                    return float(parts[1].strip())
 
         def find_index(start, end):
             result = []

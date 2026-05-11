@@ -228,8 +228,8 @@ def write_h5(out_dir=Path('../outputs'), RUN=0, reclen=0):
 
         group_run = h5file.create_group(
             "/", f'RUN{RUN}', f'CAETÊ outputs tables Run {RUN}')
-        exp_rows = 41965625 # values for 60 grid points/// 916080 * (60/2749) 
-        exp_rows_snap = 57033 # 1254  * (60/2749)
+        exp_rows = 41965625 # Expected rows for the entire pan amazon. Values for 60 grid points: ~916080
+        exp_rows_snap = 57033 # here too 1254 
         table_g1 = h5file.create_table(
             group_run, 'Outputs_G1', tt.run_g1, "out vars of g1",
             filters=h5_opt, expectedrows=exp_rows)
@@ -262,7 +262,9 @@ def write_h5(out_dir=Path('../outputs'), RUN=0, reclen=0):
         cells = []
         grds = os.listdir(out_dir)
         grds = [Path(os.path.join(out_dir, grd)).resolve()
-                for grd in grds if Path(os.path.join(out_dir, grd)).is_dir()]
+                for grd in grds
+                if Path(os.path.join(out_dir, grd)).is_dir()
+                and grd.startswith("gridcell")]
         for grd in grds:
             XY = str(grd).split(os.sep)[-1].split("_")[0][8:].split("-")
             Y = int(XY[0])
@@ -430,4 +432,4 @@ def write_h5(out_dir=Path('../outputs'), RUN=0, reclen=0):
             spsh_row['area_f'] = dt['area'][:, -1]
             rec += 1
             spsh_row.append()
-        spin_table.flush
+        spin_table.flush()

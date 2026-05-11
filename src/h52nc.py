@@ -26,10 +26,10 @@ from netCDF4 import Dataset as dt
 
 from post_processing import cf_date2str, str2cf_date
 from caete_module import global_par as gp
-from caete import NO_DATA, print_progress, rbrk
+from caete import NO_DATA, print_progress, rbrk, build_run_breaks
 
 
-# GLOBAL VARIABLES
+# GLOBAL VARIABLES (populated lazily by catch_stime/h52nc; no longer read at import time)
 TIME_UNITS = ""
 CALENDAR = ""
 EXPERIMENT = ""
@@ -55,11 +55,6 @@ def set_historical_stime(new_descr=True):
     if new_descr:
         EXPERIMENT = input("Experiment description (for netcdf metadata): ")
     run_breaks = rbrk[0]
-
-
-####
-# READ values to  GLOBAL VARIABLES:
-catch_stime("stime.txt")
 
 
 def custom_rbrk(tp):
@@ -1234,9 +1229,52 @@ def create_nc_area(table, nc_out):
     write_area_output(area, time_index, nc_out)
 
 
-def h52nc(input_file, dump_nc_folder):
+def h52nc(input_file, dump_nc_folder, *,
+          chunk_years=2,
+          time_units=None,
+          calendar=None,
+          experiment=None,
+          stime_file="stime.txt",
+          intervals=None):
+    """Convert an HDF5 run output to netCDF chunks.
 
+    Parameters
+    ----------
+    input_file : path-like
+        HDF5 file produced by `write_h5`.
+    dump_nc_folder : path-like
+        Output folder for the per-chunk netCDF files.
+    chunk_years : int, default 2
+        Years per output netCDF chunk when intervals are derived from data.
+    time_units, calendar, experiment : str, optional
+        Override the corresponding netCDF attributes. If omitted, they are
+        read from `stime_file` (backwards-compatible behaviour).
+    stime_file : str, default "stime.txt"
+        Fallback file for `time_units`/`calendar`/`experiment` when those
+        kwargs are not supplied.
+    intervals : list[tuple[str, str]], optional
+        Explicit list of ('YYYYMMDD', 'YYYYMMDD') tuples to write. If None,
+        intervals are derived from the actual dates stored in the HDF5
+        tables using `build_run_breaks`.
+    """
     import time
+
+    global TIME_UNITS, CALENDAR, EXPERIMENT, run_breaks
+
+    # Resolve metadata: explicit args override stime.txt; fall back to it
+    # only when at least one needed value is missing.
+    if time_units is None or calendar is None or experiment is None:
+        try:
+            catch_stime(stime_file)
+        except FileNotFoundError:
+            if time_units is None or calendar is None or experiment is None:
+                raise
+    if time_units is not None:
+        TIME_UNITS = time_units
+    if calendar is not None:
+        CALENDAR = calendar
+    if experiment is not None:
+        EXPERIMENT = experiment
 
     drv = "H5FD_CORE" # Change the default load. ->> LOAD the h5 database in primary memory 
     mod = "a"
@@ -1246,28 +1284,45 @@ def h52nc(input_file, dump_nc_folder):
     h5f = tb.open_file(ip, mode=mod, driver=drv)
     print('Loaded')
 
-    g1_table = h5f.root.RUN0.Outputs_G1
-    print('Creating Sorted table for g1', time.ctime())
-    index_dt1 = g1_table.cols.date.create_csindex()
-    t1d = g1_table.copy(newname='indexedT1date', sortby=g1_table.cols.date)
-    g1_table.close()
-    # t1d = h5f.root.RUN0.indexedT1date
+    def _get_or_build_sorted(group, source_name, sorted_name):
+        """Return the pre-sorted copy of `source_name` if present in
+        `group`, otherwise build it on the fly (csindex + sorted copy).
+        """
+        if sorted_name in group:
+            print(f"Reusing existing sorted table: {sorted_name}")
+            return getattr(group, sorted_name)
+        src = getattr(group, source_name)
+        print(f"Creating Sorted table for {source_name}", time.ctime())
+        if not src.cols.date.is_indexed:
+            src.cols.date.create_csindex()
+        sorted_tbl = src.copy(newname=sorted_name, sortby=src.cols.date)
+        src.close()
+        return sorted_tbl
 
-    g2_table = h5f.root.RUN0.Outputs_G2
-    print('Creating Sorted table for g2', time.ctime())
-    index_dt2 = g2_table.cols.date.create_csindex()
-    t2d = g2_table.copy(newname='indexedT2date', sortby=g2_table.cols.date)
-    g2_table.close()
-    # t2d = h5f.root.RUN0.indexedT2date
+    run0 = h5f.root.RUN0
+    t1d = _get_or_build_sorted(run0, 'Outputs_G1', 'indexedT1date')
+    t2d = _get_or_build_sorted(run0, 'Outputs_G2', 'indexedT2date')
+    t3d = _get_or_build_sorted(run0, 'Outputs_G3', 'indexedT3date')
 
-    g3_table = h5f.root.RUN0.Outputs_G3
-    print('Creating Sorted table for g3', time.ctime())
-    index_dt3 = g3_table.cols.date.create_csindex()
-    t3d = g3_table.copy(newname='indexedT3date', sortby=g3_table.cols.date)
-    g3_table.close()
-    # t3d = h5f.root.RUN0.indexedT3date
+    # Determine intervals: explicit arg > runtime `run_breaks` (from
+    # stime.txt -> rbrk) > data-derived fallback. Preferring the runtime
+    # `run_breaks` keeps daily and snapshot netCDFs consistent with the
+    # actual chunking used during the model run.
+    if intervals is None:
+        if run_breaks:
+            intervals = list(run_breaks)
+            print(f"Using {len(intervals)} netCDF interval(s) from runtime run_breaks")
+        else:
+            dates = np.unique(t1d.cols.date[:])
+            if dates.size > 0:
+                d0 = dates[0].decode() if isinstance(dates[0], bytes) else str(dates[0])
+                d1 = dates[-1].decode() if isinstance(dates[-1], bytes) else str(dates[-1])
+                intervals = build_run_breaks(d0, d1, chunk_years=chunk_years)
+                print(f"Derived {len(intervals)} netCDF interval(s) from HDF5 dates {d0}..{d1}")
+            else:
+                intervals = []
 
-    for interval in run_breaks:
+    for interval in intervals:
         create_ncG1(t1d, interval, dump_nc_folder)
         create_ncG2(t2d, interval, dump_nc_folder)
         create_ncG3(t3d, interval, dump_nc_folder)
