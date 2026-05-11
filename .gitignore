@@ -1,0 +1,9 @@
+src/**.npy
+**.log
+src/caete_module.pyf
+**.so
+**.python-version
+
+**/__pycache__/
+**/input/20CRV**
+**/outputs/
