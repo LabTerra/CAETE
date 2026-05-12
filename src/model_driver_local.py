@@ -62,7 +62,7 @@ Notes
 
 Status of the original TODOs
 ----------------------------
-e1. [done] Extended CO₂ file to 1765–2024
+e1. [done] Extended CO₂ file to 1765-2024
     (``historical_CO2_annual_1765_2024.txt``). Future work: switch to
     ISIMIP3a CO₂ directly and replace the linear scan in ``find_co2``
     with a dict lookup.

@@ -1,11 +1,12 @@
 # Input data for CAETÊ
-The pre_processing.py file is used to prepare files that are employed to feed the CAETÊ model.
-The raw climatic and edaphic data in these files are publicly available from other sources.
+The pre_processing.py file is used to prepare files that are employed to feed the CAETÊ model. Check the [creating_caete_input_files.md](creating_caete_input_files.md) file for detailed instructions on how to use the script and prepare the input files. Part of these data is provided in this repository in the format specified in the documentation and ready to be used as input for the model. You can find these example input files in folders scattered across the ```/input``` directory, such as ```/input/south```, ```/input/nw```, etc. These files are provided as examples to illustrate the expected format and structure of the input data. They are not intended to be used directly as input for the model, but rather to serve as templates for preparing your own input data.
 
+The raw climatic and edaphic data used in these files are publicly available from other sources.
 
 ## References
 
 ### ISIMIP climate input
+Stefan Lange, Matthias Büchner (2020): ISIMIP2a atmospheric climate input data (v1.0). ISIMIP Repository. https://doi.org/10.48364/ISIMIP.886955
 
 Stefan Lange, Dánnell Quesada-Chacón, Matthias Mengel, Simon Treu, Matthias Büchner (2025): ISIMIP3a atmospheric climate input data (v1.3). ISIMIP Repository. https://doi.org/10.48364/ISIMIP.982724.3
 
