@@ -40,7 +40,7 @@ Pipeline
 1. ``initialize_spinup`` — water + soil-organic pre-spinup
    (``bdg_spinup`` + ``sdc_spinup``).
 2. ``run_spinup_phase`` — ``NLOOPS_SPINUP_1`` repetitions of
-   :data:`SPINUP_START`–:data:`SPINUP_END` with fixed CO₂ and
+   :data:`SPINUP_START`-:data:`SPINUP_END` with fixed CO₂ and
    ``nutri_cycle=False``.
 3. ``execute_co2_fixed_spinup`` — ``NLOOPS_SPINUP_2`` repetitions with
    fixed CO₂ and the full nutrient cycle on.
@@ -99,6 +99,8 @@ from caete import grd, npls, print_progress, rbrk
 
 # Folder containing ISIMIP_HISTORICAL_METADATA.pbz2 and input_data_Y-X.pbz2.
 INPUT_PATH = Path("../input/test_new_input").resolve()
+# Only the name of the metadata file. The driver looks for it inside :data:`INPUT_PATH`.
+DATASET_METADATA_FILE = Path("ISIMIP_HISTORICAL_METADATA.pbz2")
 
 # Name used to namespace the run outputs (../outputs/{RUN_NAME}).
 RUN_NAME = "test_new_input"
@@ -114,6 +116,14 @@ HYDRA_DIR = Path("../input/hydra").resolve()
 OUTPUT_PATH = Path("../outputs").resolve()
 DUMP_FOLDER = (OUTPUT_PATH / RUN_NAME).resolve()
 NC_OUTPUTS = (DUMP_FOLDER / "nc_outputs").resolve()
+
+
+# Simulation time bounds. The spinup and transient phases
+# TODO: these are haardcoded in the ``rbrk`` lists in ``caete.py``; they must be consistent with the
+# dates in the driver dataset you are using. Edit the ``build_run_breaks`` function calls in caete.py to change the break
+# We need to imporve here.
+SIMULATION_START = "19010101"
+SIMULATION_END = "20241231"
 
 # Spinup time bounds (yyyymmdd strings).
 SPINUP_START = "19010101"
@@ -266,7 +276,7 @@ def _load_static_inputs():
     """
     if not INPUT_PATH.exists():
         raise FileNotFoundError(f"Input folder not found: {INPUT_PATH}")
-    clim_metadata_file = INPUT_PATH / "ISIMIP_HISTORICAL_METADATA.pbz2"
+    clim_metadata_file = INPUT_PATH / DATASET_METADATA_FILE
     if not clim_metadata_file.exists():
         raise FileNotFoundError(f"Metadata file not found: {clim_metadata_file}")
     if not CO2_FILE.exists():
@@ -343,7 +353,12 @@ def main() -> None:
 
     rbrk_index = 0 # Index of the current break interval, used for naming outputs and logging.
     run_breaks = rbrk[rbrk_index] # Select historical breaks from caete.py
+    # TODO: Make runbreaks local to the driver. We should remove a lot of things
+    # from caete.py and move them here, including the run_breaks construction and the h52nc time axis handling.
+    # The driver should be self-contained and not rely on global variables in caete.py.
 
+    # TODO: remove this gambiarra. The file stime.txt is only needed for h52nc to recover the time axis 
+    # and run breaks used at runtime. We should pass that info donwsteam via the .h5 file.
     with open("stime.txt", "w") as fh:
         fh.writelines([
             f"{stime['units']}\n",
@@ -359,6 +374,9 @@ def main() -> None:
 
     grid_mn: list[grd] = [grd(x, y, RUN_NAME) for (y, x) in coords]
 
+    # TODO: the creation of gridcells can be done in parallel and dynamically 
+    # initialized at runtime. We could process batches of gridcells and pickle
+    # them to disk to decrease memory foorprint at runtime.    
     print("Starting gridcells")
     print_progress(0, len(grid_mn), prefix="Progress:", suffix="Complete")
     for i, g in enumerate(grid_mn):
