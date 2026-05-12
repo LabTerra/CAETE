@@ -384,8 +384,41 @@ class grd:
         self.soil_texture = None
 
     def _allocate_output_nosave(self, n):
-        """allocate space for some tracked variables during spinup
-        n: int NUmber of days being simulated"""
+        """Allocate minimal daily buffers for no-save runs.
+
+        Creates only the arrays required to keep model state updates
+        consistent when :meth:`run_caete` is called with ``save=False``.
+        This mode is used during spinup phases where output files are not
+        needed, but selected daily diagnostics are still required to update
+        soil and vegetation pools.
+
+        Parameters
+        ----------
+        n : int
+            Number of simulated daily steps in the current run window.
+
+        Returns
+        -------
+        None
+            Buffers are allocated in place on ``self``.
+
+        Notes
+        -----
+        Allocated attributes and shapes:
+
+        - ``runom``: ``(n,)``
+        - ``nupt``: ``(2, n)``
+        - ``pupt``: ``(3, n)``
+        - ``litter_l``: ``(n,)``
+        - ``cwd``: ``(n,)``
+        - ``litter_fr``: ``(n,)``
+        - ``lnc``: ``(6, n)``
+        - ``storage_pool``: ``(3, n)``
+        - ``ls``: ``(n,)``
+
+        All NumPy arrays are Fortran-contiguous (``order='F'``), matching the
+        memory layout expected by the Fortran-bound workflow.
+        """
 
         self.runom = np.zeros(shape=(n,), order='F')
         self.nupt = np.zeros(shape=(2, n), order='F')
@@ -398,8 +431,49 @@ class grd:
         self.ls = np.zeros(shape=(n,), order='F')
 
     def _allocate_output(self, n, npls=npls):
-        """allocate space for the outputs
-        n: int NUmber of days being simulated"""
+        """Allocate full daily output buffers for save-enabled runs.
+
+        Initializes all per-step arrays and per-PLS diagnostics required by
+        :meth:`run_caete` when ``save=True``. These buffers are filled during
+        the daily loop, then serialized by :meth:`_flush_output` /
+        :meth:`_save_output`.
+
+        Parameters
+        ----------
+        n : int
+                Number of simulated daily steps in the current run window.
+
+        npls : int, default ``npls``
+                Total number of Plant Life Strategies represented in PLS-indexed
+                output tensors (for example, area occupancy, limitation status,
+                and uptake strategy).
+
+        Returns
+        -------
+        None
+                Buffers are allocated in place on ``self``.
+
+        Notes
+        -----
+        This method resets and allocates both scalar-time-series outputs and
+        PLS-resolved tensors. Key groups include:
+
+        - Atmosphere/flux/state CWM series (for example ``photo``, ``npp``,
+            ``lai``, ``evapm``, ``wue``, ``cue``)
+        - Soil C/N/P pools and fluxes (for example ``csoil``, ``snc``,
+            ``inorg_n``, ``sorbed_p``, ``nmin``, ``pmin``)
+        - Nutrient uptake and litter inputs (``nupt``, ``pupt``, ``litter_l``,
+            ``cwd``, ``litter_fr``, ``lnc``)
+        - PLS-resolved diagnostics include ``area`` with shape ``(npls, n)``.
+        - PLS-resolved diagnostics include ``lim_status`` with shape ``(3, npls, n)``.
+        - PLS-resolved diagnostics include ``uptake_strategy`` with shape ``(2, npls, n)``.
+
+        The rolling lists ``emaxm`` and ``tsoil`` are also reinitialized as
+        empty Python lists and later converted to arrays during flushing.
+        All NumPy arrays are Fortran-contiguous (``order='F'``) to preserve
+        compatibility with downstream Fortran-oriented data handling.
+        """
+        
         self.emaxm = []
         self.tsoil = []
         self.photo = np.zeros(shape=(n,), order='F')
@@ -448,15 +522,56 @@ class grd:
             shape=(2, npls, n), dtype=np.dtype('int32'), order='F')
 
     def _flush_output(self, run_descr, index):
-        """1 - Clean variables that receive outputs from the fortran subroutines
-           2 - Fill self.outputs dict with filepats of output data
-           3 - Returns the output data to be writen
+        """Package current run buffers and clear in-memory output attributes.
 
-           runs_descr: str a name for the files
-           index = tuple or list with the first and last values of the index time variable"""
+        Builds the per-run output dictionary consumed by :meth:`_save_output`,
+        registers the destination filepath in ``self.outputs``, and flushes all
+        per-step output buffers from this object so the next run/spin can
+        allocate fresh arrays.
+
+        Parameters
+        ----------
+        run_descr : str
+            Prefix used to compose the logical output name for this flush
+            (for example ``"spin"``). The final key is built as
+            ``{run_descr}{counter:05d}{out_ext}`` for ``counter <= 99999``
+            (zero-padded to 5 digits so filenames sort lexicographically in
+            chronological order, e.g. ``spin00001.pkz``, ``spin00002.pkz``,
+            ..., ``spin99999.pkz``). For ``counter > 99999`` the counter is
+            written without padding, which breaks alphabetical ordering.
+
+        index : tuple[int, int] | list[int]
+            Two-element container with the inclusive numeric time bounds of
+            the flushed window, stored as ``sind`` and ``eind`` in the output
+            payload.
+
+        Returns
+        -------
+        dict
+            Serialized-ready payload containing daily outputs, PLS-resolved
+            tensors, and metadata (calendar, time units, start/end indexes).
+            This dictionary is intended to be written by :meth:`_save_output`.
+
+        Notes
+        -----
+        - Increments ``self.run_counter`` on every call.
+        - Adds an entry to ``self.outputs`` mapping the generated filename to
+          its absolute path under ``self.out_dir``.
+        - Converts list-backed fields (``emaxm``, ``tsoil``) to NumPy arrays in
+          the returned payload.
+        - Resets output attributes on ``self`` to ``None`` (or empty lists for
+          ``emaxm`` and ``tsoil``) after packaging, reducing memory retention
+          between runs.
+        """
         to_pickle = {}
         self.run_counter += 1
         if self.run_counter < 10:
+            spiname = run_descr + "0000" + str(self.run_counter) + out_ext
+        elif self.run_counter < 100:
+            spiname = run_descr + "000" + str(self.run_counter) + out_ext
+        elif self.run_counter < 1000:
+            spiname = run_descr + "00" + str(self.run_counter) + out_ext
+        elif self.run_counter < 10000:
             spiname = run_descr + "0" + str(self.run_counter) + out_ext
         else:
             spiname = run_descr + str(self.run_counter) + out_ext
@@ -558,21 +673,114 @@ class grd:
         return to_pickle
 
     def _save_output(self, data_obj):
-        """Compress and save output data
-        data_object: dict; the dict returned from _flush_output"""
+        """Persist one flushed run payload to a compressed pickle file.
+
+        Writes the dictionary produced by :meth:`_flush_output` to disk using
+        ``joblib.dump`` with zlib compression. The destination path is resolved
+        from ``self.outputs`` using the filename pattern tied to the current
+        ``self.run_counter``.
+
+        Parameters
+        ----------
+        data_obj : dict
+            Output payload generated by :meth:`_flush_output`, containing the
+            daily series, PLS-resolved arrays, and run metadata (calendar,
+            time unit, and index bounds).
+
+        Returns
+        -------
+        None
+            The method writes the compressed file and updates internal flush
+            bookkeeping.
+
+        Notes
+        -----
+        - Filename key selection follows the same numbering scheme used in
+          :meth:`_flush_output`: the counter is zero-padded to 5 digits
+          (``spin00001.pkz`` ... ``spin99999.pkz``) so that lexicographic
+          ordering matches chronological ordering of the time slices.
+        - Raises ``ValueError`` if ``self.run_counter`` exceeds ``99999``,
+          since the fixed-width padding pattern is exhausted past that point.
+        - Uses ``dump(data_obj, fh, compress=('zlib', 3), protocol=4)``.
+        - Sets ``self.flush_data = 0`` after a successful write.
+        """
         if self.run_counter < 10:
-            fpath = "spin{}{}{}".format(0, self.run_counter, out_ext)
+            fpath = "spin{}{}{}".format("0000", self.run_counter, out_ext)
+        elif self.run_counter < 100:
+            fpath = "spin{}{}{}".format("000", self.run_counter, out_ext)
+        elif self.run_counter < 1000:
+            fpath = "spin{}{}{}".format("00", self.run_counter, out_ext)
+        elif self.run_counter < 10000:
+            fpath = "spin{}{}{}".format("0", self.run_counter, out_ext)
         else:
             fpath = "spin{}{}".format(self.run_counter, out_ext)
+        if self.run_counter > 99999:
+            raise ValueError("run_counter exceeded 99999, filename pattern exhausted")
+        
         with open(self.outputs[fpath], 'wb') as fh:
             dump(data_obj, fh, compress=('zlib', 3), protocol=4)
         self.flush_data = 0
 
     def init_caete_dyn(self, input_fpath, stime_i, co2, pls_table, tsoil, ssoil, hsoil):
-        """ PREPARE A GRIDCELL TO RUN
-            input_fpath:(str or pathlib.Path) path to Files with climate and soil data
-            co2: (list) with yearly cCO2 ATM data(yyyy\t[CO2]\n)
-            pls_table: np.ndarray with functional traits of a set of Plant life strategies
+        """Initialize this gridcell with forcing, traits, and state variables.
+
+        Loads one gridcell input pickle (climate + soil nutrients), initializes
+        the time metadata, stores model inputs (PLS table and atmospheric CO2
+        series), and builds the initial water, vegetation, and soil pools used
+        by :meth:`run_caete`.
+
+        Parameters
+        ----------
+        input_fpath : str | pathlib.Path
+            Directory containing ``input_data_{y-x}.pbz2`` files. The file used
+            is derived from ``self.input_fname`` (set from this instance
+            coordinates).
+
+        stime_i : dict
+            Time metadata dictionary with at least:
+
+            - ``calendar`` : calendar name used by cftime
+            - ``time_index`` : numeric time axis (daily)
+            - ``units`` : CF-style time units string
+
+            This object is deep-copied to ``self.stime`` and used to set
+            ``self.start_date``/``self.end_date`` and numeric bounds
+            (``self.sind``, ``self.eind``).
+
+        co2 : list[str]
+            Annual atmospheric CO2 records used later by :meth:`run_caete`.
+            Expected line format is year/value text (e.g. ``"1901 296.3"`` or,
+            for plot runs, comma-separated values).
+
+        pls_table : numpy.ndarray
+            Plant Life Strategy trait matrix consumed by the Fortran core. It is
+            deep-copied into ``self.pls_table`` and used to create initial
+            biomass/occupancy vectors.
+
+        tsoil, ssoil, hsoil : numpy.ndarray
+            Soil parameter arrays indexed as ``[layer_or_var, y, x]`` for this
+            gridcell:
+
+            - ``tsoil``: upper-layer hydraulic parameters (``ws1``, ``fc1``, ``wp1``)
+            - ``ssoil``: lower-layer hydraulic parameters (``ws2``, ``fc2``, ``wp2``)
+            - ``hsoil``: hydraulic descriptors (``theta_sat``, ``psi_sat``, texture)
+
+        Returns
+        -------
+        None
+            The method mutates ``self`` in place and marks the gridcell as
+            initialized (``self.filled = True``).
+
+        Notes
+        -----
+        - Guarded by ``assert self.filled == False``: this initializer is meant
+          to run only once per gridcell instance.
+        - Reads climate variables ``pr``, ``ps``, ``rsds``, ``tas``, ``hurs``
+          and nutrient pools ``tn``, ``tp``, ``ap``, ``ip``, ``op`` from the
+          compressed input file.
+        - Initializes first-guess vegetation pools (leaf/root/wood carbon),
+          computes living PLS indices, and creates baseline soil nutrient pools
+          required by the daily loop.
         """
 
         assert self.filled == False, "already done"
@@ -680,6 +888,59 @@ class grd:
         return None
 
     def clean_run(self, dump_folder, save_id):
+        """Archive the current run's outputs and redirect this gridcell to a fresh dump folder.
+
+        Snapshots the outputs produced so far under ``self.outputs`` into
+        ``self.realized_runs`` (tagged with ``save_id``), then points
+        ``self.out_dir`` at a brand-new directory under
+        ``../outputs/{dump_folder}/gridcell{xyname}/`` and resets the per-run
+        bookkeeping so the next call to :meth:`run_caete` writes into the new
+        location. Intended to start a new experiment leg (for example, the
+        transient or perturbation phase that follows a spinup) without losing
+        the file registry of the previous leg.
+
+        Parameters
+        ----------
+        dump_folder : str
+            Name of the new top-level output folder (relative to
+            ``../outputs/``) where subsequent runs will write their pickles.
+            The directory ``../outputs/{dump_folder}/gridcell{xyname}/`` is
+            created and **must not already exist**: if it does, the run is
+            aborted, ``self.out_dir`` is restored to its previous value, and a
+            ``RuntimeError`` is raised. This guard prevents accidentally
+            overwriting an existing experiment.
+
+        save_id : str
+            Tag stored alongside the archived ``self.outputs`` snapshot in
+            ``self.realized_runs`` (e.g. ``"init_cond"`` to mark the end of
+            spinup). Used downstream to identify which experiment leg
+            produced each pickled output.
+
+        Returns
+        -------
+        None
+            The method mutates ``self`` in place.
+
+        Raises
+        ------
+        RuntimeError
+            If ``../outputs/{dump_folder}/gridcell{xyname}/`` already exists.
+            In that case ``self.out_dir`` is rolled back to its previous value
+            before re-raising.
+
+        Notes
+        -----
+        - Appends ``(save_id, self.outputs.copy())`` to ``self.realized_runs``
+          so the previous leg's filepaths remain accessible.
+        - Resets ``self.outputs`` to an empty dict and ``self.run_counter`` to
+          ``0``, so the next flush starts at ``spin00001{out_ext}`` in the new
+          folder.
+        - Increments ``self.experiments`` to record that another experiment
+          leg has been started on this gridcell.
+        - ``self.out_dir`` is asserted to exist after the ``os.makedirs`` call
+          to ensure the new destination is usable before any data is
+          archived.
+        """
         abort = False
         mem = str(self.out_dir)
         self.out_dir = Path(
@@ -706,6 +967,64 @@ class grd:
         self.experiments += 1
 
     def change_clim_input(self, input_fpath, stime_i, co2):
+        """Swap the gridcell's climate forcing, time axis, and CO2 series in place.
+
+        Reloads the per-gridcell input pickle (``input_data_{y-x}.pbz2``) from
+        ``input_fpath``, replaces the climate arrays (``pr``, ``ps``, ``rsds``,
+        ``tas``, ``hurs``) and soil nutrient pools on ``self``, rebuilds the
+        time metadata from ``stime_i``, and stores a fresh atmospheric CO2
+        record. Intended to be called on an already-initialized gridcell
+        (typically after :meth:`init_caete_dyn` and at least one
+        :meth:`run_caete` spinup) to chain a new forcing window — e.g. moving
+        from the historical climate slab used for spinup to a CMIP-style
+        scenario, or stepping through successive period chunks in the task5
+        driver — while keeping the vegetation, soil, and water state pools
+        already carried by the gridcell.
+
+        Parameters
+        ----------
+        input_fpath : str | pathlib.Path
+            Directory containing ``input_data_{y-x}.pbz2`` files. The actual
+            file is composed from ``self.input_fname`` (set at construction
+            from this gridcell's coordinates), so this argument selects the
+            *source folder* for the new climate slab, not the file itself.
+
+        stime_i : dict
+            Time metadata dictionary for the new forcing window, with at
+            least:
+
+            - ``calendar`` : calendar name used by cftime
+            - ``time_index`` : numeric time axis (daily)
+            - ``units`` : CF-style time units string
+
+            This object is deep-copied to ``self.stime`` and used to set
+            ``self.start_date`` / ``self.end_date`` and the integer bounds
+            ``self.sind`` / ``self.eind``.
+
+        co2 : list[str]
+            New annual atmospheric CO2 records, in the same format consumed by
+            :meth:`run_caete` (year/value text lines, e.g. ``"1901 296.3"``;
+            comma-separated for plot runs). Deep-copied into ``self.co2_data``,
+            fully replacing the previous series.
+
+        Returns
+        -------
+        None
+            The method mutates ``self`` in place.
+
+        Notes
+        -----
+        - Asserts that the resolved input file exists before loading.
+        - Resets ``self.flush_data`` to ``0`` and clears ``self.data`` after
+          the inputs are unpacked, mirroring :meth:`init_caete_dyn`.
+        - Does **not** touch vegetation, soil, or water state pools, nor the
+          PLS table, ``self.outputs``, or ``self.run_counter``: those carry
+          over from the previous run leg so the gridcell can continue from
+          its current state under the new forcing.
+        - Unlike :meth:`init_caete_dyn`, no ``self.filled`` guard is applied
+          — the method is meant to be called repeatedly on an initialized
+          gridcell.
+        """
 
         self.input_fpath = Path(os.path.join(input_fpath, self.input_fname))
         assert self.input_fpath.exists()
@@ -1305,8 +1624,67 @@ class grd:
         return None
 
     def bdg_spinup(self, start_date, end_date):
-        """SPINUP SOIL POOLS - generate soil OM and Organic nutrients inputs for soil spinup
-        - Side effect - Start soil water pools pools """
+        """Estimate steady-state litter and water inputs to feed the soil spinup.
+
+        Runs a single, lightweight pass of the daily vegetation budget over
+        ``[start_date, end_date]`` to obtain mean values of soil water and of
+        the litter/CWD fluxes that the soil decomposition module needs to be
+        spun up. No outputs are written and the per-step state-variable
+        bookkeeping done by :meth:`run_caete` is intentionally skipped — only
+        the values that drive :meth:`sdc_spinup` are accumulated. The result
+        is then passed straight into :meth:`sdc_spinup` by the driver scripts
+        to seed the soil C/N/P pools before the regular spinup begins.
+
+        Parameters
+        ----------
+        start_date : str
+            Inclusive start date in ``"YYYYMMDD"`` format. Must lie within
+            ``[self.start_date, self.end_date]`` and be strictly before
+            ``end_date``.
+
+        end_date : str
+            Inclusive end date in ``"YYYYMMDD"`` format. Must lie within
+            ``[self.start_date, self.end_date]``.
+
+        Returns
+        -------
+        tuple of (float, float, float, float, numpy.ndarray)
+            Five summary statistics, each scaled by ``1.25`` (an empirical
+            inflation factor used to bias the soil spinup toward observed
+            tropical fluxes), unpacked as
+            ``(water, litter_l, cwd, litter_fr, lnc)``:
+
+            - ``water``    : mean total soil water content (mm) over the
+              window, ``w1 + w2``.
+            - ``litter_l`` : mean daily leaf litter input (g C m⁻² d⁻¹).
+            - ``cwd``      : mean daily coarse-woody-debris input
+              (g C m⁻² d⁻¹).
+            - ``litter_fr``: mean daily fine-root litter input
+              (g C m⁻² d⁻¹).
+            - ``lnc``      : per-pool mean litter N/P concentrations,
+              shape ``(6,)``, averaged along the time axis.
+
+            These values are intended to be forwarded directly as the
+            arguments of :meth:`sdc_spinup`.
+
+        Notes
+        -----
+        - Sets ``self.budget_spinup = True`` as a marker for downstream
+          code.
+        - Uses the transient CO2 series from ``self.co2_data`` with the
+          same daily linear-interpolation logic as :meth:`run_caete`; the
+          ``find_co2`` parsing honours ``self.plot`` (comma-separated
+          records when ``True``, whitespace otherwise).
+        - Updates ``self.soil_temp``, ``self.wp_water_upper_mm``,
+          ``self.wp_water_lower_mm``, and the underlying ``self.swp`` water
+          pool on every step, but does **not** modify vegetation pools,
+          soil C/N/P pools, or PLS occupancy.
+        - The daily budget is called with the vegetation pools as-is
+          (``self.vp_cleaf``, ``self.vp_cwood``, ``self.vp_croot``, etc.),
+          so the gridcell must be initialized (``self.filled is True``).
+        - No assertion is raised on out-of-bounds CO2 lookups; missing
+          years can yield ``None`` from ``find_co2``.
+        """
 
         assert self.filled, "The gridcell has no input data"
         self.budget_spinup = True
@@ -1431,7 +1809,59 @@ class grd:
         return x(f(wo).mean()), x(f(llo).mean()), x(f(cwdo).mean()), x(f(rlo).mean()), x(f(lnco).mean(axis=0,))
 
     def sdc_spinup(self, water, ll, cwd, rl, lnc):
-        """SOIL POOLS SPINUP"""
+        """Spin up the soil decomposition pools from steady-state litter inputs.
+
+        Iterates the Fortran ``soil_dec.carbon3`` solver 3000 times with a
+        fixed (mean) climatic and litter forcing so that the soil carbon and
+        soil N/P pools (``self.sp_csoil`` and ``self.sp_snc``) converge
+        toward an equilibrium consistent with those inputs. The forcing is
+        normally produced by :meth:`bdg_spinup`, so the typical driver call
+        is::
+
+            w, ll, cwd, rl, lnc = grd.bdg_spinup(start, end)
+            grd.sdc_spinup(w, ll, cwd, rl, lnc)
+
+        After this call ``self.sp_csoil`` and ``self.sp_snc`` are ready to be
+        used as initial conditions for the regular vegetation+soil spinup in
+        :meth:`run_caete`.
+
+        Parameters
+        ----------
+        water : float
+            Mean total soil water content (mm) used to evaluate the soil
+            moisture factor ``water / self.wmax_mm`` passed to
+            ``soil_dec.carbon3``. Typically the first element of the tuple
+            returned by :meth:`bdg_spinup`.
+
+        ll : float
+            Mean daily leaf-litter carbon input (g C m⁻² d⁻¹).
+
+        cwd : float
+            Mean daily coarse-woody-debris carbon input (g C m⁻² d⁻¹).
+
+        rl : float
+            Mean daily fine-root-litter carbon input (g C m⁻² d⁻¹).
+
+        lnc : numpy.ndarray
+            Per-pool mean litter N/P concentrations, shape ``(6,)``, as
+            returned by :meth:`bdg_spinup`.
+
+        Returns
+        -------
+        None
+            The method mutates ``self.sp_csoil`` and ``self.sp_snc`` in
+            place.
+
+        Notes
+        -----
+        - The fixed iteration count (3000) is hard-coded and intended to be
+          large enough for the litter pools to reach a numerical
+          steady state under the constant forcing.
+        - ``self.soil_temp`` is treated as constant during the spinup; no
+          climate update is performed inside the loop.
+        - Does **not** touch vegetation pools, water pools, or
+          ``self.outputs``; only the soil C and N/P pools are evolved.
+        """
 
         for x in range(3000):
 
