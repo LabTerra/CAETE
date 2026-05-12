@@ -129,7 +129,7 @@ def build_run_breaks(start, end, *, chunk_years=2, align="calendar"):
     return out
 
 
-run_breaks_hist = build_run_breaks('19010101', '20241231', chunk_years=10)
+run_breaks_hist = build_run_breaks('19010101', '20241231', chunk_years=1)
 
 run_breaks_CMIP5_hist = build_run_breaks('19790101', '20051231')
 
@@ -571,8 +571,8 @@ class grd:
     def init_caete_dyn(self, input_fpath, stime_i, co2, pls_table, tsoil, ssoil, hsoil):
         """ PREPARE A GRIDCELL TO RUN
             input_fpath:(str or pathlib.Path) path to Files with climate and soil data
-            co2: (list) a alist (association list) with yearly cCO2 ATM data(yyyy\t[CO2]\n)
-            pls_table: np.ndarray with functional traits of a set of PLant life strategies
+            co2: (list) with yearly cCO2 ATM data(yyyy\t[CO2]\n)
+            pls_table: np.ndarray with functional traits of a set of Plant life strategies
         """
 
         assert self.filled == False, "already done"
@@ -909,13 +909,14 @@ class grd:
         day_indexes = np.arange(start_index, end_index + 1)
         spin = 1 if spinup == 0 else spinup
 
-        # Catch climatic input and make conversions
+        # Climatic inputs and units conversions
         temp = self.tas[lb: hb + 1] - 273.15  # ! K to °C
         prec = self.pr[lb: hb + 1] * 86400  # kg m-2 s-1 to  mm/day
-        # transforamando de Pascal pra mbar (hPa)
+        # Pascal pra mbar (hPa)
         p_atm = self.ps[lb: hb + 1] * 0.01
         # W m-2 to mol m-2 s-1 ! 0.5 converts RSDS to PAR
-        ipar = self.rsds[lb: hb + 1] * 0.5 / 2.18e5
+        ipar = self.rsds[lb: hb + 1] * 0.198
+        # Relative humidity (%) to unitless [0,1]
         ru = self.rhs[lb: hb + 1] / 100.0
 
         year0 = start.year
@@ -953,7 +954,7 @@ class grd:
                 else:
                     loop += 1
                     count_days += 1
-                    # CAST CO2 ATM CONCENTRATION
+                    # CAST DAILY CO2 ATM CONCENTRATION - LINEAR INTERPOLATION
                     days = 366 if m.leap(year0) == 1 else 365
                     if count_days == days:
                         count_days = 0
