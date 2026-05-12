@@ -1,0 +1,6 @@
+numpy
+netCDF4
+cftime
+joblib
+tables
+pandas
