@@ -1237,7 +1237,7 @@ class grd:
                                      self.soil_temp, temp[step], p_atm[step],
                                      ipar[step], ru[step], self.sp_available_n, self.sp_available_p,
                                      ton, top, self.sp_organic_p, co2, sto, cleaf, cwood, croot,
-                                     dcl, dca, dcf, uptk_costs, self.wmax_mm)
+                                     dcl, dca, dcf, uptk_costs, self.wmax_mm, self.soil_texture, self.psi_sat)
                 
                 # del sto, cleaf, cwood, croot, dcl, dca, dcf, uptk_costs
                 # Create a dict with the function output
@@ -1994,7 +1994,7 @@ class grd:
                                  self.sp_snc[:4].sum(
                                  ), self.sp_so_p, self.sp_snc[4:].sum(),
                                  co2, sto, cleaf, cwood, croot,
-                                 dcl, dca, dcf, uptk_costs, self.wmax_mm)
+                                 dcl, dca, dcf, uptk_costs, self.wmax_mm, self.soil_texture, self.psi_sat)
             
             # Create a dict with the function output
             daily_output = catch_out_budget(out)
