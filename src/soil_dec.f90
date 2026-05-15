@@ -85,13 +85,35 @@ contains
       real(r_8) :: update_c, update_n, update_p
       real(r_8) :: leaf_l, cwd, root_l ! Mass of C comming from living pools g(C)m⁻²
 
-      ! Turnover Rates  == residence_time⁻¹ (years⁻¹)
+      ! Turnover times == residence_time (DAYS); the decay rate applied per
+      ! daily call of carbon3 is therefore (1/tr_c) [days⁻¹]. Approximate residence
+      ! times: pool 1 (litter) ≈ 25 d, pool 2 (microbial/fast SOM) ≈ 250 d (~0.7 yr),
+      ! pool 3 (slow SOM) ≈ 2000 d (~5.5 yr), pool 4 (passive/recalcitrant SOM) ≈
+      ! 5000 d (~13.7 yr). Q10 and water_effect modifiers further scale the
+      ! per-timestep decay (see carbon_decay).
       real(r_8), dimension(4) :: tr_c
 
       tr_c(1) = 25.0D0
       tr_c(2) = 250.0D0
       tr_c(3) = 2000.0D0
       tr_c(4) = 5000.0D0
+
+      ! TODO (review notes — open issues flagged during the carbon3 code review):
+      !   * N/P IMMOBILIZATION is not represented. Only mineralization fluxes are
+      !     computed (het_resp * snr_in). A full CENTURY-style scheme would also
+      !     subtract microbial demand from the mineral pool when the C:N (or C:P)
+      !     of the incoming substrate exceeds the receiving pool's stoichiometry.
+      !   * `nmin` and `pmin` are accumulated here but the calling Python layer
+      !     currently does not consume them as a separate mineralization flux
+      !     (mineral pools are reconstructed elsewhere). Verify Fortran↔Python
+      !     accounting to avoid double-counting / silent loss.
+      !   * `nmass_org(i)` and `pmass_org(i)` are decremented by `n_min_resp_lit`
+      !     / `p_min_resp_lit` without an explicit non-negativity clamp. Under
+      !     extreme stoichiometric imbalances these organic stores can drift
+      !     negative. Consider `max(0, ...)` or rebalancing snr_in.
+      !   * `add_pool` silently DROPS negative inputs (returns a1 unchanged).
+      !     This is defensive but masks upstream bookkeeping bugs; consider an
+      !     assertion or debug-mode warning.
 
       snc(:) = 0.0D0
       cs_out(:) = 0.0D0
@@ -328,15 +350,21 @@ contains
       update_p = p_next_pool
       p_next_pool = 0.0
 
-      !SOIL II
+      !SOIL II  -- POOL 4: TERMINAL / PASSIVE (recalcitrant) SOM pool
       ! Mineralization
       ! C
-      ! Release od CO2
-      het_resp(4) = cdec(4) * cwd_atm                                      ! Heterotrophic respiration ! processed (dacayed) Carbon lost to ATM
+      ! Release of CO2
+      ! NOTE (design choice, confirmed): pool 4 is intentionally a TERMINAL pool.
+      ! Decayed carbon is lost ONLY via heterotrophic respiration to the
+      ! atmosphere — there is no downstream transfer (no `c_next_pool` update
+      ! here, unlike pools 1–3). This mirrors the passive/recalcitrant pool of
+      ! CENTURY-style models and is the correct ecological behaviour for the
+      ! long-residence (~13.7 yr) recalcitrant fraction.
+      het_resp(4) = cdec(4) * cwd_atm                                      ! Heterotrophic respiration ! processed (decayed) Carbon lost to ATM
 
       cs_out(4) = cs(4) - het_resp(4)
 
-      ! Carbon going to SOIL 2
+      ! No carbon transferred out of pool 4 (terminal pool)
 
       ! N
       ! N mineralized by the release of CO2
@@ -399,7 +427,26 @@ contains
    function water_effect(theta) result(retval)
       ! Implement the Moyano function based on soil water content. Moyano et al. 2012;2013
       ! Based on the implementation of Sierra et al. 2012 (SoilR)
-      ! This fucntion is ideal and was parametrized for low carbon soils
+      ! This function is ideal and was parametrized for low carbon soils
+      !
+      ! TODO (residual decay floor — to revisit):
+      !   The `max(inter, 0.2)` clamp imposes a non-zero decomposition rate even
+      !   when soils are very dry (theta → 0). The biological/physical rationale
+      !   is that under dry, light-saturated conditions abiotic decomposition
+      !   pathways persist — notably PHOTODEGRADATION of litter and surface SOM
+      !   (UV-driven cleavage of lignin/cellulose), well documented in dryland
+      !   ecosystems (Austin & Vivanco 2006, Nature; King et al. 2012; Throop &
+      !   Archer 2009). Microbial maintenance respiration on residual films of
+      !   water at low matric potentials also contributes. However the value
+      !   0.2 is empirical and unsupported by a direct citation here — Moyano
+      !   et al. (2012/2013) themselves do NOT prescribe a floor; their fitted
+      !   response approaches ~0 at air-dry conditions. Consider:
+      !     (a) lowering the floor (e.g., 0.05–0.10) and/or making it pool-specific
+      !         (litter pool, exposed to UV, should have a higher abiotic floor
+      !         than buried slow/passive SOM, which receives no UV);
+      !     (b) splitting the abiotic term out explicitly as a separate
+      !         photodegradation flux scaled by radiation, not by moisture;
+      !     (c) documenting/sensitivity-testing the 0.2 choice against site data.
 
       real(r_4),intent(in) :: theta  ! Volumetric soil water content (cm³ cm⁻³)
       real(r_4),parameter :: k_a = 3.11, k_b = 2.42
@@ -410,7 +457,7 @@ contains
       if (theta > 1.0) aux = 1.0
 
       inter = (k_a * aux) - (k_b * aux**2)
-      retval = max(inter, 0.2) ! Residual decay
+      retval = max(inter, 0.2) ! Residual decay (see TODO above — abiotic / photodegradation surrogate)
 
    end function water_effect
 
@@ -464,6 +511,12 @@ contains
 
 
    function add_pool(a1, a2) result(new_amount)
+      ! TODO: This helper SILENTLY DROPS negative `a2` inputs (returns `a1`
+      ! unchanged). It is defensive against negative mass-flux bugs upstream,
+      ! but it also MASKS them — fluxes that should reduce a pool will be
+      ! discarded with no warning, breaking mass balance. Consider replacing
+      ! with an unconditional `a1 + a2` plus an assertion / debug log when
+      ! `a2 < 0`, or document explicitly which call sites depend on the clamp.
 
       real(r_8), intent(in) :: a1, a2
       real(r_8) :: new_amount

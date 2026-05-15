@@ -1,15 +1,11 @@
 # `model_driver_local.py` — design notes
 
-[src/model_driver_local.py](src/model_driver_local.py) is a stripped-down
-sibling of [src/model_driver.py](src/model_driver.py). It exists so a
+[src/model_driver_local.py](./model_driver_local.py) is a stripped-down
+sibling of [src/model_driver.py](./model_driver.py). It exists so a
 developer can run CAETÊ-DVM end-to-end on a workstation with one command
 and a small input bundle, without touching the HPC- and ESM-aware
 machinery in the original driver. This document records what the local
-driver does, what it removed compared to the original, and the status of
-the three rebuild TODOs that motivated it.
-
-The post-processing review at the end of the document is unrelated to
-the local driver itself and is treated separately.
+driver does and what it removed compared to the original.
 
 ---
 
@@ -25,16 +21,16 @@ assumptions about *which years are available* and *how they are
 chunked*, replacing the inputs forces a coordinated change in the
 driver, in `caete.py`, and in `h52nc.py`. The chain is:
 
-1. **Inputs** ([input/pre_processing.py](input/pre_processing.py),
-   [input/pre_processing.toml](input/pre_processing.toml),
-   [input/geos.py](input/geos.py),
-   [input/creating_caete_input_files.md](input/creating_caete_input_files.md))
+1. **Inputs** ([input/pre_processing.py](../input/pre_processing.py),
+   [input/pre_processing.toml](../input/pre_processing.toml),
+   [input/geos.py](../input/geos.py),
+   [input/creating_caete_input_files.md](../input/creating_caete_input_files.md))
    produce one bz2-pickle per gridcell + a single metadata file. The
    on-disk layout is unchanged from the legacy producer, but the
    pipeline is now vectorized, TOML-configured, and validated by a
    small `--test` where the newly created files are checked for correctness.
 2. **CO₂ forcing**
-   ([input/co2/historical_CO2_annual_1765_2024.txt](input/co2/historical_CO2_annual_1765_2024.txt))
+   ([input/co2/historical_CO2_annual_1765_2024.txt](../input/co2/historical_CO2_annual_1765_2024.txt))
    was extended from 2018 → 2024 to cover the new climate span, and
    `find_co2` in [src/caete.py](src/caete.py) was hardened to tolerate
    the whitespace-separated last row.
@@ -128,8 +124,8 @@ constants, which the spawned children re-import as part of this module.
 ## Multiprocessing start method: `fork` → `spawn`
 
 The single most consequential behavioural difference between
-[src/model_driver.py](src/model_driver.py) and
-[src/model_driver_local.py](src/model_driver_local.py) is the
+[src/model_driver.py](./model_driver.py) and
+[src/model_driver_local.py](./model_driver_local.py) is the
 multiprocessing start method. The original driver relies on the platform
 default (which on Linux has historically been `fork`); the local driver
 hard-codes `spawn` via:
@@ -180,7 +176,7 @@ internal queue held by another thread at the moment of `fork()` is
 inherited in an indeterminate state and can deadlock or corrupt memory
 the first time the child touches it. CAETÊ-DVM is exactly the kind of
 program that triggers this: it links a Fortran extension
-([src/budget.f90](src/budget.f90), [src/productivity.f90](src/productivity.f90),
+([src/budget.f90](./budget.f90), [src/productivity.f90](./productivity.f90),
 etc.) compiled via f2py, plus NumPy/HDF5/netCDF4 stacks that may spawn
 worker threads (OpenMP, BLAS, HDF5 I/O threads). Forking after any of
 those have started is unsafe by construction.
@@ -197,9 +193,7 @@ Three reasons, in order of priority:
 2. **Cross-platform reproducibility.** `spawn` is the only method
    available on Windows and the default on macOS. Writing the local
    driver against `spawn` means a developer on any of the three major
-   OSes runs the *same* code path. Fork-only assumptions (e.g.
-   "children see the parent's already-loaded `global1.pkl`") never get
-   baked in.
+   OSes runs the *same* code path.
 3. **Forward compatibility.** From Python 3.14 onward `fork` is no
    longer the default even on Linux. Any code that silently relied on
    it will start emitting `DeprecationWarning` (3.12) and then
@@ -247,7 +241,7 @@ it deliberately:
 
 - Once the local driver is validated end-to-end on Linux + Windows,
   apply the same `mp.get_context("spawn")` change to
-  [src/model_driver.py](src/model_driver.py) so the production driver
+  [src/model_driver.py](./model_driver.py) so the production driver
   no longer depends on the deprecated default.
 - Audit any remaining call sites that use the bare `multiprocessing`
   API (e.g. `mp.Pool(...)` without an explicit context) — they
@@ -262,13 +256,13 @@ it deliberately:
 The `input/` folder was reorganised so that producing a CAETÊ input
 bundle is a vectorized, configuration-driven step rather than a
 hand-edited script. The on-disk format consumed by
-[src/caete.py](src/caete.py) is unchanged — same filenames, same dict
+[src/caete.py](./caete.py) is unchanged — same filenames, same dict
 keys, same metadata layout — so existing readers keep working without
 modification. What changed is everything *upstream* of those files.
 
 ### New `pre_processing.py` (vectorized, TOML-driven)
 
-[input/pre_processing.py](input/pre_processing.py) is a full rewrite of
+[input/pre_processing.py](../input/pre_processing.py) is a full rewrite of
 the legacy producer. Highlights:
 
 - **Single-pass, vectorized I/O.** Climate variables are read as a
@@ -297,7 +291,7 @@ the legacy producer. Highlights:
 
 ### Configuration via `pre_processing.toml`
 
-[input/pre_processing.toml](input/pre_processing.toml) replaces the
+[input/pre_processing.toml](../input/pre_processing.toml) replaces the
 hard-coded paths and constants of the legacy script with a single
 config file:
 
@@ -318,7 +312,7 @@ producer at a different dataset, mask, or soil database.
 
 ### Geospatial helpers extracted to `geos.py`
 
-[input/geos.py](input/geos.py) collects the grid math that used to be
+[input/geos.py](../input/geos.py) collects the grid math that used to be
 scattered across the legacy producer:
 
 - `YRES`, `XRES` — 0.5° grid constants; `(0, 0)` is the **northwest**
@@ -338,7 +332,7 @@ and the preprocessor agree on indexing by construction.
 
 ### Format spec `creating_caete_input_files.md`
 
-[input/creating_caete_input_files.md](input/creating_caete_input_files.md)
+[input/creating_caete_input_files.md](../input/creating_caete_input_files.md)
 is the contract every producer (legacy or new) must honour. It
 documents:
 
@@ -357,7 +351,7 @@ documents:
 
 ### Refreshed soil dataset
 
-[input/soil/](input/soil/) now ships five `(360, 720)` `.npy` arrays in
+[input/soil/](../input/soil/) now ships five `(360, 720)` `.npy` arrays in
 g m⁻²:
 
 - `total_n.npy` — total nitrogen, regridded from **SoilGrids 2.0**
@@ -382,7 +376,7 @@ Each `.npy` is paired with the source NetCDF it was derived from
 checked into the repository alongside the model-ready arrays. The
 `[soil_files]` table in `pre_processing.toml` is the single place that
 maps these files to the model's `tn / tp / ap / ip / op` keys, and
-[input/README.md](input/README.md) lists the full citations.
+[input/README.md](../input/README.md) lists the full citations.
 
 For completeness, the climate forcing that pairs with these soil
 inputs is the **ISIMIP3a atmospheric climate input data v1.3**
@@ -394,14 +388,14 @@ ingested through `pre_processing.py` under the `dataset =
 
 ### Test bundle `input/test_new_input/`
 
-[input/test_new_input/](input/test_new_input/) contains 15
+[input/test_new_input/](../input/test_new_input/) contains 15
 non-contiguous Pan-Amazon cells (e.g. `168-245`, `169-230`, `175-220`,
 `185-236`, `191-265`, `195-229`, …) plus a matching
 `ISIMIP_HISTORICAL_METADATA.pbz2`. It exists so the local driver can
 be exercised end-to-end on a tiny dataset — spinup, transient,
-`write_h5`, `h52nc` — without requiring the full ~10⁴-cell forcing.
+`write_h5`, `h52nc` — without requiring the full ~2700-cell forcing.
 The `INPUT_PATH` constant in
-[src/model_driver_local.py](src/model_driver_local.py) points at this
+[src/model_driver_local.py](./model_driver_local.py) points at this
 folder by default.
 
 ### Suggested follow-ups
@@ -433,26 +427,26 @@ follow-ups** listing the work that is intentionally still open.
 
 Previously on `main`, the historical CO₂ forcing distributed with the
 repository was
-[input/co2/historical_CO2_annual_1765_2018.txt](input/co2/historical_CO2_annual_1765_2018.txt)
+[input/co2/historical_CO2_annual_1765_2018.txt](../input/co2/historical_CO2_annual_1765_2018.txt)
 (254 lines, annual, tab-separated `YYYY<TAB>ppm`, last row
 `2018	407.38`), and its path was hard-coded in three places
-([src/model_driver.py](src/model_driver.py#L196),
-[src/cax_experiment.py](src/cax_experiment.py#L41), and the local
+([src/model_driver.py](./model_driver.py#L196),
+[src/cax_experiment.py](./cax_experiment.py#L41), and the local
 driver). The new ISIMIP3a `obsclim` inputs cover **1901–2024**, so 
 it becomes necessary to extend the CO₂ forcing to match that span. The new
-file is [input/co2/historical_CO2_annual_1765_2024.txt](input/co2/historical_CO2_annual_1765_2024.txt), which is the same format as the old one but with additional rows (2019–2025) and a trailing newline that makes the last row whitespace-separated rather than tab-separated. There is a .csv file with the the annual CO₂ from the ISIMIP3a dataset.
+file is [input/co2/historical_CO2_annual_1765_2024.txt](../input/co2/historical_CO2_annual_1765_2024.txt), which is the same format as the old one but with additional rows (2019–2025) and a trailing newline that makes the last row whitespace-separated rather than tab-separated. There is a .csv file with the the annual CO₂ from the ISIMIP3a dataset.
 
 ### What changed on this branch
 
 - **New file**:
-  [input/co2/historical_CO2_annual_1765_2024.txt](input/co2/historical_CO2_annual_1765_2024.txt)
+  [input/co2/historical_CO2_annual_1765_2024.txt](../input/co2/historical_CO2_annual_1765_2024.txt)
   (260 annual rows, tab-separated, plus an appended `2025` row).
 - **Local driver wired to it** via the module-level constant
   `CO2_FILE = Path("../input/co2/historical_CO2_annual_1765_2024.txt")`
-  in [src/model_driver_local.py](src/model_driver_local.py). The
+  in [src/model_driver_local.py](./model_driver_local.py). The
   hard-coded path used by `model_driver.py` and `cax_experiment.py` is
   unchanged on this branch.
-- **`find_co2` hardened** in [src/caete.py](src/caete.py) (both call
+- **`find_co2` hardened** in [src/caete.py](./caete.py) (both call
   sites near lines 782 and 1225): the parser now uses `str.split()`
   with no argument, which tolerates either tabs or arbitrary runs of
   spaces, and skips non-numeric rows.
@@ -479,7 +473,7 @@ file is [input/co2/historical_CO2_annual_1765_2024.txt](input/co2/historical_CO2
 
 ## Data-driven netCDF intervals in `h52nc`
 
-Previously on `main`, [src/h52nc.py](src/h52nc.py) populated the
+Previously on `main`, [src/h52nc.py](./h52nc.py) populated the
 module-level globals `TIME_UNITS`, `CALENDAR`, `EXPERIMENT` and
 `run_breaks` via `catch_stime("stime.txt")` **at import time**, and
 `h52nc(input_file, dump_nc_folder)` looped over those globals:
@@ -492,7 +486,7 @@ for interval in run_breaks:
 ```
 
 `run_breaks` was always one of the three hard-coded lists in
-[src/caete.py](src/caete.py) (`run_breaks_hist`,
+[src/caete.py](./caete.py) (`run_breaks_hist`,
 `run_breaks_CMIP5_hist`, `run_breaks_CMIP5_proj`), selected by the
 `rbrk_index` written on line 4 of `stime.txt`. Any mismatch between the
 runtime chunking and those literals silently produced netCDFs with the
@@ -536,9 +530,9 @@ default 2-year `rbrk` buckets).
   populated as a side effect of importing `h52nc`, but `stime.txt`
   itself is still written by every driver.
 - The hard-coded lat/lon crop slices `[160:221, 201:272]` (see
-  around [src/h52nc.py#L88](src/h52nc.py#L88)) are untouched.
+  around [src/h52nc.py#L88](./h52nc.py#L88)) are untouched.
 - `custom_rbrk(tp)` (the manual escape hatch around
-  [src/h52nc.py#L66-L68](src/h52nc.py#L66)) is preserved.
+  [src/h52nc.py#L66-L68](./h52nc.py#L66)) is preserved.
 
 ### Suggested follow-ups
 
