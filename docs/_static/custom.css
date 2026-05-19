@@ -1,0 +1,11 @@
+/* Ajusta o tamanho e espaçamento do logo no menu lateral */
+.wy-side-nav-search .logo {
+    max-height: 200px;
+    padding: 10px 0;
+    object-fit: contain;
+}
+
+/* Center titles */
+/* h1, h2 { 
+    text-align: center; 
+} */

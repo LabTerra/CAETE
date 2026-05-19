@@ -1,3 +1,5 @@
+docs/_build
+
 src/*.o
 src/*.mod
 src/*.pyf
