@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mortality &mdash; LabTerra - Modelo CAETÊ</title>
+  <title>Development &mdash; LabTerra - Modelo CAETÊ</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
@@ -21,8 +21,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Grid-Cell Occupation and Performance" href="gridcell_occupation.html" />
-    <link rel="prev" title="Ecosystem Processes" href="ecosystem_processes.html" /> 
+    <link rel="next" title="Git and Github" href="git.html" />
+    <link rel="prev" title="Install all requirements manually, create Python environment and run" href="../build_and_run/manually.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,21 +47,14 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
-<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Mortality</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_description/index.html">Model Description</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run/index.html">Build and Run CAETÊ</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="git.html">Git and Github</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guidelines.html">Guidelines and code of conduct</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installations.html">Installation of necessary softwares</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../build_and_run/index.html">Build and Run CAETÊ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
 </ul>
 
@@ -79,32 +72,49 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
-      <li class="breadcrumb-item active">Mortality</li>
+      <li class="breadcrumb-item active">Development</li>
       <li class="wy-breadcrumbs-aside">
-              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/mortality.rst" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//development/index.rst" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
-        <a href="ecosystem_processes.html" class="btn btn-neutral float-left" title="Ecosystem Processes" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="gridcell_occupation.html" class="btn btn-neutral float-right" title="Grid-Cell Occupation and Performance" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../build_and_run/manually.html" class="btn btn-neutral float-left" title="Install all requirements manually, create Python environment and run" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="git.html" class="btn btn-neutral float-right" title="Git and Github" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
   </div>
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="mortality">
-<h1>Mortality<a class="headerlink" href="#mortality" title="Link to this heading"></a></h1>
-<p>In the current version of CAETÊ, mortality is not mechanistically represented; PLS are eliminated through environmental filtering, which includes climatic conditions and trade-off relations between the variant functional traits and the trait parameters, leading to carbon starvation when a PLS fails to maintain a minimum biomass threshold.</p>
-<p>Once eliminated, there is no possibility of reestablishment.</p>
+  <section id="development">
+<h1>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="git.html">Git and Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="git.html#create-a-github-account">Create a GitHub Account</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guidelines.html">Guidelines and code of conduct</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guidelines.html#software-guidelines">Software Guidelines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guidelines.html#coding-style">Coding style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guidelines.html#unit-tests">Unit tests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installations.html">Installation of necessary softwares</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installations.html#install-git">Install git</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installations.html#install-vscode">Install VSCode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installations.html#optional-install-docker">(Optional) Install Docker</a></li>
+</ul>
+</li>
+</ul>
+</div>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ecosystem_processes.html" class="btn btn-neutral float-left" title="Ecosystem Processes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="gridcell_occupation.html" class="btn btn-neutral float-right" title="Grid-Cell Occupation and Performance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../build_and_run/manually.html" class="btn btn-neutral float-left" title="Install all requirements manually, create Python environment and run" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="git.html" class="btn btn-neutral float-right" title="Git and Github" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

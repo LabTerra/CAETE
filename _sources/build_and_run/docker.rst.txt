@@ -1,0 +1,6 @@
+Run CAETÊ using Docker
+======================
+
+...
+docker compose run --build caete
+...

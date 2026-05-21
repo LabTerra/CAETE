@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mortality &mdash; LabTerra - Modelo CAETÊ</title>
+  <title>Git and Github &mdash; LabTerra - Modelo CAETÊ</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
@@ -21,8 +21,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Grid-Cell Occupation and Performance" href="gridcell_occupation.html" />
-    <link rel="prev" title="Ecosystem Processes" href="ecosystem_processes.html" /> 
+    <link rel="next" title="Guidelines and code of conduct" href="guidelines.html" />
+    <link rel="prev" title="Development" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,21 +47,17 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
-<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Mortality</a></li>
-<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
-<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../model_description/index.html">Model Description</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run/index.html">Build and Run CAETÊ</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Development</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Git and Github</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#create-a-github-account">Create a GitHub Account</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../build_and_run/index.html">Build and Run CAETÊ</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guidelines.html">Guidelines and code of conduct</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installations.html">Installation of necessary softwares</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
 </ul>
 
@@ -79,32 +75,35 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
-      <li class="breadcrumb-item active">Mortality</li>
+          <li class="breadcrumb-item"><a href="index.html">Development</a></li>
+      <li class="breadcrumb-item active">Git and Github</li>
       <li class="wy-breadcrumbs-aside">
-              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/mortality.rst" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//development/git.rst" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
-        <a href="ecosystem_processes.html" class="btn btn-neutral float-left" title="Ecosystem Processes" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="gridcell_occupation.html" class="btn btn-neutral float-right" title="Grid-Cell Occupation and Performance" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Development" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="guidelines.html" class="btn btn-neutral float-right" title="Guidelines and code of conduct" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
   </div>
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="mortality">
-<h1>Mortality<a class="headerlink" href="#mortality" title="Link to this heading"></a></h1>
-<p>In the current version of CAETÊ, mortality is not mechanistically represented; PLS are eliminated through environmental filtering, which includes climatic conditions and trade-off relations between the variant functional traits and the trait parameters, leading to carbon starvation when a PLS fails to maintain a minimum biomass threshold.</p>
-<p>Once eliminated, there is no possibility of reestablishment.</p>
+  <section id="git-and-github">
+<h1>Git and Github<a class="headerlink" href="#git-and-github" title="Link to this heading"></a></h1>
+<section id="create-a-github-account">
+<h2>Create a GitHub Account<a class="headerlink" href="#create-a-github-account" title="Link to this heading"></a></h2>
+<p>The APSIM source code is located on GitHub so you will need to have a <a class="reference external" href="https://github.com/">GitHub login</a> if you want to contribute new features or modifications to the APSIM repository.
+…</p>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ecosystem_processes.html" class="btn btn-neutral float-left" title="Ecosystem Processes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="gridcell_occupation.html" class="btn btn-neutral float-right" title="Grid-Cell Occupation and Performance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Development" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="guidelines.html" class="btn btn-neutral float-right" title="Guidelines and code of conduct" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

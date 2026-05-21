@@ -16,6 +16,6 @@ CAETÊ-DVM (Carbon and Ecosystem Trait Evaluation model) is a trait-based Dynami
    :caption: Contents:
 
    model_description/index
-   setup
-   build_and_run
+   build_and_run/index
+   development/index
    tutorials
