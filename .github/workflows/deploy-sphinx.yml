@@ -34,7 +34,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           destination_dir: ./  # gh-pages branch root
-          publish_dir: .docs/_build/html
+          publish_dir: _build/html
           keep_files: false    # Clean gh-pages branch before publish
           force_orphan: false  # Keep only last commit (clean history)
           
