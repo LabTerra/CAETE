@@ -1,4 +1,4 @@
-/* Ajusta o tamanho e espaçamento do logo no menu lateral */
+/* Adjust logo size and spacing on side menu */
 .wy-side-nav-search .logo {
     max-height: 200px;
     padding: 10px 0;
@@ -9,3 +9,26 @@
 /* h1, h2 { 
     text-align: center; 
 } */
+
+/* Justify all <p> element texts, except inside a <tr> element */
+section p { text-align: justify }
+tr p { text-align: center }
+figcaption p { text-align: center }
+
+/* Force equation numbers to right */
+.math { position: relative }
+.eqno {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Set tables width to 100% */
+table { width: 100% }
+
+/* Create a class to use on all tables to wrap text lines */
+.wrap-table td {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}

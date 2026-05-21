@@ -32,7 +32,9 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary'
+    'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax'   # Render LaTeX on HTML
+    # 'sphinx.ext.imgmath'
 ]
 
 # extensions = [
@@ -94,6 +96,7 @@ html_context = {
     'github_repo': 'LabTerra.github.io',
     'last_updated': False,
     'conf_py_path': '/',
+    'body_css_class': 'justified',
     #'commit': False,
 }
 
@@ -116,7 +119,8 @@ numfig_format = {
     'section': 'Section %s.'
 }
 
-math_eqref_format = 'Equation {number}'
+# Config equation reference format
+math_eqref_format = 'Eq. {number}'
 
 
 # -- BibTex configuration ----------------------------------------------------

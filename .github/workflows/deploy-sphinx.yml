@@ -1,0 +1,40 @@
+name: Deploy Sphinx Docs to GitHub Pages
+
+on:
+  push:
+    branches: [ docs ]
+
+permissions:
+  contents: write   # Allow push on "gh-pages" branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          
+      - name: Install sphinx and dependencies
+        run: |
+          pip install -r docs/requirements.txt
+
+      - name: Build docs
+        run: |
+          sphinx-build -a -b html docs/ _build/html
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          destination_dir: ./  # gh-pages branch root
+          publish_dir: .docs/_build/html
+          keep_files: false    # Clean gh-pages branch before publish
+          force_orphan: false  # Keep only last commit (clean history)
+          

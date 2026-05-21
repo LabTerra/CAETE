@@ -3,7 +3,9 @@ cssutils
 docutils
 ipython
 Jinja2
+latex
 latexcodec
+latexmk
 lockfile
 MarkupSafe
 matplotlib-inline
