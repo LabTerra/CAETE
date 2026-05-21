@@ -1,0 +1,17 @@
+{
+    "build_and_run": 0.016,
+    "index": 0.004,
+    "model_description/ecosystem_processes": 0.06,
+    "model_description/gridcell_occupation": 0.01,
+    "model_description/index": 0.002,
+    "model_description/input_data": 0.016,
+    "model_description/mortality": 0.001,
+    "model_description/output_data": 0.003,
+    "model_description/pls": 0.007,
+    "model_description/spinup": 0.002,
+    "model_description/tables": 0.118,
+    "model_description/variant_functional_trait": 0.024,
+    "model_description/water_balance": 0.018,
+    "setup": 0.114,
+    "tutorials": 0.001
+}

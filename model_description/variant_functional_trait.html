@@ -1,0 +1,250 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Variant Functional Trait &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Plant Life Strategy (PLS)" href="pls.html" />
+    <link rel="prev" title="Input Data" href="input_data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Variant Functional Trait</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/variant_functional_trait.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="input_data.html" class="btn btn-neutral float-left" title="Input Data" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pls.html" class="btn btn-neutral float-right" title="Plant Life Strategy (PLS)" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="variant-functional-trait">
+<h1>Variant Functional Trait<a class="headerlink" href="#variant-functional-trait" title="Link to this heading"></a></h1>
+<p>CAETÊ features 19 variable functional traits (<a class="reference internal" href="#tab-params-k"><span class="std std-ref">Descriptions, values, and units of the constant parameters k1-k22 and allometric constants in CAETÊ.</span></a>), which define the vegetation’s functional identity. All trait ranges are derived from databases consistent with the observed values (e.g. TRY, Dryad).</p>
+<table class="wrap-table docutils align-default" id="tab-params-k">
+<caption><span class="caption-number">Table 2 - </span><span class="caption-text">Descriptions, values, and units of the constant parameters k1-k22 and allometric constants in CAETÊ.</span><a class="headerlink" href="#tab-params-k" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 55.0%" />
+<col style="width: 25.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Parameter</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+<th class="head"><p><strong>Value / Unit</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{1}\)</span></p></td>
+<td><p>Photosynthesis co‑limitation coefficient</p></td>
+<td><p>0.93</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{2}\)</span></p></td>
+<td><p>Photosynthesis co‑limitation coefficient</p></td>
+<td><p>0.83</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{3}\)</span></p></td>
+<td><p>Atmospheric O<sub>2</sub> concentration</p></td>
+<td><p>21,200 Pa</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{4}\)</span></p></td>
+<td><p>Quantum efficiency</p></td>
+<td><p>0.08 mol electrons Ein<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{5}\)</span></p></td>
+<td><p>Light scattering rate</p></td>
+<td><p>0.15</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{6}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(J_{L}\)</span> parameter</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{7}\)</span></p></td>
+<td><p>Ratio of light‑ to Rubisco‑limited photosynthesis</p></td>
+<td><p>0.5</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{8}\)</span></p></td>
+<td><p>Photorespiration compensation parameter</p></td>
+<td><p>5.2</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{9}\)</span></p></td>
+<td><p>Photosynthesis co‑limitation coefficient</p></td>
+<td><p>0.1</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{10}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(Q_{10}\)</span> function coefficient</p></td>
+<td><p>0.57</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{11}\)</span></p></td>
+<td><p><span class="math notranslate nohighlight">\(Q_{10}\)</span> reference temperature</p></td>
+<td><p>25 °C</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{12}\)</span></p></td>
+<td><p>CO<sub>2</sub> Michaelis–Menten constant</p></td>
+<td><p>30 Pa</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{13}\)</span></p></td>
+<td><p>CO<sub>2</sub> Michaelis–Menten constant</p></td>
+<td><p>2.1 Pa</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{14}\)</span></p></td>
+<td><p>O<sub>2</sub> Michaelis–Menten constant</p></td>
+<td><p>30,000 Pa</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{15}\)</span></p></td>
+<td><p>O<sub>2</sub> Michaelis–Menten constant</p></td>
+<td><p>1.2 Pa</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{16}\)</span></p></td>
+<td><p>Maximum ratio of internal to external CO<sub>2</sub></p></td>
+<td><p>0.9</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{17}\)</span></p></td>
+<td><p>Critical moisture deficit</p></td>
+<td><p>0.1</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{18}\)</span></p></td>
+<td><p>Rubisco carboxylation rate exponent</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{19}\)</span></p></td>
+<td><p>Rubisco carboxylation rate exponent</p></td>
+<td><p>0.3</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{20}\)</span></p></td>
+<td><p>Rubisco carboxylation reference temperature</p></td>
+<td><p>36 °C</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(k_{21}\)</span></p></td>
+<td><p>Light extinction coef. for direct IPAR (sun)</p></td>
+<td><p>0.5 / sin 90°</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{22}\)</span></p></td>
+<td><p>Light extinction coef. for direct IPAR (shade)</p></td>
+<td><p>0.5 / sin 20°</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(K_{\text{alom1}}\)</span></p></td>
+<td><p>Allometric constant for crown area</p></td>
+<td><p>100</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(K_{\text{alom2}}\)</span></p></td>
+<td><p>Allometric constant for height</p></td>
+<td><p>40</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(K_{\text{alom3}}\)</span></p></td>
+<td><p>Allometric exponent for height</p></td>
+<td><p>0.5</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(k_{\text{rp}}\)</span></p></td>
+<td><p>Allometric exponent for crown area</p></td>
+<td><p>1.6</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="input_data.html" class="btn btn-neutral float-left" title="Input Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pls.html" class="btn btn-neutral float-right" title="Plant Life Strategy (PLS)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

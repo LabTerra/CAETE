@@ -1,0 +1,429 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecosystem Processes &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Mortality" href="mortality.html" />
+    <link rel="prev" title="Spin-Up" href="spinup.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Ecosystem Processes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#productivity">Productivity</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#photosynthesis">Photosynthesis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#light-availability-and-light-competition">Light availability and light competition</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#respiration">Respiration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#growth-respiration">Growth Respiration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#maintenance-respiration">Maintenance Respiration</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#stomatal-conductance-and-canopy-resistance">Stomatal Conductance and Canopy Resistance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#carbon-nitrogen-and-phosphorus-allocation">Carbon, nitrogen, and phosphorus allocation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#allometry-and-tree-architecture">Allometry and tree architecture</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Ecosystem Processes</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/ecosystem_processes.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="spinup.html" class="btn btn-neutral float-left" title="Spin-Up" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mortality.html" class="btn btn-neutral float-right" title="Mortality" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ecosystem-processes">
+<h1>Ecosystem Processes<a class="headerlink" href="#ecosystem-processes" title="Link to this heading"></a></h1>
+<p>For the next sections, the symbols <em>i</em>, <em>y</em>, and <em>z</em> refer to a PLS, a grid cell, and a plant compartment, respectively.</p>
+<section id="productivity">
+<h2>Productivity<a class="headerlink" href="#productivity" title="Link to this heading"></a></h2>
+<p>The ecophysiological processes that determine potential primary productivity are calculated for each PLS within a grid cell. Cell-level plant biomass stocks and biogeochemical fluxes are obtained as abundance-weighted community-weighted means (CWMs) of all PLS present.</p>
+<p>CAETÊ implements both C3 (Farquhar–von Caemmerer–Berry) and C4 (Chen et al., 1994) photosynthetic pathways. The maximum carboxylation rate of Rubisco depends on leaf nitrogen content (Domingues et al., 2010). These biochemical models respond to mesophyll temperature, atmospheric CO<sub>2</sub> concentration, and photosynthetically active radiation.</p>
+<section id="photosynthesis">
+<h3>Photosynthesis<a class="headerlink" href="#photosynthesis" title="Link to this heading"></a></h3>
+<p>The photosynthesis equation (<span class="math notranslate nohighlight">\(GPP_{i,y}\)</span>) and the ones associated with it are based on Farquhar, Caemmerer, &amp; Berry (1980) formulation, which takes into account three limiting factors: Rubisco carboxylation (<span class="math notranslate nohighlight">\(J_{c}\)</span>), light (<span class="math notranslate nohighlight">\(J_{L_i}\)</span>), and electron transport (<span class="math notranslate nohighlight">\(J_{E}\)</span>). We also included water stress limitation (<span class="math notranslate nohighlight">\(f_{5,i}\)</span>).</p>
+<div class="math notranslate nohighlight" id="equation-eq-gpp">
+<span class="eqno">(1)<a class="headerlink" href="#equation-eq-gpp" title="Link to this equation"></a></span>\[GPP_{i,y}
+= 0.012 \times 31\,557\,600
+  \times f_{1,i,y}^{\,4}
+  \times f_{4,i,y}^{\,\text{sun}}
+  \times f_{4,i,y}^{\,\text{shade}}
+  \times f_{5,i}\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(f_{1,i,y}\)</span> is the leaf level gross photosynthesis;</p></li>
+<li><p><span class="math notranslate nohighlight">\(f_{4,i,y}^{\text{sun}}\)</span> and <span class="math notranslate nohighlight">\(f_{4,i,y}^{\text{shade}}\)</span> are functions for upscaling the leaf level photosynthesis to the canopy level;</p></li>
+<li><p><span class="math notranslate nohighlight">\(f_{5,i}\)</span> is the water stress limitation.</p></li>
+</ul>
+<p>In the following equations, <span class="math notranslate nohighlight">\(k_n\)</span> are constants summarized in (<a class="reference internal" href="tables.html#tab-all-vars"><span class="std std-ref">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</span></a>). The factor <span class="math notranslate nohighlight">\(f_{1i,y}\)</span> is calculated as the smallest root among the three limiting rates: <span class="math notranslate nohighlight">\(J_{C\,i,y}\)</span>, <span class="math notranslate nohighlight">\(J_{L\,i,y}\)</span> and <span class="math notranslate nohighlight">\(J_E\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-f1">
+<span class="eqno">(2)<a class="headerlink" href="#equation-eq-f1" title="Link to this equation"></a></span>\[f_{1i,y} \;=\; \text{smallest root of}\;\bigl\{\,k_{1}J^{2}\;-\;J\,(J_{P\,i,y}+J_{E})\;+\;J_{P\,i,y}\,J_{E}\;=\;0\bigr\}\]</div>
+<p>where <span class="math notranslate nohighlight">\(J_{P\,i,y}\)</span> is itself the minimum between <span class="math notranslate nohighlight">\(J_{C\,i,y}\)</span> and <span class="math notranslate nohighlight">\(J_{L\,i,y}\)</span>, defined by:</p>
+<div class="math notranslate nohighlight" id="equation-eq-jp">
+<span class="eqno">(3)<a class="headerlink" href="#equation-eq-jp" title="Link to this equation"></a></span>\[J_{P\,i,y} \;=\; \text{smallest root of}\;\bigl\{\,k_{2}J_{P\,i,y}^{2}\;-\;J_{P\,i,y}\,(J_{C\,i,y}+J_{L\,i,y})\;+\;J_{C\,i,y}J_{L\,i,y}\;=\;0\bigr\}\]</div>
+<p>The Rubisco‑limited carboxylation rate <span class="math notranslate nohighlight">\(J_{C,i,y}\)</span> depends on several factors:</p>
+<ul class="simple">
+<li><p>the maximum carboxylation capacity <span class="math notranslate nohighlight">\(V_{m,i,y}\)</span>,</p></li>
+<li><p>the internal CO<sub>2</sub> partial pressure <span class="math notranslate nohighlight">\(C_{\text{press},i,y}\)</span>,</p></li>
+<li><p>the photorespiratory compensation point <span class="math notranslate nohighlight">\(\Gamma_{i,y}\)</span>,</p></li>
+<li><p>and the Michaelis–Menten constants <span class="math notranslate nohighlight">\(f_{2i,y}\)</span> for CO<sub>2</sub> and <span class="math notranslate nohighlight">\(f_{3i,y}\)</span> for O<sub>2</sub>.</p></li>
+</ul>
+<p>And is given by:</p>
+<div class="math notranslate nohighlight" id="equation-eq-jc">
+<span class="eqno">(4)<a class="headerlink" href="#equation-eq-jc" title="Link to this equation"></a></span>\[J_{C\,i,y}
+= V_{m,i,y}\,
+\left\{\,C_{\text{press},i,y}
+-\frac{\Gamma_{i,y}}{C_{\text{press},i,y}}
++f_{2i,y}\right\}
+\Biggl[\,1 + \Bigl(\tfrac{k_{3}}{f_{3i,y}}\Bigr)\Biggr]\]</div>
+<p>The temperature dependencies to <span class="math notranslate nohighlight">\(f_{2i,y}\)</span> and <span class="math notranslate nohighlight">\(f_{3i,y}\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-f2">
+<span class="eqno">(5)<a class="headerlink" href="#equation-eq-f2" title="Link to this equation"></a></span>\[f_{2i,y} = k_{12}\,k_{13}^{10\,(T_{y}-k_{11})}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-f3">
+<span class="eqno">(6)<a class="headerlink" href="#equation-eq-f3" title="Link to this equation"></a></span>\[f_{3i,y} = k_{14}\,k_{15}^{10\,(T_{y}-k_{11})}\]</div>
+<p>The internal CO<sub>2</sub> pressure is adjusted for leaf water deficit <span class="math notranslate nohighlight">\(r_{i,y}\)</span> as:</p>
+<div class="math notranslate nohighlight" id="equation-eq-cpress">
+<span class="eqno">(7)<a class="headerlink" href="#equation-eq-cpress" title="Link to this equation"></a></span>\[C_{\text{press},i,y}
+= k_{16}\,\Bigl[\,1 - \bigl(\tfrac{r_{i,y}}{k_{17}}\bigr)\Bigr]\,(CO_{2y}-\Gamma_{i,y}) + \Gamma_{i,y}\]</div>
+<p>The compensation point <span class="math notranslate nohighlight">\(\Gamma_{i,y}\)</span> also depends on temperature:</p>
+<div class="math notranslate nohighlight" id="equation-eq-gamma">
+<span class="eqno">(8)<a class="headerlink" href="#equation-eq-gamma" title="Link to this equation"></a></span>\[\Gamma_{i,y}
+= \Bigl(\tfrac{k_{3}}{k_{8}}\Bigr)\;k_{9}^{10\,(T_{y}-k_{11})}\]</div>
+<p>Water stress modifies the effective CO<sub>2</sub> pressure via the leaf‑level moisture deficit <span class="math notranslate nohighlight">\(r_{i,y}\)</span>, while <span class="math notranslate nohighlight">\(C_{a,y}\)</span> denotes the ambient CO<sub>2</sub> concentration (input). The deficit is calculated as a fixed proportion of the saturation mixing ratio <span class="math notranslate nohighlight">\(r_{\max,i,y}\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-r">
+<span class="eqno">(9)<a class="headerlink" href="#equation-eq-r" title="Link to this equation"></a></span>\[r_{i,y} = -0.315\,r_{\max,i,y}\]</div>
+<p>Here, <span class="math notranslate nohighlight">\(r_{\max,i,y}\)</span> is itself a function of the leaf vapor pressure <span class="math notranslate nohighlight">\(w_{\text{press},i,y}\)</span> and the surface pressure <span class="math notranslate nohighlight">\(P_{\text{surf},y}\)</span>.</p>
+<p>Finally, <span class="math notranslate nohighlight">\(r_{\max,i,y}\)</span> is a function of the partial pressure of water vapor <span class="math notranslate nohighlight">\(w_{\text{press},i,y}\)</span> and the surface pressure <span class="math notranslate nohighlight">\(P_{\text{surf},y}\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-rmax">
+<span class="eqno">(10)<a class="headerlink" href="#equation-eq-rmax" title="Link to this equation"></a></span>\[r_{\max,i,y} = 0.622\,\frac{w_{\text{press},i,y}}{P_{\text{surf},y}-w_{\text{press},i,y}}\]</div>
+<p>The leaf interior vapor pressure <span class="math notranslate nohighlight">\(w_{\text{press},i,y}\)</span> is calculated as a function of temperature <span class="math notranslate nohighlight">\(T_y\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-wpress">
+<span class="eqno">(11)<a class="headerlink" href="#equation-eq-wpress" title="Link to this equation"></a></span>\[w_{\text{press},i,y} \;=\; 6.1121 \times \exp\!\Biggl\{\Bigl[\,18.678 \;-\;\frac{T_y}{234.5}\Bigr]\times\Bigl[\;\tfrac{T_y}{257.14 + T_y}\Bigr]\Biggr\}\]</div>
+<p>The light‑limited photosynthetic rate <span class="math notranslate nohighlight">\(J_{L,i,y}\)</span> depends on the incident photosynthetically active radiation (IPAR<sub>i,y</sub>); here IPAR is taken as 50% of the incoming shortwave radiation (input):</p>
+<div class="math notranslate nohighlight" id="equation-eq-jl">
+<span class="eqno">(12)<a class="headerlink" href="#equation-eq-jl" title="Link to this equation"></a></span>\[J_{L,i,y} \;=\; k_{4}\,(1 - k_{5})\,\mathrm{IPAR}_{i,y}\]</div>
+<p>The electron‑transport‑limited rate <span class="math notranslate nohighlight">\(J_{E,i,y}\)</span> is</p>
+<div class="math notranslate nohighlight" id="equation-eq-je">
+<span class="eqno">(13)<a class="headerlink" href="#equation-eq-je" title="Link to this equation"></a></span>\[J_{E,i,y} \;=\; k_{7}\,V_{m,i,y}\]</div>
+<p>where the Rubisco maximum rate <span class="math notranslate nohighlight">\(V_{m,i,y}\)</span> itself is temperature‑dependent:</p>
+<div class="math notranslate nohighlight" id="equation-eq-vm">
+<span class="eqno">(14)<a class="headerlink" href="#equation-eq-vm" title="Link to this equation"></a></span>\[V_{m,i,y}
+= V_{c\max,i,y}\,\frac{k_{10}^{(T_y - k_{11})}}{k_{18}} \;+\; \exp\!\bigl(k_{19}\,(T_y - k_{20})\bigr)\]</div>
+<p>and <span class="math notranslate nohighlight">\(V_{c\max,i,y}\)</span> (<a class="reference internal" href="tables.html#tab-all-vars"><span class="std std-ref">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</span></a>) is the maximum Rubisco carboxylation rate, with <span class="math notranslate nohighlight">\(T_y\)</span> as input temperature.</p>
+<p>The canopy‑scaling factor <span class="math notranslate nohighlight">\(f_{4,i,y}\)</span> is split into sunlit and shaded components, <span class="math notranslate nohighlight">\(f_{4,i,y}^{\mathrm{sun}}\)</span> and <span class="math notranslate nohighlight">\(f_{4,i,y}^{\mathrm{shade}}\)</span>. The sunlit portion assumes direct radiation at a 90° incidence, while the shaded portion receives diffuse light at 20°:</p>
+<div class="math notranslate nohighlight" id="equation-eq-f4-sun">
+<span class="eqno">(15)<a class="headerlink" href="#equation-eq-f4-sun" title="Link to this equation"></a></span>\[f_{4,i,y}^{\mathrm{sun}}
+= \frac{1 - \exp\bigl(-k_{21}\,\mathrm{LAI}_{\mathrm{sun},i,y}\bigr)}{k_{21}}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-f4-shade">
+<span class="eqno">(16)<a class="headerlink" href="#equation-eq-f4-shade" title="Link to this equation"></a></span>\[f_{4,i,y}^{\mathrm{shade}}
+= \frac{1 - \exp\bigl(-k_{22}\,\mathrm{LAI}_{\mathrm{shade},i,y}\bigr)}{k_{22}}\]</div>
+<p>Here <span class="math notranslate nohighlight">\(\mathrm{LAI}_{i,y}\)</span> is partitioned into <span class="math notranslate nohighlight">\(\mathrm{LAI}_{\mathrm{sun},i,y}\)</span> and <span class="math notranslate nohighlight">\(\mathrm{LAI}_{\mathrm{shade},i,y}\)</span> according to canopy geometry. Total LAI is</p>
+<div class="math notranslate nohighlight" id="equation-eq-lai">
+<span class="eqno">(17)<a class="headerlink" href="#equation-eq-lai" title="Link to this equation"></a></span>\[\mathrm{LAI}_{i,y} = C_{\mathrm{leaf},i,y}\,\mathrm{SLA}_{i}\]</div>
+<p>where <span class="math notranslate nohighlight">\(C_{\mathrm{leaf},i,y}\)</span> is leaf carbon per unit ground area and <span class="math notranslate nohighlight">\(\mathrm{SLA}_{i,y}\)</span> is the specific leaf area (a variant functional trait in this version).</p>
+</section>
+<section id="light-availability-and-light-competition">
+<h3>Light availability and light competition<a class="headerlink" href="#light-availability-and-light-competition" title="Link to this heading"></a></h3>
+<p>In CAETÊ, light competition is represented by a straightforward vertical-stratification scheme in which each PLS captures a different share of incident light. Each PLS within a grid cell is assigned to a vertical layer according to its height. This layer position determines the light available to the PLS, since canopy light attenuation obeys the Lambert–Beer law. Consequently, radiation‑dependent processes, such as photosynthesis and even allometric relationships, are modulated by the local light environment.</p>
+<p>The Lambert–Beer law describes how the intensity of a light beam decreases exponentially as it travels through an absorbing medium (Oldham &amp; Parnis, 2017) and is commonly applied in ecology to model light attenuation within forest canopies (Hirose, 2005).</p>
+<p>To stratify PLS into discrete vertical layers, the model defines:</p>
+<ol class="lowerroman simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">N_layer</span></code>: the total number of layers, computed from the maximum height of each PLS (<code class="docutils literal notranslate"><span class="pre">H_max</span></code>, in meters);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Size_layer</span></code>: the uniform length of each layer (in meters) across the entire canopy profile.</p></li>
+</ol>
+<div class="math notranslate nohighlight" id="equation-eq-nlayer">
+<span class="eqno">(18)<a class="headerlink" href="#equation-eq-nlayer" title="Link to this equation"></a></span>\[\mathrm{N}_{\mathrm{layer}}
+\;=\;\frac{\mathrm{H}_{\mathrm{max}}}{5}\]</div>
+<p>where 5 is a standardized value for all grid cells, used to set the vertical stratification.</p>
+<div class="math notranslate nohighlight" id="equation-eq-sizelayer">
+<span class="eqno">(19)<a class="headerlink" href="#equation-eq-sizelayer" title="Link to this equation"></a></span>\[\mathrm{Size}_{\mathrm{layer}}
+\;=\;\frac{\mathrm{H}_{\mathrm{max}}}{\mathrm{N}_{\mathrm{layer}}}\]</div>
+<p>The incident light (photosynthetically active radiation, IPAR; denoted <span class="math notranslate nohighlight">\(\mathrm{Light}_{\mathrm{inc}}\)</span>) in each layer depends on the light arriving in the previous layer (<span class="math notranslate nohighlight">\(\mathrm{Light}_{\mathrm{aval},\,l-1}\)</span>) minus the light consumed by the PLSs in that layer (<span class="math notranslate nohighlight">\(\mathrm{Light}_{\mathrm{used},\,l}\)</span>):</p>
+<div class="math notranslate nohighlight" id="equation-eq-light-inc">
+<span class="eqno">(20)<a class="headerlink" href="#equation-eq-light-inc" title="Link to this equation"></a></span>\[\mathrm{Light}_{\mathrm{inc},\,l}
+\;=\;
+\mathrm{Light}_{\mathrm{aval},\,l-1}
+\;-\;
+\mathrm{Light}_{\mathrm{used},\,l}\]</div>
+<p>In the topmost layer, <span class="math notranslate nohighlight">\(\mathrm{Light}_{\mathrm{inc}}\)</span> is simply the absolute IPAR (in <span class="math notranslate nohighlight">\(\mathrm{J}\,\mathrm{m}^{-2}\,\mathrm{s}^{-1}\)</span>).</p>
+<p><span class="math notranslate nohighlight">\(\mathrm{Light}_{\mathrm{used}}\)</span> is calculated using an extinction coefficient of 0.59, typical for broadleaf forests (Binkley et al., 2013; Zhang et al., 2014), following the Lambert–Beer law (Sitch et al., 2003; Hirose, 2005):</p>
+<div class="math notranslate nohighlight" id="equation-eq-light-used">
+<span class="eqno">(21)<a class="headerlink" href="#equation-eq-light-used" title="Link to this equation"></a></span>\[\mathrm{Light}_{\mathrm{used},\,l}
+\;=\;
+\mathrm{Light}_{\mathrm{aval},\,l}
+\bigl[\,1 - \exp\bigl(-0.59\,\mathrm{LAI}_{\mathrm{mean\ layer}}\bigr)\bigr]\]</div>
+<p>The amount of light received by each PLS is fed into the photosynthesis functions (<span class="math notranslate nohighlight">\(J_{L,i,y}\)</span>) mentioned above. All PLS within the same layer receive the same amount of available light.</p>
+</section>
+<section id="respiration">
+<h3>Respiration<a class="headerlink" href="#respiration" title="Link to this heading"></a></h3>
+<p>Autotrophic respiration, <span class="math notranslate nohighlight">\(R_{a,i,y}\)</span>, is partitioned into growth respiration <span class="math notranslate nohighlight">\(R_{g,i,y}\)</span> and maintenance respiration <span class="math notranslate nohighlight">\(R_{m,i,y}\)</span> according to Ryan, 1991a,b.</p>
+<div class="math notranslate nohighlight" id="equation-eq-ra">
+<span class="eqno">(22)<a class="headerlink" href="#equation-eq-ra" title="Link to this equation"></a></span>\[R_{a,i,y} \;=\; R_{g,i,y} \;+\; R_{m,i,y}\]</div>
+</section>
+<section id="growth-respiration">
+<h3>Growth Respiration<a class="headerlink" href="#growth-respiration" title="Link to this heading"></a></h3>
+<p>We assume that the metabolic cost of constructing new tissue consumes 25% of the carbon allocated. Denoting the carbon in compartment <span class="math notranslate nohighlight">\(z\)</span> at time <span class="math notranslate nohighlight">\(t\)</span> by <span class="math notranslate nohighlight">\(C_{z,i,y}^t\)</span>, the total growth respiration across the three structural pools (leaves, fine roots, woody tissues) is:</p>
+<div class="math notranslate nohighlight" id="equation-eq-rg">
+<span class="eqno">(23)<a class="headerlink" href="#equation-eq-rg" title="Link to this equation"></a></span>\[R_{g,i,y}
+\;=\;
+\sum_{z=1}^{3}
+0.25\,\bigl(C_{z,i,y}^t \;-\; C_{z,i,y}^{t-1}\bigr)\]</div>
+</section>
+<section id="maintenance-respiration">
+<h3>Maintenance Respiration<a class="headerlink" href="#maintenance-respiration" title="Link to this heading"></a></h3>
+<p>Maintenance respiration is calculated from the nitrogen and carbon content of each tissue. Although roughly 60% of this respiration supports protein maintenance and replacement, the model imposes nitrogen limitation on maintenance costs according to C and N pools.</p>
+<div class="math notranslate nohighlight" id="equation-eq-rm">
+<span class="eqno">(24)<a class="headerlink" href="#equation-eq-rm" title="Link to this equation"></a></span>\[R_{m,i,y}
+\;=\;
+\sum_{z=1}^{3}
+\bigl[n_{c,z}\,C_{z,i,y}^{t}\,\exp\bigl(0.07\,T_{y}\bigr)\bigr]\]</div>
+<p>Here:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(n_{c,z}\)</span> is the N:C ratio of compartment <span class="math notranslate nohighlight">\(z\)</span> (leaves, sapwood, fine roots).</p></li>
+<li><p><span class="math notranslate nohighlight">\(C_{z,i,y}^{t}\)</span> is the carbon content of compartment <span class="math notranslate nohighlight">\(z\)</span> at time <span class="math notranslate nohighlight">\(t\)</span>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(T_{y}\)</span> is the mean annual temperature (°C).</p></li>
+</ul>
+<p>Because heartwood is largely non‑respiring, only 5% of aboveground woody carbon (sapwood) contributes to maintenance respiration, representing the metabolically active fraction (Pavlick et al., 2003). Typical N:C ratios used are 0.034 (leaves), 0.003 (sapwood), and 0.034 (fine roots, Levis et al., 2004; Sitch et al., 2003). In tropical forests, fine‑root respiration is driven by soil temperature <span class="math notranslate nohighlight">\(T_{\mathrm{soil},y}\)</span> rather than air temperature (Oyama and Nobre, 2004).</p>
+</section>
+</section>
+<section id="stomatal-conductance-and-canopy-resistance">
+<h2>Stomatal Conductance and Canopy Resistance<a class="headerlink" href="#stomatal-conductance-and-canopy-resistance" title="Link to this heading"></a></h2>
+<p>Stomatal conductance <span class="math notranslate nohighlight">\(g_{s,i,y}\)</span> and canopy resistance <span class="math notranslate nohighlight">\(C_{r,i,y}\)</span> couple the carbon assimilation (<span class="math notranslate nohighlight">\(GPP_{i,y}\)</span>) to the water‑balance submodel:</p>
+<div class="math notranslate nohighlight" id="equation-eq-cr">
+<span class="eqno">(25)<a class="headerlink" href="#equation-eq-cr" title="Link to this equation"></a></span>\[C_{r,i,y}
+\;=\;
+\frac{1}{g_{s,i,y}}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-gs">
+<span class="eqno">(26)<a class="headerlink" href="#equation-eq-gs" title="Link to this equation"></a></span>\[g_{s,i,y}
+\;=\;
+g_{0}
+\;+\;
+1.6\,
+\Bigl(1 + \tfrac{g_{1}}{\sqrt{\mathrm{VPD}_{y}}}\Bigr)\,
+\frac{GPP_{i,y}}{C_{a,y}}\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(g_{0}=0.001\)</span> mol m<sup>-2</sup> s<sup>-1</sup> is the residual conductance,</p></li>
+<li><p><span class="math notranslate nohighlight">\(g_{1}\)</span> is the sensitivity to carbon assimilation (Medlyn et al.,2011) and a variant functional trait (<a class="reference internal" href="variant_functional_trait.html#tab-params-k"><span class="std std-ref">Descriptions, values, and units of the constant parameters k1-k22 and allometric constants in CAETÊ.</span></a>),</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mathrm{VPD}_{y}\)</span> is the vapor‑pressure deficit at the leaf surface.</p></li>
+</ul>
+<p>The leaf‑surface vapor‑pressure deficit is computed as:</p>
+<div class="math notranslate nohighlight" id="equation-eq-vpd">
+<span class="eqno">(27)<a class="headerlink" href="#equation-eq-vpd" title="Link to this equation"></a></span>\[\mathrm{VPD}_{y}
+\;=\;
+\frac{E_{\mathrm{vap},i,y}\,h_{y}}{10}\]</div>
+<p>where <span class="math notranslate nohighlight">\(h_{y}\)</span> is the ambient relative humidity and <span class="math notranslate nohighlight">\(E_{\mathrm{vap},i,y}\)</span> is the transpiration flux.</p>
+</section>
+<section id="carbon-nitrogen-and-phosphorus-allocation">
+<h2>Carbon, nitrogen, and phosphorus allocation<a class="headerlink" href="#carbon-nitrogen-and-phosphorus-allocation" title="Link to this heading"></a></h2>
+<p>In CAETÊ the process of carbon, nitrogen, and phosphorus allocation follows 8 main daily steps:</p>
+<p><strong>1. Initial NPP partitioning</strong></p>
+<p>Daily net primary production (NPP; <span class="math notranslate nohighlight">\(\mathrm{g\,C\,m^{-2}\,day^{-1}}\)</span>) is divided among leaves (<span class="math notranslate nohighlight">\(\ell\)</span>), wood (<span class="math notranslate nohighlight">\(w\)</span>), and fine roots (<span class="math notranslate nohighlight">\(r\)</span>) according to fixed allocation fractions <span class="math notranslate nohighlight">\(\alpha_z\)</span> (<span class="math notranslate nohighlight">\(\alpha_\ell+\alpha_w+\alpha_r=1\)</span>).</p>
+<p>The potential carbon input for compartment <span class="math notranslate nohighlight">\(z\)</span> is</p>
+<div class="math notranslate nohighlight" id="equation-eq-cpot">
+<span class="eqno">(28)<a class="headerlink" href="#equation-eq-cpot" title="Link to this equation"></a></span>\[C_z^{\mathrm{pot}}
+= \alpha_z \,\mathrm{NPP}.\]</div>
+<p><strong>2. Stoichiometric nutrient demand</strong></p>
+<p>For each compartment <span class="math notranslate nohighlight">\(z\)</span>, the required nitrogen and phosphorus are calculated as</p>
+<div class="math notranslate nohighlight" id="equation-eq-np-demand">
+<span class="eqno">(29)<a class="headerlink" href="#equation-eq-np-demand" title="Link to this equation"></a></span>\[N_z^{\mathrm{demand}}
+= \rho_i^{N\!:\!C}\,C_i^{\mathrm{pot}},
+\qquad
+P_z^{\mathrm{demand}}
+= \rho_z^{P\!:\!C}\,C_i^{\mathrm{pot}},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\rho_i^{N\!:\!C}\)</span> and <span class="math notranslate nohighlight">\(\rho_z^{P\!:\!C}\)</span> are PLS‑specific mass ratios.</p>
+<p><strong>3. Daily nutrient availability</strong></p>
+<p>Define internal reserves <span class="math notranslate nohighlight">\(S_{N},S_{P}\)</span>, passive uptake <span class="math notranslate nohighlight">\(U_{N}^{\mathrm{pas}},U_{P}^{\mathrm{pas}}\)</span>,
+active uptake <span class="math notranslate nohighlight">\(U_{N}^{\mathrm{act}},U_{P}^{\mathrm{act}}\)</span>, and biological N fixation <span class="math notranslate nohighlight">\(F_{N}\)</span>.
+Then</p>
+<div class="math notranslate nohighlight" id="equation-eq-ndisp">
+<span class="eqno">(30)<a class="headerlink" href="#equation-eq-ndisp" title="Link to this equation"></a></span>\[N_{\mathrm{disp}}
+= S_{N} + U_{N}^{\mathrm{pas}} + U_{N}^{\mathrm{act}} + F_{N},\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-pdisp">
+<span class="eqno">(31)<a class="headerlink" href="#equation-eq-pdisp" title="Link to this equation"></a></span>\[P_{\mathrm{disp}}
+= S_{P} + U_{P}^{\mathrm{pas}} + U_{P}^{\mathrm{act}}\]</div>
+<p><strong>4. N‑ and P‑Limited Carbon Allocation</strong></p>
+<p>The real carbon allocated to compartment <span class="math notranslate nohighlight">\(z\)</span> is the minimum of its potential and nutrient‑limited values:</p>
+<div class="math notranslate nohighlight" id="equation-eq-creal">
+<span class="eqno">(32)<a class="headerlink" href="#equation-eq-creal" title="Link to this equation"></a></span>\[C_{z}^{\mathrm{real}}
+=\min\!\Bigl(
+C_{z}^{\mathrm{pot}},\,
+\frac{N_{\mathrm{disp}}\,\alpha_{z}}{\rho_{z}^{N:C}},\,
+\frac{P_{\mathrm{disp}}\,\alpha_{z}}{\rho_{z}^{P:C}}
+\Bigr)\]</div>
+<p>Total allocated carbon is</p>
+<div class="math notranslate nohighlight" id="equation-eq-calloc">
+<span class="eqno">(33)<a class="headerlink" href="#equation-eq-calloc" title="Link to this equation"></a></span>\[C^{\mathrm{alloc}}
+=\sum_{z\in\{\ell,w,r\}}C_{z}^{\mathrm{real}}\]</div>
+<p><strong>5. Carbon reserve dynamics and growth respiration</strong></p>
+<p>Any unallocated NPP, is stored in a non‑structural carbon pool and incurs growth respiration equal to 25% of the carbon added during the time step.</p>
+<div class="math notranslate nohighlight" id="equation-eq-dsc">
+<span class="eqno">(34)<a class="headerlink" href="#equation-eq-dsc" title="Link to this equation"></a></span>\[\Delta S_{C}
+=\mathrm{NPP} \;-\; C^{\mathrm{alloc}}\]</div>
+<p>This reserve incurs growth respiration at 25% of the influx:</p>
+<div class="math notranslate nohighlight" id="equation-eq-rg-reserve">
+<span class="eqno">(35)<a class="headerlink" href="#equation-eq-rg-reserve" title="Link to this equation"></a></span>\[R_{\mathrm{growth}}^{\mathrm{reserve}}
+=0.25\,\Delta S_{C}\]</div>
+<p><strong>6. Updating N and P reserves</strong></p>
+<p>Surplus or deficit nutrients after biomass construction are added to reserves:
+<span class="math notranslate nohighlight">\(\Delta S_N\)</span> and <span class="math notranslate nohighlight">\(\Delta S_P\)</span>, which may be positive (store) or negative (drawdown)</p>
+<div class="math notranslate nohighlight" id="equation-eq-dsn">
+<span class="eqno">(36)<a class="headerlink" href="#equation-eq-dsn" title="Link to this equation"></a></span>\[\Delta S_{N}
+= N_{\mathrm{disp}}
+ - \sum_{z}\rho_{z}^{N:C}\,C_{z}^{\mathrm{real}},\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-dsp">
+<span class="eqno">(37)<a class="headerlink" href="#equation-eq-dsp" title="Link to this equation"></a></span>\[\Delta S_{P}
+= P_{\mathrm{disp}}
+ - \sum_{z}\rho_{z}^{P:C}\,C_{z}^{\mathrm{real}}\]</div>
+<p><strong>7. Senescence, litter production, and resorption</strong></p>
+<p>Leaf turnover exports litter carbon <span class="math notranslate nohighlight">\(L_C^\ell\)</span> and returns a fraction of its N and P to the plant via resorption;</p>
+<div class="math notranslate nohighlight" id="equation-eq-litter">
+<span class="eqno">(38)<a class="headerlink" href="#equation-eq-litter" title="Link to this equation"></a></span>\[\begin{split}L_{C}^{\ell}
+= t_{\ell}\,M_{\ell},\\
+R_{N}^{\ell}
+= f_{\mathrm{res}}\,\bigl(\rho_{\ell}^{N:C}\,L_{C}^{\ell}\bigr),\end{split}\]</div>
+<p>Where: <span class="math notranslate nohighlight">\(M_{\ell}\)</span> is leaf biomass,
+<span class="math notranslate nohighlight">\(t_{\ell}\)</span> is turnover rate, and
+<span class="math notranslate nohighlight">\(f_{\mathrm{res}}\)</span> is resorption fraction.</p>
+<p>The remainder enters the soil as organic matter:</p>
+<div class="math notranslate nohighlight" id="equation-eq-soil-remainder">
+<span class="eqno">(39)<a class="headerlink" href="#equation-eq-soil-remainder" title="Link to this equation"></a></span>\[(1 - f_{\mathrm{res}})\,\rho_{\ell}^{N:C}\,L_{C}^{\ell}\]</div>
+<p><strong>8. Energetic cost of nutrient acquisition</strong></p>
+<p>Carbon costs for active uptake and resorption are computed by functions <span class="math notranslate nohighlight">\(g_N, g_P\)</span> (active transport) and <span class="math notranslate nohighlight">\(h_N, h_P\)</span> (resorption).</p>
+<div class="math notranslate nohighlight" id="equation-eq-cost-n">
+<span class="eqno">(40)<a class="headerlink" href="#equation-eq-cost-n" title="Link to this equation"></a></span>\[C_{\mathrm{cost}}^{N}
+= g_{N}\bigl(U_{N}^{\mathrm{act}}\bigr)
+ + h_{N}\bigl(R_{N}^{\ell}\bigr)\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-cost-p">
+<span class="eqno">(41)<a class="headerlink" href="#equation-eq-cost-p" title="Link to this equation"></a></span>\[C_{\mathrm{cost}}^{P}
+= g_{P}\bigl(U_{P}^{\mathrm{act}}\bigr)
+ + h_{P}\bigl(R_{P}^{\ell}\bigr)\]</div>
+<p>The total cost is subtracted from the plant’s carbon budget.</p>
+<div class="math notranslate nohighlight" id="equation-eq-cost-total">
+<span class="eqno">(42)<a class="headerlink" href="#equation-eq-cost-total" title="Link to this equation"></a></span>\[C_{\mathrm{cost}}^{\mathrm{total}}
+= C_{\mathrm{cost}}^{N} + C_{\mathrm{cost}}^{P}\]</div>
+</section>
+<section id="allometry-and-tree-architecture">
+<h2>Allometry and tree architecture<a class="headerlink" href="#allometry-and-tree-architecture" title="Link to this heading"></a></h2>
+<p>Allometry in CAETÊ addresses both how carbon is allocated among leaves, fine roots, and non‑photosynthetic tissues (handled in the carbon‑allocation and residence‑time module; Rius et al. 2023) and the plant’s architectural growth. This approach is based on LPJ model (Sitch et al. 2003)</p>
+<p>To PLS height <span class="math notranslate nohighlight">\(H\)</span> (in meters):</p>
+<div class="math notranslate nohighlight" id="equation-eq-height">
+<span class="eqno">(43)<a class="headerlink" href="#equation-eq-height" title="Link to this equation"></a></span>\[H \;=\; K_{\mathrm{alom2}}\;\;\mathrm{Diam}^{\mathrm{K_alom3}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(K_{\mathrm{alom2}}\)</span> and <span class="math notranslate nohighlight">\(K_{\mathrm{alom3}}\)</span> are allometric constants fixed (<a class="reference internal" href="tables.html#tab-all-vars"><span class="std std-ref">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</span></a>), and <span class="math notranslate nohighlight">\(\mathrm{Diam}\)</span> is the stem diameter in centimeters.</p>
+<p>The crown area <span class="math notranslate nohighlight">\(Ca\)</span> (in m<sup>2</sup>) is given by:</p>
+<div class="math notranslate nohighlight" id="equation-eq-ca">
+<span class="eqno">(44)<a class="headerlink" href="#equation-eq-ca" title="Link to this equation"></a></span>\[Ca \;=\; K_{\mathrm{alom1}}\;\mathrm{Diam}^{k_{\mathrm{rp}}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(K_{\mathrm{alom1}}\)</span> and <span class="math notranslate nohighlight">\(k_{\mathrm{rp}}\)</span> are allometric constants fixed (<a class="reference internal" href="tables.html#tab-all-vars"><span class="std std-ref">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</span></a>), and <span class="math notranslate nohighlight">\(\mathrm{Diam}\)</span> again is the stem diameter in centimeters.</p>
+<p>Finally, the stem diameter itself (<span class="math notranslate nohighlight">\(\mathrm{Diam}\)</span>, in cm) is determined from the stem carbon stock <span class="math notranslate nohighlight">\(C_{\mathrm{stem}}\)</span> and wood density (<span class="math notranslate nohighlight">\(\mathrm{WD}\)</span>):</p>
+<div class="math notranslate nohighlight" id="equation-eq-diam">
+<span class="eqno">(45)<a class="headerlink" href="#equation-eq-diam" title="Link to this equation"></a></span>\[\mathrm{Diam}
+\;=\;
+\frac{4\,C_{\mathrm{wood}}}
+ {\bigl(\mathrm{WD}\ \pi\ 40\bigr)^{\tfrac{1}{2}+0.5}}\]</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="spinup.html" class="btn btn-neutral float-left" title="Spin-Up" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="mortality.html" class="btn btn-neutral float-right" title="Mortality" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

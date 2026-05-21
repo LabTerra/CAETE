@@ -1,0 +1,224 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Input Data &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Variant Functional Trait" href="variant_functional_trait.html" />
+    <link rel="prev" title="Model Description" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Input Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#climatic-data">Climatic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#soil-data">Soil data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#caete-input-folder">CAETÊ <code class="docutils literal notranslate"><span class="pre">input/</span></code> folder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pre-processing">Pre-processing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#references">References</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#isimip-climate-input">ISIMIP climate input</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Soil data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Input Data</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/input_data.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="index.html" class="btn btn-neutral float-left" title="Model Description" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="variant_functional_trait.html" class="btn btn-neutral float-right" title="Variant Functional Trait" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="input-data">
+<h1>Input Data<a class="headerlink" href="#input-data" title="Link to this heading"></a></h1>
+<section id="climatic-data">
+<h2>Climatic Data<a class="headerlink" href="#climatic-data" title="Link to this heading"></a></h2>
+<p>The following climatic data were used as inputs for CAETÊ:</p>
+<ol class="arabic simple">
+<li><p>Daily data of temperature at surface, precipitation, incoming shortwave radiation, atmospheric pressure, relative humidity and atmospheric CO<sub>2</sub> concentration, for the period 1979 to 2016, obtained from the Inter-Sectoral Impact Model Intercomparison Project 2 (ISIMIP2).</p></li>
+</ol>
+<p>To initialize inorganic nitrogen pools, data from the International Soil Reference and Information Centre (ISRIC) and Darela-Filho et al. (2024) were employed. Summary of these climatic variables are given in (<a class="reference internal" href="#tab-climate-inputs"><span class="std std-ref">Climate inputs used by the model: symbols, descriptions, and units.</span></a>). All input data are provided at a 0.5°× 0.5° spatial resolution (WGS‑84), matching the grid‑cell resolution used in CAETÊ.</p>
+<table class="wrap-table docutils align-default" id="tab-climate-inputs">
+<caption><span class="caption-number">Table 1 - </span><span class="caption-text">Climate inputs used by the model: symbols, descriptions, and units.</span><a class="headerlink" href="#tab-climate-inputs" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+<col style="width: 20.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Symbol</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+<th class="head"><p><strong>Unit</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(T\)</span></p></td>
+<td><p>Surface air temperature</p></td>
+<td><p>°C</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(Prec\)</span></p></td>
+<td><p>Precipitation</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(Pa\)</span></p></td>
+<td><p>Atmospheric pressure</p></td>
+<td><p>hPa</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(RS_{\text{in}}\)</span></p></td>
+<td><p>Incoming shortwave radiation</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(RH\)</span></p></td>
+<td><p>Relative humidity</p></td>
+<td><p>%</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(CO_{2}\)</span></p></td>
+<td><p>Atmospheric CO<sub>2</sub> concentration</p></td>
+<td><p>ppm</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="soil-data">
+<h2>Soil data<a class="headerlink" href="#soil-data" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Source: HWSD and IGBP.</p></li>
+</ul>
+</section>
+<section id="caete-input-folder">
+<h2>CAETÊ <code class="docutils literal notranslate"><span class="pre">input/</span></code> folder<a class="headerlink" href="#caete-input-folder" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">input/</span></code> folder contains all the input data used to run the CAETE model. These data are divided into folders:</p>
+<p><code class="docutils literal notranslate"><span class="pre">mask/</span></code>, <code class="docutils literal notranslate"><span class="pre">co2</span></code>, <code class="docutils literal notranslate"><span class="pre">hydra/</span></code> and <code class="docutils literal notranslate"><span class="pre">soil/</span></code> folders: Contains some boolean masks used to preprocess input data and configure model execution. There are also files with soil hydraulic parameters and nutrient content (N &amp; P). The co2 folder has timeseries of annual ATM CO2 concentration. Observed and projected.</p>
+<p><code class="docutils literal notranslate"><span class="pre">central/</span></code>, <code class="docutils literal notranslate"><span class="pre">east/</span></code>, <code class="docutils literal notranslate"><span class="pre">north_west</span></code> and <code class="docutils literal notranslate"><span class="pre">south/</span></code> folders: Contains <code class="docutils literal notranslate"><span class="pre">.pbz2</span></code> files, each one containing data for one grid.</p>
+</section>
+<section id="pre-processing">
+<h2>Pre-processing<a class="headerlink" href="#pre-processing" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">pre_processing.py</span></code> file is used to prepare files that are used as input for CAETÊ model. The raw climatic and edaphic data in these files are publicly available from other sources.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<section id="isimip-climate-input">
+<h3>ISIMIP climate input<a class="headerlink" href="#isimip-climate-input" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Weedon, G. P., Balsamo, G., Bellouin, N., Gomes, S., Best, M. J., &amp; Viterbo, P. (2014). The WFDEI meteorological forcing data set: WATCH Forcing Data methodology applied to ERA-Interim reanalysis data. Water Resources Research, 50(9), 7505–7514. <a class="reference external" href="https://doi.org/10.1002/2014WR015638">https://doi.org/10.1002/2014WR015638</a></p></li>
+<li><p>Lange, Stefan (2019): EartH2Observe, WFDEI and ERA-Interim data Merged and Bias-corrected for ISIMIP (EWEMBI). V. 1.1. GFZ Data Services. <a class="reference external" href="https://doi.org/10.5880/pik.2019.004">https://doi.org/10.5880/pik.2019.004</a></p></li>
+<li><p>Lange, S. &amp; Büchner, M. (2020). ISIMIP2a atmospheric climate input data. ISIMIP Repository. <a class="reference external" href="https://doi.org/10.48364/ISIMIP.886955">https://doi.org/10.48364/ISIMIP.886955</a></p></li>
+</ul>
+<p>The raw input climatic data was downloaded from the ISIMIP REPOSITORY.</p>
+</section>
+<section id="id1">
+<h3>Soil data<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Wieder, W.R., J. Boehnert, G.B. Bonan, and M. Langseth. 2014. Regridded Harmonized World Soil Database v1.2. Data set. Available on-line [<a class="reference external" href="http://daac.ornl.gov">http://daac.ornl.gov</a>] from Oak Ridge National Laboratory Distributed Active Archive Center, Oak Ridge, Tennessee, USA. <a class="reference external" href="http://dx.doi.org/10.3334/ORNLDAAC/1247">http://dx.doi.org/10.3334/ORNLDAAC/1247</a></p></li>
+<li><p>Poggio, L., L. M. de Sousa, N. H. Batjes, G. B. M. Heuvelink, B. Kempen, E. Ribeiro, and D. Rossiter. “Soilgrids 2.0: Producing Soil Information for the Globe with Quantified Spatial Uncertainty.” SOIL 7, no. 1 (2021): 217-40. <a class="reference external" href="https://doi.org/10.5194/soil-7-217-2021">https://doi.org/10.5194/soil-7-217-2021</a></p></li>
+<li><p>Darela-Filho, João Paulo, Anja Rammig, Katrin Fleischer, Tatiana Reichert, Laynara Figueiredo Lugli, Carlos Alberto Quesada, Luis Carlos Colocho Hurtarte, Mateus Dantas de Paula, and David M. Lapola. “Reference Maps of Soil Phosphorus for the Pan-Amazon Region.” Earth System Science Data 16, no. 1 (2024): 715-29. <a class="reference external" href="https://doi.org/10.5194/essd-16-715-2024">https://doi.org/10.5194/essd-16-715-2024</a>.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Model Description" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="variant_functional_trait.html" class="btn btn-neutral float-right" title="Variant Functional Trait" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

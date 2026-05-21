@@ -1,0 +1,132 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spin-Up &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Ecosystem Processes" href="ecosystem_processes.html" />
+    <link rel="prev" title="Plant Life Strategy (PLS)" href="pls.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Spin-Up</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/spinup.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="pls.html" class="btn btn-neutral float-left" title="Plant Life Strategy (PLS)" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ecosystem_processes.html" class="btn btn-neutral float-right" title="Ecosystem Processes" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="spin-up">
+<h1>Spin-Up<a class="headerlink" href="#spin-up" title="Link to this heading"></a></h1>
+<p>The spin-up is executed to achieve a stable dynamic equilibrium and define the initial values of the plant carbon stocks and the PLS to be simulated. This initialization assigns each variable its first time-step value, estimated during the preparation of the initial simulation condition. Before running the model with input data, all C, N, and P pools in both soil and vegetation must be in dynamic equilibrium. These values form the initial boundary conditions.</p>
+<p>Starting from a potential NPP value (<span class="math notranslate nohighlight">\(1\,\mathrm{kg\,C\,m^{-2}\,year^{-1}}\)</span>), the spin-up allocates this carbon according to allocation fractions and residence times defined for each PLS. The process is iterative: In each cycle, the C stocks in leaves, fine roots, and woody tissues are recalculated until the balance between carbon input and output stabilizes. Before the spin-up proper, the average vegetation-to-soil C, N, and P fluxes are estimated through a three-year simulation (1979–1982) for all PLS. Then, the carbon decomposition model is applied iteratively to these average fluxes until the soil stocks reach dynamic equilibrium. Once stocks are balanced, the model runs 35 ten-year cycles using climatic conditions from 1979 to 1989 (a total of 350 years), maintaining a constant CO<sub>2</sub> concentration of <span class="math notranslate nohighlight">\(342\,\mu\mathrm{mol}\,\mathrm{mol}^{-1}\)</span> (average value in the early 1980s).</p>
+<p>Upon completion, final boundary conditions, soil and vegetation C, N, P, and water stocks, as well as initial PLS composition, are obtained, ready for subsequent simulations.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pls.html" class="btn btn-neutral float-left" title="Plant Life Strategy (PLS)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ecosystem_processes.html" class="btn btn-neutral float-right" title="Ecosystem Processes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

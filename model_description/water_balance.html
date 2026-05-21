@@ -1,0 +1,226 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Water Balance &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Output Data" href="output_data.html" />
+    <link rel="prev" title="Grid-Cell Occupation and Performance" href="gridcell_occupation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Water Balance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#soil-water-content-and-saturation">Soil water content and saturation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#soil-heterogeneity">Soil heterogeneity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#water-stress">Water Stress</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Water Balance</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/water_balance.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="gridcell_occupation.html" class="btn btn-neutral float-left" title="Grid-Cell Occupation and Performance" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="output_data.html" class="btn btn-neutral float-right" title="Output Data" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="water-balance">
+<h1>Water Balance<a class="headerlink" href="#water-balance" title="Link to this heading"></a></h1>
+<p>CAETÊ includes a water-balance sub-model that operates at the grid-cell scale adapted from Oyama &amp; Nobre (2004).</p>
+<section id="soil-water-content-and-saturation">
+<h2>Soil water content and saturation<a class="headerlink" href="#soil-water-content-and-saturation" title="Link to this heading"></a></h2>
+<p>CAETÊ separately computes soil water and snow budgets. Given the climate of our study area, we omit the snow budget here (see Oyama &amp; Nobre, 2004). The actual soil water content <span class="math notranslate nohighlight">\(W_{y,t}\)</span> in grid cell <span class="math notranslate nohighlight">\(y\)</span> at time step <span class="math notranslate nohighlight">\(t\)</span> is determined by precipitation (<span class="math notranslate nohighlight">\(P_{\mathrm{rec},y}\)</span>), evapotranspiration (<span class="math notranslate nohighlight">\(E_{\mathrm{vap},i,y}\)</span>; see Oyama &amp; Nobre, 2004), and runoff (<span class="math notranslate nohighlight">\(R_{\mathrm{off},i,y}\)</span>; see Oyama &amp; Nobre, 2004):</p>
+<div class="math notranslate nohighlight" id="equation-eq-water-balance">
+<span class="eqno">(51)<a class="headerlink" href="#equation-eq-water-balance" title="Link to this equation"></a></span>\[\frac{\partial W_{y}}{\partial t}
+\;=\;
+P_{\mathrm{rec},y}
+\;-\;
+E_{\mathrm{vap},i,y}
+\;-\;
+R_{\mathrm{off},i,y}\]</div>
+<p>The degree of soil water saturation in cell <span class="math notranslate nohighlight">\(y\)</span> is then</p>
+<div class="math notranslate nohighlight" id="equation-eq-wsat">
+<span class="eqno">(52)<a class="headerlink" href="#equation-eq-wsat" title="Link to this equation"></a></span>\[w_{\mathrm{sat},y}
+\;=\;
+\frac{W_{y}}{W_{\max}}\]</div>
+</section>
+<section id="soil-heterogeneity">
+<h2>Soil heterogeneity<a class="headerlink" href="#soil-heterogeneity" title="Link to this heading"></a></h2>
+<p>In CAETÊ, the soil profile is partitioned into two layers: a surface layer (0–30 cm) and a deeper layer (30–100 cm). For each layer, water-holding capacity (AWC), field capacity (FC), and the permanent wilting point (WP) are derived from soil texture and organic-matter content (Wieder et al., 2014). This two-layer scheme enables the model to capture edaphic heterogeneity in both water retention and hydraulic transport.</p>
+<p>The water-holding capacity quantifies the volume of water retained in soil and accessible to plants. It is defined as the difference between the volumetric water content after gravitational drainage (field capacity) and the water content below which plants can no longer extract moisture (permanent wilting point).</p>
+<div class="math notranslate nohighlight" id="equation-eq-awc">
+<span class="eqno">(53)<a class="headerlink" href="#equation-eq-awc" title="Link to this equation"></a></span>\[\mathrm{AWC}_{y} \;=\;\theta_{\mathrm{FC}_{y}}\;-\;\theta_{\mathrm{WP}_{y}}\]</div>
+<p>Field capacity is the volumetric water content retained in soil after free gravitational drainage, typically corresponding to a matric tension of 33 kPa (<span class="math notranslate nohighlight">\(\theta_{33}\)</span> — model input).</p>
+<div class="math notranslate nohighlight" id="equation-eq-fc">
+<span class="eqno">(54)<a class="headerlink" href="#equation-eq-fc" title="Link to this equation"></a></span>\[\theta_{\mathrm{FC}_{y}} \;=\;\theta_{33}\]</div>
+<p>The wilting point is the volumetric water content below which plants cannot extract water, associated with a tension of 1500 kPa (<span class="math notranslate nohighlight">\(\theta_{1500}\)</span> — model input).</p>
+<div class="math notranslate nohighlight" id="equation-eq-wp">
+<span class="eqno">(55)<a class="headerlink" href="#equation-eq-wp" title="Link to this equation"></a></span>\[\theta_{\mathrm{WP}_{y}} \;=\;\theta_{1500}\]</div>
+<p>According to Saxton and Rawls (2006) model, the exponent controls the shape of the soil water retention curve, defining the transition width between saturation and wilting.</p>
+<div class="math notranslate nohighlight" id="equation-eq-lambda">
+<span class="eqno">(56)<a class="headerlink" href="#equation-eq-lambda" title="Link to this equation"></a></span>\[\lambda \;=\;\frac{1}{B}
+\quad,\quad
+B \;=\;\frac{\ln(1500)\;-\;\ln(33)}{\ln(\theta_{33})\;-\;\ln(\theta_{1500})}\]</div>
+<p>The saturated hydraulic conductivity is an empirical estimate adjusted by the exponent <span class="math notranslate nohighlight">\(\lambda\)</span>. While the unsaturated hydraulic conductivity defines how hydraulic conductivity decreases as the soil dries, based on <span class="math notranslate nohighlight">\(K_{\mathrm{sat}}\)</span> and <span class="math notranslate nohighlight">\(\lambda\)</span>.</p>
+<div class="math notranslate nohighlight" id="equation-eq-ksat">
+<span class="eqno">(57)<a class="headerlink" href="#equation-eq-ksat" title="Link to this equation"></a></span>\[K_{\mathrm{sat},{y}}
+\;=\;
+1930 \;\times\; \bigl(\theta_{s} - \theta_{33}\bigr)^{\,3 - \lambda}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-ktheta">
+<span class="eqno">(58)<a class="headerlink" href="#equation-eq-ktheta" title="Link to this equation"></a></span>\[K(\theta)_{y}
+\;=\;
+K_{\mathrm{sat},{y}}
+\;\times\;
+\Bigl(\tfrac{\theta}{\theta_{s}}\Bigr)^{\,3 + \tfrac{2}{\lambda}}\]</div>
+<p>Finally, the percolation determines the downward water movement or surface runoff based on the hydraulic conductivity</p>
+<div class="math notranslate nohighlight" id="equation-eq-runoff">
+<span class="eqno">(59)<a class="headerlink" href="#equation-eq-runoff" title="Link to this equation"></a></span>\[\begin{split}R_{\mathrm{off},{y}}
+\;=\;
+\begin{cases}
+K_{\mathrm{sat},{y}}\times24, &amp; \theta \ge \theta_{s}\quad(\text{saturated}),\\[6pt]
+K(\theta)_{y}\times24,       &amp; \theta &lt; \theta_{s}\quad(\text{unsaturated}).
+\end{cases}\end{split}\]</div>
+</section>
+<section id="water-stress">
+<h2>Water Stress<a class="headerlink" href="#water-stress" title="Link to this heading"></a></h2>
+<p>To incorporate water limitation into photosynthesis (<span class="math notranslate nohighlight">\(GPP_{i,y}\)</span>) and to represent the investment trade-off for fine-root traits, we introduce a water‑stress factor <span class="math notranslate nohighlight">\(f_{5,i,y}\)</span> based on the ratio of potential water supply for transpiration (<span class="math notranslate nohighlight">\(L_{i,y}\)</span>) to atmospheric demand for transpiration (<span class="math notranslate nohighlight">\(D_{i,y}\)</span>) (Pavlick et al., 2013):</p>
+<div class="math notranslate nohighlight" id="equation-eq-f5">
+<span class="eqno">(60)<a class="headerlink" href="#equation-eq-f5" title="Link to this equation"></a></span>\[f_{5,i,y}
+\;=\;
+1 \;-\;
+\exp\!\Bigl(\tfrac{L_{i,y}}{D_{i,y}}\Bigr)\]</div>
+<p>Here, the supply term <span class="math notranslate nohighlight">\(L_{i,y}\)</span> is proportional to the fine-root carbon stock (<span class="math notranslate nohighlight">\(C_{\mathrm{root},i,y}\)</span>), a constant root uptake capacity <span class="math notranslate nohighlight">\(c_{\mathrm{sru}} = 0.0005\,\mathrm{mmH_{2}O\,kgC^{-1}\,day^{-1}}\)</span>, and the previous day’s soil water saturation <span class="math notranslate nohighlight">\(w_{\mathrm{sat},y,t-1}\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-eq-l">
+<span class="eqno">(61)<a class="headerlink" href="#equation-eq-l" title="Link to this equation"></a></span>\[L_{i,y}
+\;=\;
+c_{\mathrm{sru}}
+\;C_{\mathrm{root},i,y}\;
+w_{\mathrm{sat},y,t-1}\]</div>
+<p>Following Gerten et al. (2004), the variable <span class="math notranslate nohighlight">\(D_{i,y}\)</span> represents the maximum transpiration rate under “unstressed” conditions, i.e., when stomatal opening is not limited by plant water potential:</p>
+<div class="math notranslate nohighlight" id="equation-eq-d">
+<span class="eqno">(62)<a class="headerlink" href="#equation-eq-d" title="Link to this equation"></a></span>\[D_{i,y}
+\;=\;
+\bigl(1 - w_{\mathrm{sat},y}\bigr)\,
+E_{\mathrm{vap\,pot},y}\,
+\frac{\gamma_{m}}
+     {1 + \dfrac{g_{m}}{g_{\mathrm{pot},i,y}}}\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(w_{\mathrm{sat},y}\)</span> is the soil water saturation fraction (Eq. 49),</p></li>
+<li><p><span class="math notranslate nohighlight">\(E_{\mathrm{vap\,pot},y}\)</span> is the potential evapotranspiration (see Oyama &amp; Nobre, 2004),</p></li>
+<li><p><span class="math notranslate nohighlight">\(\gamma_{m}=1.391\)</span> is a dimensionless temperature–evaporation coefficient,</p></li>
+<li><p><span class="math notranslate nohighlight">\(g_{m}=3.26\)</span> mm s<sup>-1</sup> is the canopy‑scaled stomatal conductance,</p></li>
+<li><p><span class="math notranslate nohighlight">\(g_{\mathrm{pot},i,y}\)</span> is the potential canopy conductance under no water limitation, defined by the minimum stomatal resistance:</p></li>
+</ul>
+<div class="math notranslate nohighlight" id="equation-eq-gpot">
+<span class="eqno">(63)<a class="headerlink" href="#equation-eq-gpot" title="Link to this equation"></a></span>\[g_{\mathrm{pot},i,y}
+\;=\;
+\frac{1}{r_{c\,\min}}\]</div>
+<p>with <span class="math notranslate nohighlight">\(r_{c\,\min}=100\)</span> s m<sup>-1</sup> as the minimum canopy resistance.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gridcell_occupation.html" class="btn btn-neutral float-left" title="Grid-Cell Occupation and Performance" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="output_data.html" class="btn btn-neutral float-right" title="Output Data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

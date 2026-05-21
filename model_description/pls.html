@@ -1,0 +1,154 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plant Life Strategy (PLS) &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Spin-Up" href="spinup.html" />
+    <link rel="prev" title="Variant Functional Trait" href="variant_functional_trait.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Plant Life Strategy (PLS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#creating-a-pls">Creating a PLS</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Plant Life Strategy (PLS)</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/pls.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="variant_functional_trait.html" class="btn btn-neutral float-left" title="Variant Functional Trait" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="spinup.html" class="btn btn-neutral float-right" title="Spin-Up" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="plant-life-strategy-pls">
+<h1>Plant Life Strategy (PLS)<a class="headerlink" href="#plant-life-strategy-pls" title="Link to this heading"></a></h1>
+<p>In CAETÊ, Plant Life Strategies (PLS) are the basic units of vegetation representation. Ecologically, each PLS corresponds to an average individual or a population of individuals sharing identical functional traits. Since CAETÊ is an area-based model rather than an individual-based model, each PLS is characterized by simulated trait values for a given area, not for a single individual.</p>
+<p>The PLS is constructed by uniformly sampling trait values from empirically derived ranges. Conceptually, the full range of each trait forms an axis of an n-dimensional hypervolume (Fig. 1; Blonder, 2017; Villéger et al. 2008; Rius et al. 2023). Every point inside this hypervolume corresponds to a unique combination of trait values and thus to a distinct PLS. The sampled points delineate a potential functional space containing tens of thousands of candidate PLSs.</p>
+<p>As in other trait-based models (e.g., Pavlick et al., 2013; Reu et al., 2011; Scheiter, Langan, Higgins, 2013), sampling an appropriate number of PLSs from the potential functional space, combined with an environmental filtering mechanism, enables CAETÊ to reproduce consistent patterns of functional and biogeochemical diversity.</p>
+<section id="creating-a-pls">
+<h2>Creating a PLS<a class="headerlink" href="#creating-a-pls" title="Link to this heading"></a></h2>
+<p>The generation of PLS involves interdependence among certain functional traits. For example, the carbon allocation fractions to different plant tissues must form a numerical combination whose total sums to 1 (or 100%), representing the entirety of available carbon for allocation. Carbon residence times can be defined as pseudo-random values sampled from known distributions. These six traits (allocation fractions and carbon residence times in leaf, fine root, and woody tissue pools) determine the main allometric relationships characterizing each PLS. Although other variables also contribute to defining structural characteristics, such as height, stem diameter, and crown size, these traits form the functional basis of each generated PLS. The sequential steps for creating a PLS are described below. Note that some steps (1 and 3) are performed only once, with generated data reused (sampled) for subsequent life strategy creations:</p>
+<p><strong>1. Generation of carbon allocation combinations (%):</strong></p>
+<p>For woody strategies, allocation rates to leaves (aleaf), fine roots (aroot), and woody tissues (awood) are combined so that their sum is exactly 100% (i.e., aleaf + aroot + awood = 100). This rule is applied exhaustively among elements of three ordered vectors (aleaf, aroot, and awood) with values ranging from 10 to 90 in increments of 0.0125. For non-woody strategies, where there is no allocation to woody tissues (awood = 0), combinations are generated only between aleaf and aroot, respecting the same total-sum criterion. In these cases, aleaf and aroot values range from 20% to 80%, also in 0.0125 increments. All valid combinations are stored for use in subsequent steps.</p>
+<p><strong>2. Combining allocation rates and carbon residence times:</strong></p>
+<p>This step defines the first allometric relationships of the PLS to be generated. First, a randomly selected valid allocation-rate vector (generated in step I) is chosen. Then, carbon residence times in the three main pools (leaves, fine roots, and woody tissues) are assigned to this vector. Residence times are sampled as pseudo-random numbers from uniform distributions bounded by specific minima and maxima. For leaves and fine roots, residence times range from 0.08333 to 4 years. For woody tissues, the interval ranges from 0.08333 to 80 years. All values are expressed in years and follow a continuous uniform distribution within these limits. Both the defined intervals for allocation rates and carbon residence times are based on values reported by Pavlick et al. (2013).</p>
+<p><strong>3. Creation of N:C and P:C ratios in plant tissues:</strong></p>
+<p>Defining nitrogen-to-carbon (N:C) and phosphorus-to-carbon (P:C) ratios in plant tissues also involves trait interdependence, since the N:P ratio has a biologically constrained range among organisms. The generation of these combinations follows a similar logic to that applied in step I. For each pool (leaves, fine roots, and woody tissues), N:C and P:C ratios are combined so that the resulting N:P ratio falls within empirically compatible values. Specifically, for leaves and fine roots, N:C values range from <span class="math notranslate nohighlight">\(5\times10^{-4}\,\mathrm{g\,N\,g^{-1}\,C}\)</span> to <span class="math notranslate nohighlight">\(0.06\,\mathrm{g\,N\,g^{-1}\,C}\)</span>, while P:C values range from <span class="math notranslate nohighlight">\(2\times10^{-6}\,\mathrm{g\,P\,g^{-1}\,C}\)</span> to <span class="math notranslate nohighlight">\(8\times10^{-3}\,\mathrm{g\,P\,g^{-1}\,C}\)</span>. For woody tissues, these intervals are reduced by an order of magnitude, assuming lower nutrient concentrations in these compartments. Valid combinations are obtained through an exhaustive scan of ordered discrete N:C and P:C vectors, followed by filtering combinations that satisfy the N:P constraint. Resulting combinations are stored and later randomly sampled for incorporation into the carbon allocation and residence-time combinations. With these nutrient ratios added, the PLS at this point contains 12 elements, representing allocation fractions, residence times, and relative N and P concentrations in each of the three pools. Limits used in this process are based on leaf nutrient observational data by Reich and Oleksyn (2004). For practical purposes, fine roots are assumed to have elemental composition similar to leaves, while woody tissues have N and P concentrations approximately ten times lower.</p>
+<p><strong>4. Checking PLS viability as a carbon accumulator:</strong></p>
+<p>To verify the viability of the newly created PLS (PLS vector) as a valid functional strategy, we simulate a system with a constant carbon input fixed at <span class="math notranslate nohighlight">\(1.0\times10^{-3}\,\mathrm{kg\,C\,m^{-2}\,day^{-1}}\)</span>. This input is distributed among the three pools (leaves, fine roots, and woody tissues (for woody plants) or leaves and fine roots for grasses) according to proportions defined in step I. PLS vector is then used to dynamically calculate carbon accumulation in each pool over time. After a 3,000-day simulation period, the vector is considered viable if carbon stocks in leaves and fine roots are simultaneously equal to or greater than the daily carbon input minimum. If this condition is met, the vector is approved and assigned remaining functional traits (independently and uncorrelated), completing its functional identity and becoming a full Plant Life Strategy.</p>
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../_images/about1.png"><img alt="../_images/about1.png" src="../_images/about1.png" style="width: 90%;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Figure 2 - </span><span class="caption-text">Schematic diagram of the model CAETÊ in its trait-based approach. From predefined ranges for each plant functional trait values are sampled uniformly and combined to generate hundreds of thousands of plant life strategies (PLSs). This full set defines the potential trait space, where every point represents a unique trait combination. Environmental filters, intrinsic trait trade‑offs and the PLSs’ physiological performance determine whether a PLS maintains a positive carbon balance; successful PLSs survive and occupy the cell, whereas others are excluded. Surviving PLSs form a mosaic whose areal share is proportional to their contribution to the cell’s total carbon stock. The model updates ecophysiological variables (e.g. net primary productivity (NPP) and the carbon allocated to leaves (C<em>leaves</em>), fine roots (C<em>froot</em>) and wood (C<em>wood</em>), and feeds them into the next time‑step. This architecture allows CAETÊ to evaluate outcomes not only for biogeochemical fluxes but also for trait distributions and, consequently, multiple facets of functional diversity. From: Rius et al. (2023)</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="variant_functional_trait.html" class="btn btn-neutral float-left" title="Variant Functional Trait" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="spinup.html" class="btn btn-neutral float-right" title="Spin-Up" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

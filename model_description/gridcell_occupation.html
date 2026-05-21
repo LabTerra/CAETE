@@ -1,0 +1,163 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grid-Cell Occupation and Performance &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Water Balance" href="water_balance.html" />
+    <link rel="prev" title="Mortality" href="mortality.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Grid-Cell Occupation and Performance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ecosystem-scale-processes-and-properties">Ecosystem-scale processes and properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#functional-composition-in-a-grid-cell">Functional composition in a grid cell</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tables.html">Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Grid-Cell Occupation and Performance</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/gridcell_occupation.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="mortality.html" class="btn btn-neutral float-left" title="Mortality" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="water_balance.html" class="btn btn-neutral float-right" title="Water Balance" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="grid-cell-occupation-and-performance">
+<h1>Grid-Cell Occupation and Performance<a class="headerlink" href="#grid-cell-occupation-and-performance" title="Link to this heading"></a></h1>
+<p>Functional‑trait values assigned to each PLS determine its ecophysiological behaviour and its interactions with the environment. Because every PLS is a unique trait combination, it embodies a distinct mode of carbon storage and of water and light capture; these traits therefore govern its performance and survival.</p>
+<p>During the spin‑up phase the same set of PLSs is initialised in every grid cell, all starting from a bare‑soil condition. At that point each trait combination has an equal probability of establishment. Subsequent differential uptake of carbon, water, and light, driven by trait differences, produces variation in PLS abundance. Once a PLS is excluded from a cell it is removed from later timesteps, so a continuous environmental filter evaluates the suitability of each PLS under the prevailing conditions.</p>
+<p>Environmental change can make certain trait combinations more productive, increasing their carbon‑storage capacity and thus their relative abundance (Eq. 43); less suitable combinations are suppressed.</p>
+<p>The performance of the mean individual of PLS (<span class="math notranslate nohighlight">\(i\)</span>) in cell (<span class="math notranslate nohighlight">\(y\)</span>) is measured by its relative abundance <span class="math notranslate nohighlight">\(A_{r,z,y}\)</span>, which depends on that PLS’s contribution to the cell’s total carbon stock <span class="math notranslate nohighlight">\(C_{T,y}\)</span> and on the number of live PLSs (<span class="math notranslate nohighlight">\(S\)</span>) at the timestep considered (<span class="math notranslate nohighlight">\(T\)</span>). Accordingly, each grid cell is represented as a mosaic of PLSs whose areal occupancy is proportional to their percentage abundance.</p>
+<div class="math notranslate nohighlight" id="equation-eq-ar">
+<span class="eqno">(46)<a class="headerlink" href="#equation-eq-ar" title="Link to this equation"></a></span>\[A_{r,i,y} \;=\; \frac{C_{i,y}}{C_{T,y}}\]</div>
+<div class="math notranslate nohighlight" id="equation-eq-ct">
+<span class="eqno">(47)<a class="headerlink" href="#equation-eq-ct" title="Link to this equation"></a></span>\[C_{T,y} \;=\;\sum_{i=1}^{S} C_{i,y}\]</div>
+<p>where <span class="math notranslate nohighlight">\(C_{i,y}\)</span> is the total carbon stock of the <span class="math notranslate nohighlight">\(i\)</span>th PLS in grid cell <span class="math notranslate nohighlight">\(y\)</span>, itself the sum of carbon stored in each plant compartment (<span class="math notranslate nohighlight">\(C_{z,i,y}\)</span>).</p>
+<div class="math notranslate nohighlight" id="equation-eq-ci">
+<span class="eqno">(48)<a class="headerlink" href="#equation-eq-ci" title="Link to this equation"></a></span>\[C_{i,y} \;=\;\sum_{z=1}^{5} C_{z,i,y}\]</div>
+<p>The persistence of a PLS in a given grid cell requires that both its leaf and fine‑root compartments maintain more than 1 kg C m<sup>-2</sup> (to support photosynthesis). If either of these two structural pools falls below this threshold, the PLS cannot survive.</p>
+<section id="ecosystem-scale-processes-and-properties">
+<h2>Ecosystem-scale processes and properties<a class="headerlink" href="#ecosystem-scale-processes-and-properties" title="Link to this heading"></a></h2>
+<p>Scaling biogeochemical fluxes from individual PLSs to the ecosystem level in CAETÊ follows the <strong>biomass‑ratio hypothesis</strong> (Grime, 1998). This hypothesis states that the immediate effect of a species’ functional traits on ecosystem functioning is proportional to its contribution to total community biomass. Both theoretical considerations and empirical evidence support the idea that a plant’s influence on ecosystem processes can be predicted from its biomass share.</p>
+<p>Accordingly, CAETÊ simulates the properties and processes of each PLS (e.g., potential NPP) independently, without explicit interspecific competition. The grid‑cell value for any flux or pool is then obtained by weighting each PLS’s potential value by its relative abundance and summing across all PLSs. For net primary production in grid cell <span class="math notranslate nohighlight">\(y\)</span>,</p>
+<div class="math notranslate nohighlight" id="equation-eq-npp-cell">
+<span class="eqno">(49)<a class="headerlink" href="#equation-eq-npp-cell" title="Link to this equation"></a></span>\[\mathrm{NPP}_{y}
+= \sum_{z=1}^{S}
+\bigl(\mathrm{NPP}_{z}^{\text{pot}} \; A_{r,z,y}\bigr)\]</div>
+<p>where <span class="math notranslate nohighlight">\(S\)</span> is the number of extant PLSs in the cell and <span class="math notranslate nohighlight">\(A_{r,z,y}\)</span> is the relative abundance of PLS <span class="math notranslate nohighlight">\(z\)</span>.</p>
+</section>
+<section id="functional-composition-in-a-grid-cell">
+<h2>Functional composition in a grid cell<a class="headerlink" href="#functional-composition-in-a-grid-cell" title="Link to this heading"></a></h2>
+<p>At each time step (<span class="math notranslate nohighlight">\(t\)</span>), the functional composition of grid cell (<span class="math notranslate nohighlight">\(y\)</span>) is characterised by the <strong>community‑weighted mean</strong> (CWM) of every trait treated as variable in the simulation. For a given trait (<span class="math notranslate nohighlight">\(F\)</span>), its grid‑cell value <span class="math notranslate nohighlight">\(F_{y,t}\)</span> is</p>
+<div class="math notranslate nohighlight" id="equation-eq-cwm">
+<span class="eqno">(50)<a class="headerlink" href="#equation-eq-cwm" title="Link to this equation"></a></span>\[F_{y,t} \;=\; \sum_{i=1}^{S} F_{i,y,t}\,A_{r,i,y,t},\]</div>
+<p>where <span class="math notranslate nohighlight">\(F_{i,y,t}\)</span> is trait value of PLS (<span class="math notranslate nohighlight">\(i\)</span>) that is alive in cell (<span class="math notranslate nohighlight">\(y\)</span>) at time (<span class="math notranslate nohighlight">\(t\)</span>); <span class="math notranslate nohighlight">\(A_{r,i,y,t}\)</span> is relative abundance of that PLS; and <span class="math notranslate nohighlight">\(S\)</span> = number of extant PLSs in the community.</p>
+<p>This CWM can be interpreted as the dominant trait expression within the community at the given time (Díaz et al., 2007), allowing temporal changes in functional composition to be tracked succinctly.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="mortality.html" class="btn btn-neutral float-left" title="Mortality" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="water_balance.html" class="btn btn-neutral float-right" title="Water Balance" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,692 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en-UK" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tables &mdash; LabTerra - Modelo CAETÊ</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=26795da3" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=c8ee0b5e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Requirements and Setup" href="../setup.html" />
+    <link rel="prev" title="Output Data" href="output_data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: white" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CAETÊ
+              <img src="../_static/logo1.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Model Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="input_data.html">Input Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="variant_functional_trait.html">Variant Functional Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pls.html">Plant Life Strategy (PLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spinup.html">Spin-Up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ecosystem_processes.html">Ecosystem Processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mortality.html">Mortality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gridcell_occupation.html">Grid-Cell Occupation and Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="water_balance.html">Water Balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output_data.html">Output Data</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Tables</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#definitions-units-and-equation-tags-for-all-variables-described-in-caete-eqs-1-63">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#trait-definitions-and-ranges-in-caete">Trait definitions and ranges in CAETÊ</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ecophysiological-tradeoffs-of-functional-traits-in-caete">Ecophysiological trade‑offs of functional traits in CAETÊ</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../setup.html">Requirements and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_and_run.html">Build and Run</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">CAETE Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: white" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CAETÊ</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content style-external-links">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Model Description</a></li>
+      <li class="breadcrumb-item active">Tables</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/LabTerra/LabTerra.github.io/blob//model_description/tables.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
+        <a href="output_data.html" class="btn btn-neutral float-left" title="Output Data" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../setup.html" class="btn btn-neutral float-right" title="Requirements and Setup" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+  </div>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="tables">
+<h1>Tables<a class="headerlink" href="#tables" title="Link to this heading"></a></h1>
+<section id="definitions-units-and-equation-tags-for-all-variables-described-in-caete-eqs-1-63">
+<h2>Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)<a class="headerlink" href="#definitions-units-and-equation-tags-for-all-variables-described-in-caete-eqs-1-63" title="Link to this heading"></a></h2>
+<table class="wrap-table docutils align-default" id="tab-all-vars">
+<caption><span class="caption-number">Table 3 - </span><span class="caption-text">Definitions, units, and equation tags for all variables described in CAETÊ (Eqs. 1-63)</span><a class="headerlink" href="#tab-all-vars" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 40.0%" />
+<col style="width: 25.0%" />
+<col style="width: 20.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Symbol</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+<th class="head"><p><strong>Unit</strong></p></th>
+<th class="head"><p><strong>Equation</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(GPP_{i,y}\)</span></p></td>
+<td><p>Gross primary productivity</p></td>
+<td><p>kg C m<sup>-2</sup> yr<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-gpp">Eq. 1</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(f_{1,i,y}\)</span></p></td>
+<td><p>Rubisco–light–electron limitation factor</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-f1">Eq. 2</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(J_{P,i,y}\)</span></p></td>
+<td><p>Minimum of <span class="math notranslate nohighlight">\(J_{C,i,y}\)</span> and <span class="math notranslate nohighlight">\(J_{L,i,y}\)</span></p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-jp">Eq. 3</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(J_{C,i,y}\)</span></p></td>
+<td><p>Rubisco-limited carboxylation rate</p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-jc">Eq. 4</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(f_{2,i,y}\)</span></p></td>
+<td><p>Michaelis–Menten constant for CO<sub>2</sub></p></td>
+<td><p>Pa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-f2">Eq. 5</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(f_{3,i,y}\)</span></p></td>
+<td><p>Michaelis–Menten constant for O<sub>2</sub></p></td>
+<td><p>Pa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-f3">Eq. 6</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(C_{\text{press},i,y}\)</span></p></td>
+<td><p>Internal CO<sub>2</sub> partial pressure</p></td>
+<td><p>Pa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cpress">Eq. 7</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\Gamma_{i,y}\)</span></p></td>
+<td><p>Photorespiration compensation point</p></td>
+<td><p>Pa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-gamma">Eq. 8</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(r_{i,y}\)</span></p></td>
+<td><p>Leaf-level moisture deficit</p></td>
+<td><p>g kg<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-r">Eq. 9</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(r_{\max,i,y}\)</span></p></td>
+<td><p>Saturated mixing ratio</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-rmax">Eq. 10</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(w_{\text{press},i,y}\)</span></p></td>
+<td><p>Leaf-interior vapor pressure</p></td>
+<td><p>hPa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-wpress">Eq. 11</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(J_{L,i,y}\)</span></p></td>
+<td><p>Light-limited photosynthetic rate</p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-jl">Eq. 12</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(J_{E,i,y}\)</span></p></td>
+<td><p>Electron-transport-limited rate</p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-je">Eq. 13</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(V_{m,i,y}\)</span></p></td>
+<td><p>Temperature-dependent max. carboxylation rate</p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-vm">Eq. 14</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(f_{4,i,y}^{\text{sun}}\)</span></p></td>
+<td><p>Canopy upscaling (sunlit fraction)</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-f4-sun">Eq. 15</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(f_{4,i,y}^{\text{shade}}\)</span></p></td>
+<td><p>Canopy upscaling (shaded fraction)</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-f4-shade">Eq. 16</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\text{LAI}_{i,y}\)</span></p></td>
+<td><p>Leaf area index</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-lai">Eq. 17</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(N_{\text{layer}}\)</span></p></td>
+<td><p>Number of canopy layers</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-nlayer">Eq. 18</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\text{Size}_{\text{layer}}\)</span></p></td>
+<td><p>Layer length</p></td>
+<td><p>m</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-sizelayer">Eq. 19</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\text{Light}_{\text{INC},l}\)</span></p></td>
+<td><p>Incoming light in layer <span class="math notranslate nohighlight">\(l\)</span></p></td>
+<td><p>J m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-light-inc">Eq. 20</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\text{Light}_{\text{USED},l}\)</span></p></td>
+<td><p>Light used by layer <span class="math notranslate nohighlight">\(l\)</span></p></td>
+<td><p>J m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-light-used">Eq. 21</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(R_{a,i,y}\)</span></p></td>
+<td><p>Autotrophic respiration</p></td>
+<td><p>kg C m<sup>-2</sup> yr<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ra">Eq. 22</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(R_{g,i,y}\)</span></p></td>
+<td><p>Growth respiration</p></td>
+<td><p>kg C m<sup>-2</sup> yr<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-rg">Eq. 23</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(R_{m,i,y}\)</span></p></td>
+<td><p>Maintenance respiration</p></td>
+<td><p>kg C m<sup>-2</sup> yr<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-rm">Eq. 24</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(C_{r,i,y}\)</span></p></td>
+<td><p>Canopy resistance</p></td>
+<td><p>s m<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cr">Eq. 25</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(g_{s,i,y}\)</span></p></td>
+<td><p>Stomatal conductance</p></td>
+<td><p>mol CO<sub>2</sub> m<sup>-2</sup> s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-gs">Eq. 26</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\text{VPD}_{y}\)</span></p></td>
+<td><p>Vapor-pressure deficit</p></td>
+<td><p>kPa</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-vpd">Eq. 27</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\text{NPP}\)</span></p></td>
+<td><p>Daily net primary production</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cpot">Eq. 28</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-dsc">Eq. 34</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\alpha_{\ell},\alpha_{w},\alpha_{r}\)</span></p></td>
+<td><p>Allocation fractions to leaves, wood, fine roots</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cpot">Eq. 28</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(C_{i}^{\text{pot}}\)</span></p></td>
+<td><p>Potential carbon input into compartment <span class="math notranslate nohighlight">\(i\)</span></p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cpot">Eq. 28</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\rho_{i}^{N:C},\rho_{i}^{P:C}\)</span></p></td>
+<td><p>N:C and P:C stoichiometric ratios</p></td>
+<td><p>g N / g C; g P / g C</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-np-demand">Eq. 29</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(N_{i}^{\text{req}}\)</span></p></td>
+<td><p>Nitrogen demand of compartment <span class="math notranslate nohighlight">\(i\)</span></p></td>
+<td><p>g N m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-np-demand">Eq. 29</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(P_{i}^{\text{req}}\)</span></p></td>
+<td><p>Phosphorus demand of compartment <span class="math notranslate nohighlight">\(i\)</span></p></td>
+<td><p>g P m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-np-demand">Eq. 29</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(S_{N},S_{P}\)</span></p></td>
+<td><p>Internal N and P reserve pools</p></td>
+<td><p>g N m<sup>-2</sup>; g P m<sup>-2</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ndisp">Eq. 30</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-pdisp">Eq. 31</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(U_{N}^{\text{pas}},U_{P}^{\text{pas}}\)</span></p></td>
+<td><p>Passive nutrient uptake</p></td>
+<td><p>g nutrient m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ndisp">Eq. 30</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-pdisp">Eq. 31</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(U_{N}^{\text{act}},U_{P}^{\text{act}}\)</span></p></td>
+<td><p>Active nutrient uptake</p></td>
+<td><p>g nutrient m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ndisp">Eq. 30</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-pdisp">Eq. 31</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(F_{N}\)</span></p></td>
+<td><p>Biological nitrogen fixation</p></td>
+<td><p>g N m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ndisp">Eq. 30</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(N_{\text{disp}}\)</span></p></td>
+<td><p>Total available nitrogen</p></td>
+<td><p>g N m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ndisp">Eq. 30</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(P_{\text{disp}}\)</span></p></td>
+<td><p>Total available phosphorus</p></td>
+<td><p>g P m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-pdisp">Eq. 31</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(C_{i}^{\text{real}}\)</span></p></td>
+<td><p>Realized carbon allocation</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-creal">Eq. 32</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(C^{\text{alloc}}\)</span></p></td>
+<td><p>Total allocated carbon</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-calloc">Eq. 33</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\Delta S_{C}\)</span></p></td>
+<td><p>Change in carbon reserve</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-dsc">Eq. 34</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(R_{\text{growth}}^{\text{reserve}}\)</span></p></td>
+<td><p>Growth respiration on reserves</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-rg-reserve">Eq. 35</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\Delta S_{N}\)</span></p></td>
+<td><p>Change in nitrogen reserve</p></td>
+<td><p>g N m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-dsn">Eq. 36</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\Delta S_{P}\)</span></p></td>
+<td><p>Change in phosphorus reserve</p></td>
+<td><p>g P m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-dsp">Eq. 37</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(M_{\ell}\)</span></p></td>
+<td><p>Leaf biomass</p></td>
+<td><p>g C m<sup>-2</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-litter">Eq. 38</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(t_{\ell}\)</span></p></td>
+<td><p>Leaf turnover rate</p></td>
+<td><p>day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-litter">Eq. 38</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(f_{\text{res}}\)</span></p></td>
+<td><p>Resorption fraction</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-litter">Eq. 38</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-soil-remainder">Eq. 39</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(L_{C}^{\ell}\)</span></p></td>
+<td><p>Litter C flux from leaves</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-litter">Eq. 38</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(R_{N}^{\ell}\)</span></p></td>
+<td><p>N resorbed from leaves</p></td>
+<td><p>g N m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-litter">Eq. 38</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(C_{\text{cost}}^{N}\)</span></p></td>
+<td><p>Carbon cost of nitrogen acquisition</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-n">Eq. 40</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(C_{\text{cost}}^{P}\)</span></p></td>
+<td><p>Carbon cost of phosphorus acquisition</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-p">Eq. 41</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(g_{N},g_{P}\)</span></p></td>
+<td><p>Active-uptake cost functions</p></td>
+<td><p>g C / nutrient</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-n">Eq. 40</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-p">Eq. 41</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(h_{N},h_{P}\)</span></p></td>
+<td><p>Resorption cost functions</p></td>
+<td><p>g C / nutrient</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-n">Eq. 40</a>, <a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-p">Eq. 41</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(C_{\text{cost}}^{\text{total}}\)</span></p></td>
+<td><p>Total carbon acquisition cost</p></td>
+<td><p>g C m<sup>-2</sup> day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-cost-total">Eq. 42</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(H\)</span></p></td>
+<td><p>Plant height</p></td>
+<td><p>m</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-height">Eq. 43</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(Ca\)</span></p></td>
+<td><p>Crown area</p></td>
+<td><p>m<sup>2</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ca">Eq. 44</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\text{Diam}\)</span></p></td>
+<td><p>Stem diameter</p></td>
+<td><p>cm</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-diam">Eq. 45</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(W_{y,t}\)</span></p></td>
+<td><p>Soil water content</p></td>
+<td><p>mm</p></td>
+<td><p><a class="reference internal" href="gridcell_occupation.html#equation-eq-ar">Eq. 46</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(P_{\text{rec},y}\)</span></p></td>
+<td><p>Precipitation</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="gridcell_occupation.html#equation-eq-ar">Eq. 46</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(E_{\text{vap},i,y}\)</span></p></td>
+<td><p>Evapotranspiration</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-height">Eq. 43</a>, <a class="reference internal" href="water_balance.html#equation-eq-wsat">Eq. 52</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(R_{\text{off},i,y}\)</span></p></td>
+<td><p>Runoff</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-lambda">Eq. 56</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(w_{\text{sat},y}\)</span></p></td>
+<td><p>Soil water saturation fraction</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="ecosystem_processes.html#equation-eq-ca">Eq. 44</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\text{AWC}_{y}\)</span></p></td>
+<td><p>Available water capacity</p></td>
+<td><p>m<sup>3</sup> m<sup>-3</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-awc">Eq. 53</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\theta_{\text{FC},y}\)</span></p></td>
+<td><p>Field capacity water content</p></td>
+<td><p>m<sup>3</sup> m<sup>-3</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-fc">Eq. 54</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\theta_{\text{WP},y}\)</span></p></td>
+<td><p>Wilting point water content</p></td>
+<td><p>m<sup>3</sup> m<sup>-3</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-wp">Eq. 55</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(K_{\text{sat},y}\)</span></p></td>
+<td><p>Saturated hydraulic conductivity</p></td>
+<td><p>mm h<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-ksat">Eq. 57</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(K(\theta)_{y}\)</span></p></td>
+<td><p>Unsaturated hydraulic conductivity</p></td>
+<td><p>mm h<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-ktheta">Eq. 58</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(f_{5,i,y}\)</span></p></td>
+<td><p>Water-stress factor</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-f5">Eq. 60</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(L_{i,y}\)</span></p></td>
+<td><p>Potential water supply for transpiration</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-l">Eq. 61</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(D_{i,y}\)</span></p></td>
+<td><p>Unstressed transpiration demand</p></td>
+<td><p>mm day<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-d">Eq. 62</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\gamma_{m}\)</span></p></td>
+<td><p>Temperature–evaporation coefficient</p></td>
+<td><p>unitless</p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-d">Eq. 62</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(g_{m}\)</span></p></td>
+<td><p>Canopy-scaled stomatal conductance</p></td>
+<td><p>mm s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-d">Eq. 62</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(g_{\text{pot},i,y}\)</span></p></td>
+<td><p>Potential canopy conductance</p></td>
+<td><p>m s<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-gpot">Eq. 63</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(r_{c,\min}\)</span></p></td>
+<td><p>Minimum canopy resistance</p></td>
+<td><p>s m<sup>-1</sup></p></td>
+<td><p><a class="reference internal" href="water_balance.html#equation-eq-gpot">Eq. 63</a></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="trait-definitions-and-ranges-in-caete">
+<h2>Trait definitions and ranges in CAETÊ<a class="headerlink" href="#trait-definitions-and-ranges-in-caete" title="Link to this heading"></a></h2>
+<table class="wrap-table docutils align-default" id="tab-traits">
+<caption><span class="caption-number">Table 4 - </span><span class="caption-text">Trait definitions and ranges in CAETÊ</span><a class="headerlink" href="#tab-traits" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 15.0%" />
+<col style="width: 55.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Trait</strong></p></th>
+<th class="head"><p><strong>Description</strong></p></th>
+<th class="head"><p><strong>Range / Unit</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><cite>aleaf</cite></p></td>
+<td><p>Allocation coefficient for leaves</p></td>
+<td><p>0–1 %</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>awood</cite></p></td>
+<td><p>Allocation coefficient for wood</p></td>
+<td><p>0–1 %</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>aroot</cite></p></td>
+<td><p>Allocation coefficient for fine roots</p></td>
+<td><p>0–1 %</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>leaf_N:C</cite></p></td>
+<td><p>Nitrogen‑to‑carbon ratio in leaves</p></td>
+<td><p>0.001–0.05 g N / g C</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>wood_N:C</cite></p></td>
+<td><p>Nitrogen‑to‑carbon ratio in wood</p></td>
+<td><p>0.001–0.01 g N / g C</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>froot_N:C</cite></p></td>
+<td><p>Nitrogen‑to‑carbon ratio in fine roots</p></td>
+<td><p>0.001–0.06 g N / g C</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>leaf_P:C</cite></p></td>
+<td><p>Phosphorus‑to‑carbon ratio in leaves</p></td>
+<td><p>0.0002–0.0095 g P / g C</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>wood_P:C</cite></p></td>
+<td><p>Phosphorus‑to‑carbon ratio in wood</p></td>
+<td><p>3.12e-5–0.0035 g P / g C</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>froot_P:C</cite></p></td>
+<td><p>Phosphorus‑to‑carbon ratio in fine roots</p></td>
+<td><p>0.0003–0.005 g P / g C</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(g_{1}\)</span></p></td>
+<td><p>Stomatal conductance sensitivity to CO<sub>2</sub></p></td>
+<td><p>0.1–19 kPa<sup>0.5</sup></p></td>
+</tr>
+<tr class="row-even"><td><p><cite>amp</cite></p></td>
+<td><p>Fraction of NPP allocated to diazotrophs</p></td>
+<td><p>0.001–0.999 % NPP</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>WD</cite></p></td>
+<td><p>Wood density</p></td>
+<td><p>0.5–1.0 g cm<sup>-3</sup></p></td>
+</tr>
+<tr class="row-even"><td><p><cite>pdia</cite></p></td>
+<td><p>Fraction of daily NPP to biological N fixation</p></td>
+<td><p>0.01–0.10 % NPP</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>SLA</cite></p></td>
+<td><p>Specific leaf area</p></td>
+<td><p>9–40 m<sup>2</sup> kg<sup>-1</sup> C</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>tleaf</cite></p></td>
+<td><p>Leaf turnover time</p></td>
+<td><p>0.0833–4 years</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>twood</cite></p></td>
+<td><p>Wood turnover time</p></td>
+<td><p>0.0833–80 years</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>troot</cite></p></td>
+<td><p>Fine‑root turnover time</p></td>
+<td><p>0.0833–4 years</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>rsop_frac</cite></p></td>
+<td><p>N and P resorption fraction during senescence</p></td>
+<td><p>0.2–0.7 %</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="ecophysiological-tradeoffs-of-functional-traits-in-caete">
+<h2>Ecophysiological trade‑offs of functional traits in CAETÊ<a class="headerlink" href="#ecophysiological-tradeoffs-of-functional-traits-in-caete" title="Link to this heading"></a></h2>
+<table class="wrap-table docutils align-default" id="tab-traits-tradeoffs">
+<caption><span class="caption-number">Table 5 - </span><span class="caption-text">Ecophysiological trade‑offs of functional traits in CAETÊ</span><a class="headerlink" href="#tab-traits-tradeoffs" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><strong>Trait</strong></p></th>
+<th class="head"><p><strong>Ecophysiological trade‑offs</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><cite>aleaf</cite></p></td>
+<td><p>Total plant carbon stock; Leaf Area Index; Growth and Maintenance respiration</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>awood</cite></p></td>
+<td><p>Total plant carbon stock; Light Capture; Growth and Maintenance respiration</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>aroot</cite></p></td>
+<td><p>Total plant carbon; Water stress; Growth and Maintenance respiration</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>leaf_N:C</cite></p></td>
+<td><p>Higher leaf N boosts photosynthesis but raises respiration cost</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>wood_N:C</cite></p></td>
+<td><p>Same trade‑off as leaf_N:C</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>froot_N:C</cite></p></td>
+<td><p>Same trade‑off as leaf_N:C</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>leaf_P:C</cite></p></td>
+<td><p>P demand and allocation to foliage</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>wood_P:C</cite></p></td>
+<td><p>P demand and allocation to stem</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>froot_P:C</cite></p></td>
+<td><p>P demand and allocation to roots</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(g_{1}\)</span></p></td>
+<td><p>Balances carbon gain vs. water loss</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>amp</cite></p></td>
+<td><p>Symbiosis trades C cost vs. N fixation benefit</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>WD</cite></p></td>
+<td><p>Allocation, growth and turnover</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>pdia</cite></p></td>
+<td><p>Fixed N reduces limitation; Carbon cost</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>SLA</cite></p></td>
+<td><p>Leaf Area Index; Light capture efficiency</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>tleaf</cite></p></td>
+<td><p>Mass balance between leaf production and loss</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>twood</cite></p></td>
+<td><p>Woody carbon content; Total plant carbon stock</p></td>
+</tr>
+<tr class="row-even"><td><p><cite>troot</cite></p></td>
+<td><p>Nutrient uptake capacity; Water capacity</p></td>
+</tr>
+<tr class="row-odd"><td><p><cite>rsop_frac</cite></p></td>
+<td><p>Efficiency of nutrient recovery vs. litter input</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="output_data.html" class="btn btn-neutral float-left" title="Output Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../setup.html" class="btn btn-neutral float-right" title="Requirements and Setup" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, CAETÊ.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
