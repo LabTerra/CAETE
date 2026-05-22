@@ -36,6 +36,7 @@ module photo
         sla_reich              ,& ! (f), specific leaf area (m2 g-1)
         psi_fifty              ,& ! (f), Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
         conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
+        conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
@@ -297,7 +298,7 @@ contains
 
       if(cawood1 .gt. 0.0D0) then
          kl_max = 0.0021 * exp((-26.6 * dwood)/amax)  ! µmol m-2 s-1 - 1e6 converts mol to µmol  
-         print*,'amax in umol',amax
+         !print*,'amax in umol',amax
       else 
          kl_max = 0.0D0
       endif
@@ -307,6 +308,27 @@ contains
    !=================================================================
    !=================================================================
 
+   function conductance_xylemax(kl_max, height, cawood) result(krc_max)
+
+      !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
+      !Based in Christoffersen et al. 2016 TFS v.1-Hydro
+      use types
+
+      real(r_8),intent(in) :: kl_max          !kgm-1s-1Mpa-1
+      real(r_8),intent(in) :: height          !m
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: krc_max                    !molm-2s-1Mpa-1
+
+      if(cawood .gt. 0.0D0) then
+         krc_max = ((kl_max / height)*(55.55))        !convert kg to mol
+      else
+         krc_max = 0.0D0
+      endif
+
+   end function conductance_xylemax
+
+   !=================================================================
+   !=================================================================
 
    function water_stress_modifier(w, cfroot, rc, ep, wmax) result(f5)
       use types, only: r_8
