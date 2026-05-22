@@ -27,7 +27,7 @@ contains
 
    subroutine daily_budget(dt, w1, w2, ts, temp, p0, ipar, rh&
         &, mineral_n, labile_p, on, sop, op,catm, sto_budg_in, cl1_in, ca1_in, cf1_in, nleaf_in, nwood_in&
-        &, nroot_in, uptk_costs_in, wmax_in, soil_text, p_sat, evavg, epavg, phavg, aravg, nppavg&
+        &, nroot_in, uptk_costs_in, wmax_in, soil_text, p_sat, evavg, p50avg, epavg, phavg, aravg, nppavg&
         &, laiavg, rcavg, f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft&
         &, cfrootavg_pft, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg&
         &, vcmax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
@@ -74,6 +74,7 @@ contains
       !     ----------------------------OUTPUTS------------------------------
       real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
       real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
+      real(r_8),intent(out) :: p50avg         !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
       real(r_8),intent(out) :: nppavg         !Daily NPP (average between PFTs)(Kg m-2 y-1)
@@ -128,6 +129,7 @@ contains
       real(r_8),dimension(:),allocatable :: ocp_coeffs
 
       real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
+      real(r_8),dimension(:),allocatable :: p50    !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
       !c     Carbon Cycle
       real(r_8),dimension(:),allocatable :: ph     !Canopy gross photosynthesis (kgC/m2/yr)
       real(r_8),dimension(:),allocatable :: ar     !Autotrophic respiration (kgC/m2/yr)
@@ -221,7 +223,7 @@ contains
       soil_sat = wmax_in
 
       psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
-      print*,'psisoil budget',psi_soil
+      !print*,'psisoil budget',psi_soil
 
       call pft_area_frac(cl1_pft, cf1_pft, ca1_pft, awood_aux,&
       &                  ocpavg, ocp_wood, run, ocp_mm)
@@ -264,6 +266,7 @@ contains
 
       allocate(evap(nlen))
       allocate(nppa(nlen))
+      allocate(p50(nlen))
       allocate(ph(nlen))
       allocate(ar(nlen))
       allocate(laia(nlen))
@@ -441,7 +444,7 @@ contains
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&
                &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
-               &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
+               &, soil_sat, p50(p), ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
          evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
@@ -550,6 +553,7 @@ contains
       
       ! FILL OUTPUT DATA
       evavg = 0.0D0
+      p50avg = 0.0D0
       rcavg = 0.0D0
       f5avg = 0.0D0
       laiavg = 0.0D0
@@ -588,7 +592,8 @@ contains
          if(ieee_is_nan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
       enddo
 
-       evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      evavg = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      p50avg = sum(real(p50, kind=r_8) * ocp_coeffs, mask= .not. isnan(p50))
       phavg = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
       aravg = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
       nppavg = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
@@ -676,6 +681,7 @@ contains
       deallocate(lp)
       deallocate(evap)
       deallocate(nppa)
+      deallocate(p50)
       deallocate(ph)
       deallocate(ar)
       deallocate(laia)
