@@ -30,8 +30,8 @@ contains
   ! vindos do pre-loop de budget.f90, onde o dossel compartilhado foi calculado.
     subroutine prod(dt,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
-        & linc_layer,nl_shared,lsize_shared,wmax,psi50,ph,ar,&
-        & nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
+        & linc_layer,nl_shared,lsize_shared,wmax,psi50,klmax,&
+        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
 
         use types
         use global_par
@@ -62,6 +62,7 @@ contains
     !     Output
     !     ------
         real(r_8), intent(out) :: psi50                !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+        real(r_8), intent(out) :: klmax                !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
         real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
         real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
         real(r_8), intent(out) :: laia                 !Leaf area index (m2 leaf/m2 area) 
@@ -158,7 +159,12 @@ contains
         !   P50
         !=========
         psi50 = psi_fifty(wd_allom,ca1_prod)
-        print*,'P50',psi50, 'wd',wd_allom
+        !print*,'P50',psi50, 'wd',wd_allom
+
+        ! Klmax
+        !=========
+        klmax = conductivity_xylemleaf(wd_allom,jl_out* 1e6,ca1_prod)
+        print*,'klmax',klmax
     
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
