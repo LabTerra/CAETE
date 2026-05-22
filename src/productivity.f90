@@ -160,7 +160,7 @@ contains
         !Stomatal resistence
         !===================
         e_pot = transpiration(rc_aux, p0, vpd, 2,temp)
-        print*, 'e_pot:',e_pot
+        !print*, 'e_pot:',e_pot
 
         !==========================
         !  Hydraulic without stress --
@@ -184,7 +184,7 @@ contains
         ! Psixylem
         !=========
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
-        print*,'psixylem',psixylem, 'psisoil',psisoil
+        !print*,'psixylem',psixylem, 'psisoil',psisoil
     
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
@@ -214,7 +214,7 @@ contains
     
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
-        print*, 'e_real:',e
+        !print*, 'e_real:',e
     
         ! Leaf area index (m2/m2)
         ! recalcula rc e escalona para dossel

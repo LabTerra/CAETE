@@ -235,7 +235,7 @@ contains
 
       !!GAMBIARRA
       !!I put a if here just to make the adjustments in other variables, after that I solve the psisoil problem
-      !!Maybe I can put a if for W, it makes more sense but I have to study the diferences in each Amazon region
+      !!Maybe I can put an if for W, it makes more sense but I have to study the diferences in each Amazon region
       !if (psi_soil .lt. -5.0) then
       !   psi_soil = -4.0
       !else
