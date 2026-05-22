@@ -310,7 +310,7 @@ module budget_allom
       soil_sat = wmax_in
 
       psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
-      print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
+      !print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
 
       call pft_area_frac(cleaf_pls, croot_pls, cwood_pls, awood_aux,&
       &                 ocpavg, ocp_wood, run, ocp_mm)

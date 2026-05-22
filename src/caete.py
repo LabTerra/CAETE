@@ -259,7 +259,7 @@ def neighbours_index(pos, matrix):
 
 # WARNING keep the lists of budget/carbon3 outputs updated with fortran code
 def catch_out_budget(out):
-    lst = ["evavg", "epavg", "phavg", "aravg", "nppavg",
+    lst = ["evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "phavg", "aravg", "nppavg",
            "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
            "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
@@ -275,7 +275,7 @@ def catch_out_budget_allom (out):
     lst = ["dly_cleaf", "dly_cwood", "dly_croot","dly_csap","dly_cheart","dly_csto",
            "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
-           "evavg", "epavg", "phavg", "aravg", "nppavg", 
+           "evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "phavg", "aravg", "nppavg", 
            "laiavg","rcavg","f5avg","rmavg","rgavg",
            "wueavg", "cueavg","vcmax","specific_la", "ocpavg"]
     
