@@ -30,7 +30,7 @@ contains
   ! vindos do pre-loop de budget.f90, onde o dossel compartilhado foi calculado.
     subroutine prod(dt,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
-        & linc_layer,nl_shared,lsize_shared,wmax,psi50,klmax,krcmax,&
+        & linc_layer,nl_shared,lsize_shared,wmax,psisoil,psi50,klmax,krcmax,psixylem,&
         & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
 
         use types
@@ -50,7 +50,9 @@ contains
         real(r_8), intent(in) :: catm, cl1_prod, cf1_prod, ca1_prod        !Carbon in plant tissues (kg/m2)
         real(r_8), intent(in) :: beta_leaf            !npp allocation to carbon pools (kg/m2/day)
         real(r_8), intent(in) :: beta_awood
-        real(r_8), intent(in) :: beta_froot, wmax
+        real(r_8), intent(in) :: beta_froot
+        real(r_8), intent(in) :: wmax
+        real(r_8), intent(in) :: psisoil
         !real(r_8), intent(in) :: sla1
         real(r_8), intent(in) :: height1
         ! [LIGHT COMP] Novos argumentos: dossel compartilhado calculado em budget.f90
@@ -63,7 +65,8 @@ contains
     !     ------
         real(r_8), intent(out) :: psi50                !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
         real(r_8), intent(out) :: klmax                !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
-        real(r_8), intent(out) :: krcmax                  !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
+        real(r_8), intent(out) :: krcmax               !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
+        real(r_8), intent(out) :: psixylem             !Xylem water potential (MPa)
         real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
         real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
         real(r_8), intent(out) :: laia                 !Leaf area index (m2 leaf/m2 area) 
@@ -101,6 +104,7 @@ contains
         real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
         real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
+        real(r_8) :: e_pot
 
         !Hydraulic parameters
         !real(r_8) :: psi50
@@ -153,6 +157,11 @@ contains
         !===================
         rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
 
+        !Stomatal resistence
+        !===================
+        e_pot = transpiration(rc_aux, p0, vpd, 2,temp)
+        print*, 'e_pot:',e_pot
+
         !==========================
         !  Hydraulic without stress --
         !==========================
@@ -171,6 +180,11 @@ contains
         !=========
         krcmax = conductance_xylemax(klmax,height1,ca1_prod)   
         !print*,'krcmax',krcmax,'klmax',klmax
+
+        ! Psixylem
+        !=========
+        psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
+        print*,'psixylem',psixylem, 'psisoil',psisoil
     
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
@@ -200,6 +214,7 @@ contains
     
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
+        print*, 'e_real:',e
     
         ! Leaf area index (m2/m2)
         ! recalcula rc e escalona para dossel

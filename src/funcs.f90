@@ -38,6 +38,7 @@ module photo
         conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
         conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
+        xylem_waterpotential   ,& ! (f), Xylem water potential (MPa)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
         vcmax_a1               ,& ! (f), VCmax from domingues et al. 2010 (eq.2)
@@ -298,7 +299,7 @@ contains
 
       if(cawood1 .gt. 0.0D0) then
          kl_max = 0.0021 * exp((-26.6 * dwood)/amax)  ! µmol m-2 s-1 - 1e6 converts mol to µmol  
-         !print*,'amax in umol',amax
+         print*,'amax in umol',amax
       else 
          kl_max = 0.0D0
       endif
@@ -326,6 +327,35 @@ contains
       endif
 
    end function conductance_xylemax
+
+   !=================================================================
+   !=================================================================
+   
+   function xylem_waterpotential(psi_soil,height,e,krc_max,cawood) result(psi_xylem)
+      !Xylem water potential (MPa)
+      !Based in Eller et al., 2018
+      use types
+      use global_par, only:rho,grav
+
+      real(r_8),intent(in) :: psi_soil         !MPa
+      real(r_8),intent(in) :: height           !m
+      real(r_8),intent(in) :: e                !molm-2s-1 - transpiration
+      real(r_8),intent(in) :: krc_max          !molm-2s-1Mpa-1
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: psi_xylem                   !MPa
+
+      real(r_8) :: psi_g                       !MPa - gravitational potential
+
+      if(cawood .gt. 0.0D0) then
+         psi_g = rho * grav * height * 1e-6        !converts Pa to MPa
+         psi_xylem = psi_soil - psi_g - (e/krc_max)
+         !print*,'psi_gravitational',psi_g,'height',height,'psisoil',psi_soil
+      else
+         psi_g = 0.0D0
+         psi_xylem = 0.0D0
+      endif
+
+   end function xylem_waterpotential
 
    !=================================================================
    !=================================================================
