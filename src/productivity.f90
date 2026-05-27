@@ -187,7 +187,7 @@ contains
         ! Psixylem
         !=========
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
-        !print*,'psixylem',psixylem, 'psisoil',psisoil
+        print*,'psixylem',psixylem, 'psisoil',psisoil
 
         ! k xylem
         !=========
