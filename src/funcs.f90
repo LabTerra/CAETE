@@ -37,9 +37,10 @@ module photo
         psi_fifty              ,& ! (f), Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
         conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
         conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
-        water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         xylem_waterpotential   ,& ! (f), Xylem water potential (MPa)
         xylem_conductance      ,& ! (f), Hydraulic conductance of xylem (mol m-2 s-1 Mpa-1)
+        conductance_normalized ,& ! (f), Normalized hydraulic conductance of xylem (dimensionless)
+        water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
         vcmax_a1               ,& ! (f), VCmax from domingues et al. 2010 (eq.2)
@@ -385,6 +386,26 @@ contains
       endif
 
    end function xylem_conductance
+
+   !=================================================================
+   !=================================================================
+
+   function conductance_normalized(krc_max,k, cawood) result(k_norm)
+      !Returns normalized xylem conductance (dimensionless)
+      use types
+
+      real(r_8),intent(in) :: krc_max         !molm-2s-1Mpa-1
+      real(r_8),intent(in) :: k               !molm-2s-1Mpa-1
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: k_norm                     !dimensionless   
+
+      if(cawood .gt. 0.0D0) then
+         k_norm = k/krc_max
+      else 
+         k_norm = 0.0D0
+      endif
+
+   end function conductance_normalized
 
    !=================================================================
    !=================================================================
