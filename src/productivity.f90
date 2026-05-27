@@ -197,11 +197,12 @@ contains
         ! k xylem
         !=========
         knorm = conductance_normalized(krcmax,kxylem,ca1_prod)
-        print*,'knorm:',knorm,'krcmax:',krcmax,'kxylem:',kxylem
+        !print*,'knorm:',knorm,'krcmax:',krcmax,'kxylem:',kxylem
     
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
-        f5 =  water_stress_modifier(w, cf1_prod, rc_pot, emax, wmax)
+        f5 =  water_stress_modifier(w, cf1_prod, rc_pot, emax, wmax, knorm, ca1_prod)
+        print*,'f5',f5
     
     
     !     Photosysthesis minimum and maximum temperature

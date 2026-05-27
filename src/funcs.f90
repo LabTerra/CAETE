@@ -410,7 +410,7 @@ contains
    !=================================================================
    !=================================================================
 
-   function water_stress_modifier(w, cfroot, rc, ep, wmax) result(f5)
+   function water_stress_modifier(w, cfroot, rc, ep, wmax, k_norm, cawood) result(f5)
       use types, only: r_8
       use global_par, only: csru, alfm, gm, rcmin, rcmax
       !implicit none
@@ -420,6 +420,8 @@ contains
       real(r_8),intent(in) :: rc     !Canopy resistence 1/(micromol(CO2) m-2 s-1)
       real(r_8),intent(in) :: ep
       real(r_8),intent(in) :: wmax     !potential evapotranspiration
+      real(r_8),intent(in) :: k_norm
+      real(r_8),intent(in) :: cawood
       real(r_8) :: f5
 
 
@@ -435,7 +437,7 @@ contains
       ep_aux = real(ep, kind=r_8)
       if (rc .gt. rcmax) rc_aux = real(rcmax, r_8)
 
-      pt = csru*(cfroot*1000.0D0) * wa  !(based in Pavlick et al. 2013; *1000. converts kgC/m2 to gC/m2)
+      pt = csru*(cfroot*1000.0D0) * k_norm  !(based in Pavlick et al. 2013; *1000. converts kgC/m2 to gC/m2)
       if(rc_aux .gt. rcmin) then
          gc = (1.0D0/(rc_aux * 1.15741D-08))  ! s/m
       else
@@ -444,7 +446,7 @@ contains
 
       !d =(ep * alfm) / (1. + gm/gc) !(based in Gerten et al. 2004)
       d = (ep_aux * alfm) / (1.0D0 + (gm/gc))
-      if(d .gt. 0.0D0) then
+      if(d .gt. 0.0D0 .and. cawood .gt. 0.0D0) then
          f5_64 = pt/d
          ! print*, f5_64, 'f564'
          f5_64 = exp((f5_64 * (-0.1D0)))
