@@ -28,7 +28,7 @@ contains
    subroutine daily_budget(dt, w1, w2, ts, temp, p0, ipar, rh&
         &, mineral_n, labile_p, on, sop, op,catm, sto_budg_in, cl1_in, ca1_in, cf1_in, nleaf_in, nwood_in&
         &, nroot_in, uptk_costs_in, wmax_in, soil_text, p_sat, evavg, epavg&
-        &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg&
+        &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg, kxylemavg&
         &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft&
         &, cfrootavg_pft, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg&
         &, vcmax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
@@ -80,6 +80,7 @@ contains
       real(r_8),intent(out) :: klmavg         !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),intent(out) :: krcmavg        !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
       real(r_8),intent(out) :: pxylemavg      !Xylem water potential (MPa)
+      real(r_8),intent(out) :: kxylemavg      !Xylem conductance (molm-2s-1MPa-1)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
       real(r_8),intent(out) :: nppavg         !Daily NPP (average between PFTs)(Kg m-2 y-1)
@@ -138,6 +139,7 @@ contains
       real(r_8),dimension(:),allocatable :: klm    !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),dimension(:),allocatable :: krcm   !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
       real(r_8),dimension(:),allocatable :: pxylem !Xylem water potential (MPa)
+      real(r_8),dimension(:),allocatable :: kxyl   !Xylem conductance (molm-2s-1MPa-1)  
       !c     Carbon Cycle
       real(r_8),dimension(:),allocatable :: ph     !Canopy gross photosynthesis (kgC/m2/yr)
       real(r_8),dimension(:),allocatable :: ar     !Autotrophic respiration (kgC/m2/yr)
@@ -231,7 +233,7 @@ contains
       soil_sat = wmax_in
 
       psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
-      print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
+      !print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
 
       !!GAMBIARRA
       !!I put a if here just to make the adjustments in other variables, after that I solve the psisoil problem
@@ -288,6 +290,7 @@ contains
       allocate(klm(nlen))
       allocate(krcm(nlen))
       allocate(pxylem(nlen))
+      allocate(kxyl(nlen))
       allocate(ph(nlen))
       allocate(ar(nlen))
       allocate(laia(nlen))
@@ -465,7 +468,7 @@ contains
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&
                &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
-               &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p)&
+               &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
@@ -580,6 +583,7 @@ contains
       klmavg = 0.0D0
       krcmavg = 0.0D0
       pxylemavg = 0.0D0
+      kxylemavg = 0.0D0
       rcavg = 0.0D0
       f5avg = 0.0D0
       laiavg = 0.0D0
@@ -623,6 +627,7 @@ contains
       klmavg = sum(real(klm, kind=r_8) * ocp_coeffs, mask= .not. isnan(klm))
       krcmavg = sum(real(krcm, kind=r_8) * ocp_coeffs, mask= .not. isnan(krcm))
       pxylemavg = sum(real(pxylem, kind=r_8) * ocp_coeffs, mask= .not. isnan(pxylem))
+      kxylemavg = sum(real(kxyl, kind=r_8) * ocp_coeffs, mask= .not. isnan(kxyl))
       phavg = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
       aravg = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
       nppavg = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
@@ -714,6 +719,7 @@ contains
       deallocate(klm)
       deallocate(krcm)
       deallocate(pxylem)
+      deallocate(kxyl)
       deallocate(ph)
       deallocate(ar)
       deallocate(laia)

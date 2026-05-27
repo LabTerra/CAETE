@@ -30,7 +30,8 @@ contains
   ! vindos do pre-loop de budget.f90, onde o dossel compartilhado foi calculado.
     subroutine prod(dt,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
-        & linc_layer,nl_shared,lsize_shared,wmax,psisoil,psi50,klmax,krcmax,psixylem,&
+        & linc_layer,nl_shared,lsize_shared,wmax,&
+        & psisoil,psi50,klmax,krcmax,psixylem,kxylem,&
         & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
 
         use types
@@ -67,6 +68,7 @@ contains
         real(r_8), intent(out) :: klmax                !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
         real(r_8), intent(out) :: krcmax               !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
         real(r_8), intent(out) :: psixylem             !Xylem water potential (MPa)
+        real(r_8), intent(out) :: kxylem                  !Xylem conductance (molm-2s-1MPa-1)
         real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
         real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
         real(r_8), intent(out) :: laia                 !Leaf area index (m2 leaf/m2 area) 
@@ -185,6 +187,11 @@ contains
         !=========
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
         !print*,'psixylem',psixylem, 'psisoil',psisoil
+
+        ! k xylem
+        !=========
+        kxylem = xylem_conductance(krcmax,psixylem,psi50,ca1_prod)
+        print*,'KXYLEM:',kxylem, 'P50:',psi50, 'KRCMAX:',krcmax
     
         !Water stress response modifier (dimensionless)
         !----------------------------------------------

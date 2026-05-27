@@ -39,6 +39,7 @@ module photo
         conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         xylem_waterpotential   ,& ! (f), Xylem water potential (MPa)
+        xylem_conductance      ,& ! (f), Hydraulic conductance of xylem (mol m-2 s-1 Mpa-1)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
         vcmax_a1               ,& ! (f), VCmax from domingues et al. 2010 (eq.2)
@@ -356,6 +357,34 @@ contains
       endif
 
    end function xylem_waterpotential
+
+   !=================================================================
+   !=================================================================
+
+   function xylem_conductance(krc_max,psi_xylem,psi_50,cawood) result(k)  
+      !Xylem conductance (molm-2s-1MPa-1)
+      !Based in Manzoni et al., 2013
+      use types
+      !use global_par, only: vuln_curve
+
+      real(r_8), intent(in) :: krc_max                !molm-2s-1Mpa-1 
+      real(r_8), intent(in) :: psi_xylem              !MPa
+      real(r_8), intent(in) :: psi_50                 !MPa
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: k                                  !molm-2s-1MPa-1
+
+      real(r_8) :: stem_slope     !MPa-1 - Slope of the linear portion of the xylem vulnerability function
+      real(r_8) :: a              !vulnerability curve
+
+      if(cawood .gt. 0.0D0) then
+         stem_slope = 65.15*(-psi_50)**(-1.25)
+         a = -4*stem_slope/100*psi_50
+         k = krc_max*(1+(psi_xylem/psi_50)**a)**(-1) 
+      else
+         k = 0.0D0
+      endif
+
+   end function xylem_conductance
 
    !=================================================================
    !=================================================================
