@@ -11,6 +11,7 @@ src/*.o
 src/*.c
 src/caete_module*
 src/PLS_MAIN
+src/*.log
 src/*.obj
 src/*.i90
 src/*.mod
@@ -26,6 +27,7 @@ src/pls_data-*
 src/*.pkz
 src/*.psz
 src/*pbz2
+src/global.f90
 src/debug_aux/*.txt
 src/windows_utils/__pycache__
 src/profiling/__pycache__
