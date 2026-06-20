@@ -1,4 +1,5 @@
 src/**.npy
+src/global.f90
 **.log
 src/caete_module.pyf
 **.so
@@ -7,3 +8,4 @@ src/caete_module.pyf
 **/__pycache__/
 **/input/20CRV**
 **/outputs/
+*workspace
