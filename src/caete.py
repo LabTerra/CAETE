@@ -601,6 +601,14 @@ class grd:
         """
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
+
+        self.psi_50       = np.zeros(shape=(n,), order='F')
+        self.kl_max       = np.zeros(shape=(n,), order='F')  
+        self.krc_max      = np.zeros(shape=(n,), order='F')
+        self.psi_xylem    = np.zeros(shape=(n,), order='F')
+        self.k_xylem      = np.zeros(shape=(n,), order='F')
+        self.k_norm       = np.zeros(shape=(n,), order='F')
 
         self.ph_allom     = np.zeros(shape=(n,), order='F')
         self.ar_allom     = np.zeros(shape=(n,), order='F')
@@ -824,6 +832,13 @@ class grd:
         # Flush attrs (clear outputs)
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
+        self.psi_50       = None
+        self.kl_max       = None  
+        self.krc_max      = None
+        self.psi_xylem    = None
+        self.k_xylem      = None
+        self.k_norm       = None
         self.ph_allom     = None
         self.ar_allom     = None
         self.npp_allom    = None
@@ -1882,6 +1897,13 @@ class grd:
 
                     self.emaxm.append(daily_output_allom['epavg'])
                     self.tsoil.append(self.soil_temp)
+                    self.psisoil.append(daily_output_allom['pot_soil'])
+                    self.psi_50[step]        = daily_output_allom['p50avg']     
+                    self.kl_max[step]        = daily_output_allom['klmavg']
+                    self.krc_max[step]       = daily_output_allom['krcmavg']
+                    self.psi_xylem[step]     = daily_output_allom['pxylemavg']
+                    self.k_xylem[step]       = daily_output_allom['kxylemavg']
+                    self.k_norm[step]        = daily_output_allom['knormavg']
                     self.ph_allom[step]      = daily_output_allom['phavg']
                     self.ar_allom[step]      = daily_output_allom['aravg']
                     self.npp_allom[step]     = daily_output_allom['nppavg']
