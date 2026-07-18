@@ -273,8 +273,8 @@ contains
         ! Leaf area index (m2/m2)
         ! recalcula rc e escalona para dossel
         ! laia = 0.2D0 * dexp((2.5D0 * f1)/p25)
-        laia = leaf_area_index(cl1_prod, sla)
-        ! laia = f_four(0, cl1_prod, sla) + f_four(1, cl1_prod, sla)
+        laia = leaf_area_index(cl1_prod(:), sla)
+        ! laia = f_four(0, cl1_prod(:), sla) + f_four(1, cl1_prod(:), sla)
         rc = rc_aux * real(laia,kind=r_8) ! RCM -!s m-1 ! CANOPY SCALING --
     
     !     Canopy gross photosynthesis (kgC/m2/yr)
@@ -282,7 +282,7 @@ contains
     
         ! [SUN/SHADE FIX] Pass f1_sun and f1_shade separately so gross_ph can
         ! compute A_sun*f4sun + A_shade*f4shade (De Pury & Farquhar 1997, Eq. 24).
-        ! Previously: gross_ph(f1, cl1_prod, sla) used a single rate for both fractions.
+        ! Previously: gross_ph(f1, cl1_prod(:), sla) used a single rate for both fractions.
         ph =  gross_ph(f1_sun(:), f1_shade(:), cl1_prod(:), sla)  ! kg m-2 year-1
         !print*,'gpp:',ph
 
@@ -292,7 +292,7 @@ contains
     !     Autothrophic respiration
     !     ========================
     !     Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
-        rm = m_resp(temp,ts,cl1_prod,cf1_prod,ca1_prod &
+        rm = m_resp(temp,ts,cl1_prod(:),cf1_prod,ca1_prod &
             &,n2cl_resp,n2cw_resp,n2cf_resp,awood)
     
     ! c     Growth respiration (KgC/m2/yr)(based in Ryan 1991; Sitch et al.

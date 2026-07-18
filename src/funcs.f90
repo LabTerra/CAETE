@@ -1402,7 +1402,7 @@ contains
       !implicit none
 
       real(r_8), intent(in) :: temp, ts
-      real(r_8), intent(in) :: cl1_mr
+      real(r_8), dimension(3), intent(in) :: cl1_mr
       real(r_8), intent(in) :: cf1_mr
       real(r_8), intent(in) :: cs1_mr
       real(r_8), intent(in) :: n2cl
@@ -1411,6 +1411,7 @@ contains
       real(r_8), intent(in) :: aawood_mr
       real(r_8) :: rm
 
+      real(r_8) :: cl_total
       real(r_8) :: csa, rm64, rml64
       real(r_8) :: rmf64, rms64
       real(r_8) :: t_resp !Temperature influence on respiration
@@ -1436,17 +1437,19 @@ contains
          rms64 = 0.0
       endif
 
-      rml64 = ((ncl*(cl1_mr*1.0D3))*a1*exp(a2 * temp))
-            ! rml64 = ((n2cl * (cl1_mr * 1.0D3)) * a1 * exp(a2 * temp))
+      cl_total = sum(cl1_mr(:))
+
+      rml64 = ((ncl*(cl1_cl_totalmr*1.0D3))*a1*exp(a2 * temp))
+            ! rml64 = ((n2cl * (cl_total * 1.0D3)) * a1 * exp(a2 * temp))
 
       ! print*, 'rml64 previous', rml64
 
-      ! rml64 = 0.3*((cl1_mr*1.0D3)/(1.0/29.0))*1.6180
+      ! rml64 = 0.3*((cl_total*1.0D3)/(1.0/29.0))*1.6180
       ! print*, 'rml64 lpj', rml64
 
-      rmf64 = ((ncf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
+      rmf64 = ((ncf * (cl_total * 1.0D3)) * a1 * exp(a2 * ts))
 !
-      ! rmf64 = ((n2cf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
+      ! rmf64 = ((n2cf * (cl_total * 1.0D3)) * a1 * exp(a2 * ts))
 
       rm64 = (rml64 + rmf64 + rms64) * 1.0D-3
 
