@@ -105,10 +105,10 @@ contains
         real(r_8) :: jl_out
 
         real(r_8), dimension(3) :: f1      !Leaf level gross photosynthesis (molCO2/m2/s)
-        real(r_8) :: f1a      !auxiliar_f1
+        real(r_8), dimension(3) :: f1a      !auxiliar_f1
         ! [SUN/SHADE FIX] Sun and shade assimilation rates (before and after water stress)
-        real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
-        real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
+        real(r_8), dimension(3) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
+        real(r_8), dimension(3) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8), dimension(3) :: umol_penalties = (/-0.4, 1.0, 0.6/) !Penalization in photosynthesis for each cohort, defined by Wu et al (2016) and Albert et al (2018)
         real(r_8), dimension(3) :: age_limits, leaf_age
         real(r_8), dimension(3) :: penalization_by_age
@@ -181,7 +181,7 @@ contains
         
         call photosynthesis_rate(catm,temp,p0,ipar,sla,c4_int,tleaf,n2cl,&
             & p2cl,cl1_prod(:),ca1_prod,height1,&
-            & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
+            & linc_layer,nl_shared,lsize_shared,f1a(:),vm_out,jl_out,&
             & f1a_sun(:),f1a_shade(:))
     
         ! VPD
@@ -253,13 +253,13 @@ contains
         ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
         ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
         ! fractions (both are within the same atmospheric/soil water environment).
-        f1_sun   = f1a_sun   * f5
-        f1_shade = f1a_shade * f5
+        f1_sun(:)   = f1a_sun(:) * f5
+        f1_shade(:) = f1a_shade * f5
         else
         f1(:) = 0.0     !Temperature above/below photosynthesis windown
         ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
-        f1_sun   = 0.0D0
-        f1_shade = 0.0D0
+        f1_sun(:)   = 0.0D0
+        f1_shade(:) = 0.0D0
         endif
     
         rc_aux = canopy_resistence(vpd, f1(:), g1, catm,temp)  ! RCM leaf level -!s m-1
