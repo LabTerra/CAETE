@@ -179,10 +179,10 @@ contains
         ! o dossel individualmente para cada PLS.
         ! [SUN/SHADE FIX] Also captures f1a_sun and f1a_shade (new outputs).
         
-        call photosynthesis_rate(catm,temp,p0,ipar,sla,c4_int,n2cl,&
-            & p2cl,cl1_prod,ca1_prod,height1,&
+        call photosynthesis_rate(catm,temp,p0,ipar,sla,c4_int,tleaf,n2cl,&
+            & p2cl,cl1_prod(:),ca1_prod,height1,&
             & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
-            & f1a_sun,f1a_shade)
+            & f1a_sun(:),f1a_shade(:))
     
         ! VPD
         !========

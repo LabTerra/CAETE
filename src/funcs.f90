@@ -852,9 +852,9 @@ contains
    ! Simplified LIGHT COMPETITION block: Subroutine now maps PFT to its 
    ! respective layer and fetches linc_layer values directly.
 
-   subroutine photosynthesis_rate(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
-        & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
-        & f1ab_sun, f1ab_shade)
+   subroutine photosynthesis_rate(c_atm,temp,p0,ipar,sla,c4,leaf_turnover,nbio,pbio,&
+        & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm,amax,&
+        & f1ab_sun,f1ab_shade)
 
       ! [SUN/SHADE] Added f1ab_sun and f1ab_shade as additional outputs.
       ! These carry the leaf-level assimilation rate computed separately for the
@@ -876,23 +876,23 @@ contains
       real(r_8),intent(in) :: pbio  ! mg g-1
       ! logical(l_1),intent(in) :: ll ! is light limited?
       integer(i_4),intent(in) :: c4 ! is C4 Photosynthesis pathway?
-      ! real(r_8),intent(in) :: leaf_turnover   ! y
+      real(r_8),intent(in) :: leaf_turnover   ! y
       real(r_8),intent(in) :: sla
       real(r_8),intent(in) :: height1
       real(r_8),intent(in) :: cawood1
-      real(r_8),intent(in) :: cleaf
+      real(r_8),dimension(3),intent(in) :: cleaf
       ! [LIGHT COMP] New inputs from budget.f90
       integer(i_4), intent(in) :: nl_shared
       real(r_8),    intent(in) :: lsize_shared
       real(r_8), dimension(nl_shared), intent(in) :: linc_layer
 
       ! O
-      real(r_8),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
+      real(r_8),dimension(3),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
       real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
       real(r_8),intent(out) :: amax ! light saturated PH rate
       ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
-      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar)
-      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
+      real(r_8),dimension(3),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar)
+      real(r_8),dimension(3),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
 
       real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
       real(r_8) :: mgama,vm_in      !Photo-respiration compensation point (Pa)
@@ -926,7 +926,8 @@ contains
       integer(i_4) :: n  ! Layer localization counter/index
 
       ! [SUN/SHADE] Local variables for sun/shade irradiance split
-      real(r_8) :: lai_loc, sunlai_loc ! LAI and sunlit-LAI of this PLS
+      real(r_8) :: sunlai_loc_aux, f1ab_shade_aux
+      real(r_8),dimension(3) :: lai_loc, sunlai_loc ! LAI and sunlit-LAI of this PLS
       real(r_8) :: I_sun, I_shade      ! irradiance reaching sun and shade leaves
       ! C3 shade-path intermediates (parallel to b/c/delta/jp and b2/c2/delta2/f1a)
       real(r_8) :: jl_sh                        ! shade light-limited rate
@@ -938,6 +939,25 @@ contains
       real(r_8) :: ipar1_sh  ! shade µmol m-2 s-1
       real(r_8) :: v4m_sh    ! shade PEP-limited v4m
       real(r_8) :: jcl_sh    ! shade light-or-PEP-limited rate
+
+      real(r_8), dimension(3) :: umol_penalties = (/-0.4, 1.0, 0.6/) !Penalization in photosynthesis for each cohort, defined by Wu et al (2016) and Albert et al (2018)
+      real(r_8), dimension(3) :: leaf_age
+      real(r_8), dimension(3) :: penalization_by_age
+      real(r_8) :: age_crit
+      integer(i_4) :: i
+
+      !Simulation of leaf demography
+      !Obtain critical age
+      age_crit = (leaf_turnover / 3.0) * 2.0
+
+      !Obtain leaf age (a) - middle age of each cohort
+      leaf_age(1) = (leaf_turnover * (1.0/12.0))
+      leaf_age(2) = (leaf_turnover * (1.0/2.0))
+      leaf_age(3) = (leaf_turnover * (5.0/6.0))
+
+      do i = 1, 3
+         penalization_by_age(i) = leaf_age_factor(umol_penalties(i), age_crit, leaf_age(i))
+      enddo
 
       nbio2 = nbio !nrubisco(leaf_turnover, nbio)
       pbio2 = pbio !nrubisco(leaf_turnover, pbio)
@@ -1021,8 +1041,9 @@ contains
       ! sub-layer: I_shade = aux_ipar * exp(-p27 * LAI_sun),
       ! with LAI_sun = (1 - exp(-p26*LAI)) / p26 (De Pury & Farquhar 1997).
       ! p26 = beam (sun) extinction coefficient; p27 = diffuse (shade) extinction coefficient.
-      lai_loc    = leaf_area_index(cleaf, sla)
-      sunlai_loc = (1.0D0 - exp(-p26 * lai_loc)) / p26
+      lai_loc(:)    = leaf_area_index(cleaf(:), sla)
+      sunlai_loc_aux = (1.0D0 - exp(-p26 * lai_loc(:))) / p26
+      sunlai_loc = sum(sunlai_loc_aux(:))
       I_sun   = aux_ipar
       I_shade = aux_ipar * exp(-p27 * sunlai_loc)
 
@@ -1076,10 +1097,19 @@ contains
          delta2 = (b2**2)-4.0D0*a2*c2
          j1 = (-b2-(sqrt(delta2)))/(2.0D0*a2)
          j2 = (-b2+(sqrt(delta2)))/(2.0D0*a2)
-         f1a = dmin1(j1,j2)
 
-         f1ab = f1a
-         if(f1ab .lt. 0.0D0) f1ab = 0.0D0
+         f1a = dmin1(j1,j2)
+         print*,'f1a',f1a
+
+         do i = 1,3
+            f1ab(i) = f1a * penalization_by_age(i)
+         enddo
+         
+         if(f1ab(1) .lt. 0.0D0) f1ab(1) = 0.0D0
+         if(f1ab(2) .lt. 0.0D0) f1ab(2) = 0.0D0
+         if(f1ab(3) .lt. 0.0D0) f1ab(3) = 0.0D0
+
+         print*,'f1ab_y',f1ab(1),'f1ab_m',f1ab(2),'f1ab_o',f1ab(3)
 
          ! [SUN/SHADE] C3 shade-leaf path: same jc and je, but jl driven by I_shade.
          ! Only the light-limited rate changes; Rubisco (jc) and transport (je) limits are
@@ -1096,12 +1126,22 @@ contains
          d2_s   = (b2_s**2) - 4.0D0*a2*c2_s
          j1_sh  = (-b2_s - (sqrt(d2_s))) / (2.0D0*a2)
          j2_sh  = (-b2_s + (sqrt(d2_s))) / (2.0D0*a2)
-         f1ab_shade = dmin1(j1_sh, j2_sh)
-         if(f1ab_shade .lt. 0.0D0) f1ab_shade = 0.0D0
+         f1ab_shade_aux = dmin1(j1_sh, j2_sh)
+         do i = 1,3
+            f1ab_shade(i) = f1ab_shade_aux * penalization_by_age(i)
+         enddo
+         if(f1ab_shade(1) .lt. 0.0D0) f1ab_shade(1) = 0.0D0
+         if(f1ab_shade(2) .lt. 0.0D0) f1ab_shade(2) = 0.0D0
+         if(f1ab_shade(3) .lt. 0.0D0) f1ab_shade(3) = 0.0D0
 
          ! [SUN/SHADE] Sun assimilation rate is f1a (computed with I_sun above)
-         f1ab_sun = f1a
-         if(f1ab_sun .lt. 0.0D0) f1ab_sun = 0.0D0
+         do i = 1,3
+            f1ab_sun(i) = f1a * penalization_by_age(i)
+         enddo
+         
+         if(f1ab_sun(1) .lt. 0.0D0) f1ab_sun(1) = 0.0D0
+         if(f1ab_sun(2) .lt. 0.0D0) f1ab_sun(2) = 0.0D0
+         if(f1ab_sun(3) .lt. 0.0D0) f1ab_sun(3) = 0.0D0
 
          return
       else
@@ -1153,8 +1193,12 @@ contains
          j2 = (-b2+(sqrt(delta2)))/(2.0*a2)
          f1a = dmin1(j1,j2)
 
-         f1ab = f1a
-         if(f1ab .lt. 0.0D0) f1ab = 0.0D0
+         do i = 1,3
+            f1ab(i) = f1a * penalization_by_age(i)
+         enddo
+         if(f1ab(1) .lt. 0.0D0) f1ab(1) = 0.0D0
+         if(f1ab(2) .lt. 0.0D0) f1ab(2) = 0.0D0
+         if(f1ab(3) .lt. 0.0D0) f1ab(3) = 0.0D0
 
          ! [SUN/SHADE] C4 shade-leaf path: v4m re-evaluated at I_shade.
          ! In C4, the PEP-carboxylase rate (v4m) depends directly on irradiance,
@@ -1167,12 +1211,22 @@ contains
          d2_s     = (b2_s**2) - 4.0*a2*c2_s
          j1_sh    = (-b2_s - (sqrt(d2_s))) / (2.0*a2)
          j2_sh    = (-b2_s + (sqrt(d2_s))) / (2.0*a2)
-         f1ab_shade = dmin1(j1_sh, j2_sh)
-         if(f1ab_shade .lt. 0.0D0) f1ab_shade = 0.0D0
+         f1ab_shade_aux = dmin1(j1_sh, j2_sh)
+         do i = 1,3
+            f1ab_shade(i) = f1ab_shade_aux * penalization_by_age(i)
+         enddo
+         if(f1ab_shade(1) .lt. 0.0D0) f1ab_shade(1) = 0.0D0
+         if(f1ab_shade(2) .lt. 0.0D0) f1ab_shade(2) = 0.0D0
+         if(f1ab_shade(3) .lt. 0.0D0) f1ab_shade(3) = 0.0D0
 
          ! [SUN/SHADE FIX] Sun assimilation rate is f1a (computed with I_sun above)
-         f1ab_sun = f1a
-         if(f1ab_sun .lt. 0.0D0) f1ab_sun = 0.0D0
+         do i = 1,3
+            f1ab_sun(i) = f1a * penalization_by_age(i)
+         enddo
+         
+         if(f1ab_sun(1) .lt. 0.0D0) f1ab_sun(1) = 0.0D0
+         if(f1ab_sun(2) .lt. 0.0D0) f1ab_sun(2) = 0.0D0
+         if(f1ab_sun(3) .lt. 0.0D0) f1ab_sun(3) = 0.0D0
 
          return
       endif
