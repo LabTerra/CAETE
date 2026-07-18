@@ -551,7 +551,7 @@ contains
 
     !implicit none
 
-    real(r_8),intent(in) :: f1_in    !Photosynthesis (molCO2/m2/s)
+    real(r_8),dimension(3),intent(in) :: f1_in    !Photosynthesis (molCO2/m2/s)
     real(r_8),intent(in) :: vpd_in   !hPa
     real(r_8),intent(in) :: g1       ! model m (slope) (sqrt(kPa))
     real(r_8),intent(in) :: ca
@@ -560,6 +560,7 @@ contains
     !     --------
     real(r_8) :: D1       !sqrt(kPA)
     real(r_8) :: vapour_p_d
+    real(r_8),dimension(3) :: gs_aux
 
     vapour_p_d = vpd_in
     ! Assertions
@@ -570,7 +571,8 @@ contains
     ! endif
 
     D1 = sqrt(vapour_p_d)
-    gs = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in/ca) !mol m-2 s-1
+    gs_aux(:) = = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in/ca) !mol m-2 s-1
+    gs = sum(gs_aux(:))
  end function stomatal_conductance
 
  !=================================================================
