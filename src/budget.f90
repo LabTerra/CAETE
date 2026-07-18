@@ -32,7 +32,7 @@ contains
         &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft&
         &, cfrootavg_pft, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg&
         &, vcmax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
-        &, delta_cveg_1, limitation_status_1, uptk_strat_1, cp, c_cost_cwm)
+        &, delta_cveg_1, limitation_status_1, uptk_strat_1, cleafavg, cp, c_cost_cwm)
 
 
       use types
@@ -63,7 +63,7 @@ contains
       real(r_8),intent(in) :: soil_text, p_sat     ! Soil texture (dimensionless) / soil saturation water potential (MPa) / maximum soil water 
 
       real(r_8),dimension(3,npls),intent(in)  :: sto_budg_in ! Rapid Storage Pool (C,N,P)  g m-2
-      real(r_8),dimension(npls),intent(in) :: cl1_in  ! initial BIOMASS cleaf compartment kgm-2
+      real(r_8),dimension(3,npls),intent(in) :: cl1_in  ! initial BIOMASS cleaf compartment kgm-2
       real(r_8),dimension(npls),intent(in) :: cf1_in  !                 froot
       real(r_8),dimension(npls),intent(in) :: ca1_in  !                 cawood
       real(r_8),dimension(npls),intent(in) :: nleaf_in  ! CHANGE IN cVEG (DAILY BASIS) TO GROWTH RESP
@@ -103,7 +103,7 @@ contains
       real(r_8),dimension(6),intent(out) :: lit_nut_content_1 ! g(Nutrient)m-2 ! Lit_nut_content variables         [(lln),(rln),(cwdn),(llp),(rl),(cwdp)]
 
       ! FULL OUTPUT
-      real(r_8),dimension(npls),intent(out) :: cleafavg_pft   !Carbon in plant tissues (kg m-2)
+      real(r_8),dimension(3,npls),intent(out) :: cleafavg_pft   !Carbon in plant tissues (kg m-2)
       real(r_8),dimension(npls),intent(out) :: cawoodavg_pft  !
       real(r_8),dimension(npls),intent(out) :: cfrootavg_pft  !
       real(r_8),dimension(npls),intent(out) :: ocpavg         ! [0-1] Gridcell occupation
@@ -113,6 +113,7 @@ contains
       integer(i_4),dimension(2,npls),intent(out) :: uptk_strat_1
       real(r_8),dimension(npls),intent(out) ::  npp2pay_1 ! C costs of N/P uptake
       real(r_8),dimension(4),intent(out) :: cp ! Aux cp(1:3) CVEG C POOLS cp(4) Auxiliary to HR
+      real(r_8),dimension(3),intent(out) :: cleafavg
       real(r_8),intent(out) :: c_cost_cwm
       
       !     -----------------------Internal Variables------------------------
@@ -128,7 +129,8 @@ contains
       real(r_8),parameter :: tsnow = -1.0D0
       real(r_8),parameter :: tice  = -2.5D0
 
-      real(r_8),dimension(npls) :: cl1_pft, cf1_pft, ca1_pft
+      real(r_8),dimension(3,npls) :: cl1_pft
+      real(r_8),dimension(npls) :: cf1_pft, ca1_pft
       real(r_8) :: soil_temp
       real(r_8) :: emax
       real(r_8) :: w                               !Daily soil moisture storage (mm)
@@ -156,11 +158,11 @@ contains
       real(r_8),dimension(:),allocatable :: wue
       real(r_8),dimension(:),allocatable :: cue
       real(r_8),dimension(:),allocatable :: c_def
-      real(r_8),dimension(:),allocatable :: cl1_int
+      real(r_8),dimension(:,:),allocatable :: cl1_int
       real(r_8),dimension(:),allocatable :: cf1_int
       real(r_8),dimension(:),allocatable :: ca1_int
       real(r_8),dimension(:),allocatable :: tra 
-      real(r_8),dimension(:),allocatable :: cl2
+      real(r_8),dimension(:,:),allocatable :: cl2
       real(r_8),dimension(:),allocatable :: cf2
       real(r_8),dimension(:),allocatable :: ca2    ! carbon pos-allocation
       real(r_8),dimension(:,:),allocatable :: day_storage      ! D0=3 g m-2
@@ -216,7 +218,6 @@ contains
          pdia_aux(i) = dt(17,i)
          dwood_aux(i) = dt(18,i)
          !sla_aux(i) = dt(19,i)
-         cl1_pft(i) = cl1_in(i)
          ca1_pft(i) = ca1_in(i)
          cf1_pft(i) = cf1_in(i)
          nleaf(i) = nleaf_in(i)
@@ -225,7 +226,11 @@ contains
          uptk_costs(i) = uptk_costs_in(i)
          do j = 1,3
             sto_budg(j,i) = sto_budg_in(j,i)
+            cl1_pft(j,i) = cl1_in(j,i)
          enddo
+         !print*,'cl1_pft(i)',cl1_pft(i),i
+         !print*,'ca1_pft(i)',ca1_pft(i),i
+         !print*,'cf1_pft(i)',cf1_pft(i),i
       enddo
 
       ! find the number of grasses
@@ -321,10 +326,10 @@ contains
       allocate(npp2pay(nlen))
       allocate(limitation_status(3,nlen))
       allocate(uptk_strat(2,nlen))
-      allocate(cl1_int(nlen))
+      allocate(cl1_int(3,nlen))
       allocate(cf1_int(nlen))
       allocate(ca1_int(nlen))
-      allocate(cl2(nlen))
+      allocate(cl2(3,nlen))
       allocate(cf2(nlen))
       allocate(ca2(nlen))
       allocate(day_storage(3,nlen))
@@ -374,7 +379,7 @@ contains
          ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
-         idx_pre = leaf_area_index(cl1_pft(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
+         idx_pre = leaf_area_index(cl1_pft(:,ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
          do n_pre = 1, nl_shared
@@ -470,11 +475,14 @@ contains
          ! agregado de todas as PLS (pre-loop acima).
 
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cl1_pft(ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&
+               &, cl1_pft(:,ri), ca1_pft(ri), cf1_pft(ri), nleaf(ri), nwood(ri), nroot(ri)&
                &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p), knor(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+
+         !print*,'survivors',p, 'cawood:',ca1_pft(ri), 'cfroot:',cf1_pft(ri), 'cleaf j:',cl1_pft(1,ri), 'cleaf m:',cl1_pft(2,ri), 'cleaf s:',cl1_pft(3,ri),&
+         !& 'LAI:',laia(p), 'SLA:',specific_la(p), 'GPP:',ph(P),'NPP:',nppa(p)
 
          evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
 
@@ -504,8 +512,8 @@ contains
          !     =====================================================
 
          call allocation (dt1,nppa(p),uptk_costs(ri), soil_temp, w, tra(p)&
-            &, mineral_n,labile_p, on, sop, op, cl1_pft(ri),ca1_pft(ri)&
-            &, cf1_pft(ri),storage_out_bdgt(:,p),day_storage(:,p),cl2(p),ca2(p)&
+            &, mineral_n,labile_p, on, sop, op, cl1_pft(:,ri),ca1_pft(ri)&
+            &, cf1_pft(ri),storage_out_bdgt(:,p),day_storage(:,p),cl2(:,p),ca2(p)&
             &, cf2(p),litter_l(p),cwd(p), litter_fr(p),nupt(:,p),pupt(:,p)&
             &, lit_nut_content(:,p), limitation_status(:,p), npp2pay(p), uptk_strat(:, p), ar_aux)
 
@@ -534,7 +542,7 @@ contains
             cue(p) = nppa(p)/ph(p)
          endif
 
-         delta_cveg(1,p) = cl2(p) - cl1_pft(ri)  !kg m-2
+         delta_cveg(1,p) = sum(cl2(:,p)) - sum(cl1_pft(:,ri))  !kg m-2
          if(dt1(4) .lt. 0.0D0) then
             delta_cveg(2,p) = 0.0D0
          else
@@ -551,29 +559,51 @@ contains
          ! Mass Balance
 
          if(c_def(p) .gt. 0.0) then
+            !if(dt1(7) .gt. 0.0D0) then
+            !   cl1_int(:,p) = cl2(:,p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
+            !   ca1_int(p) = ca2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
+            !   cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
+            !else
+            !   cl1_int(:,p) = cl2(:,p) - ((c_def(p) * 1.0D-3) * 0.5D0)
+            !   ca1_int(p) = 0.0D0
+            !   cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.5D0)
+            !endif
             if(dt1(7) .gt. 0.0D0) then
-               cl1_int(p) = cl2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
-               ca1_int(p) = ca2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
-               cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.3333333333333333D0)
-            else
-               cl1_int(p) = cl2(p) - ((c_def(p) * 1.0D-3) * 0.5D0)
-               ca1_int(p) = 0.0D0
-               cf1_int(p) = cf2(p) - ((c_def(p) * 1.0D-3) * 0.5D0)
-            endif
-         else
-            if(dt1(7) .gt. 0.0D0) then
-               cl1_int(p) = cl2(p)
+               cl1_int(1,p) = cl2(1,p) - ((c_def(p) * 1e-3) * 0.1)
+               cl1_int(2,p) = cl2(2,p) - ((c_def(p) * 1e-3) * 0.1)
+               cl1_int(3,p) = cl2(3,p) - ((c_def(p) * 1e-3) * 0.8)
                ca1_int(p) = ca2(p)
                cf1_int(p) = cf2(p)
             else
-               cl1_int(p) = cl2(p)
+               cl1_int(1,p) = cl2(1,p) - ((c_def(p) * 1e-3) * 0.1)
+               cl1_int(2,p) = cl2(2,p) - ((c_def(p) * 1e-3) * 0.1)
+               cl1_int(3,p) = cl2(3,p) - ((c_def(p) * 1e-3) * 0.8)
+               ca1_int(p) = 0.0D0
+               cf1_int(p) = cf2(p)
+            endif
+         else
+            if(dt1(7) .gt. 0.0D0) then
+               cl1_int(:,p) = cl2(:,p)
+               ca1_int(p) = ca2(p)
+               cf1_int(p) = cf2(p)
+            else
+               cl1_int(:,p) = cl2(:,p)
                ca1_int(p) = 0.0D0
                cf1_int(p) = cf2(p)
             endif
          endif
-         if(cl1_int(p) .lt. 0.0D0) cl1_int(p) = 0.0D0
+         if(cl1_int(1,p) .lt. 0.0D0) cl1_int(1,p) = 0.0D0
+         if(cl1_int(2,p) .lt. 0.0D0) cl1_int(2,p) = 0.0D0
+         if(cl1_int(3,p) .lt. 0.0D0) cl1_int(3,p) = 0.0D0
          if(ca1_int(p) .lt. 0.0D0) ca1_int(p) = 0.0D0
          if(cf1_int(p) .lt. 0.0D0) cf1_int(p) = 0.0D0
+
+
+         !print*,'cl1_pft(1,p)',cl1_pft(1,p),p
+         !print*,'cl1_pft(2,p)',cl1_pft(2,p),p
+         !print*,'cl1_pft(3,p)',cl1_pft(3,p),p
+         !print*,'ca1_pft(p)',ca1_pft(p),p
+         !print*,'cf1_pft(p)',cf1_pft(p),p
 
       enddo ! end pls_loop (p)
       !$OMP END PARALLEL DO
@@ -610,7 +640,7 @@ contains
       pupt_1(:) = 0.0D0
       
 
-      cleafavg_pft(:) = 0.0D0
+      cleafavg_pft(:,:) = 0.0D0
       cawoodavg_pft(:) = 0.0D0
       cfrootavg_pft(:) = 0.0D0
       delta_cveg_1(:, :) = 0.0D0
@@ -652,7 +682,11 @@ contains
       litter_fr_1 = sum(litter_fr * ocp_coeffs, mask= .not. ieee_is_nan(litter_fr))
       c_cost_cwm = sum(npp2pay * ocp_coeffs, mask= .not. ieee_is_nan(npp2pay))
 
-      cp(1) = sum(cl1_int * ocp_coeffs, mask= .not. ieee_is_nan(cl1_int))
+      cleafavg(1) = sum(cl1_int(1,:) * ocp_coeffs, mask= .not. ieee_is_nan(cl1_int(1,:)))
+      cleafavg(2) = sum(cl1_int(2,:) * ocp_coeffs, mask= .not. ieee_is_nan(cl1_int(2,:)))
+      cleafavg(3) = sum(cl1_int(3,:) * ocp_coeffs, mask= .not. ieee_is_nan(cl1_int(3,:)))
+
+      !cp(1) = sum(sum(cl1_int) * ocp_coeffs, mask= .not. ieee_is_nan(sum(cl1_int)))
       cp(2) = sum(ca1_int * (ocp_coeffs * idx_grasses), mask= .not. ieee_is_nan(ca1_int))
       cp(3) = sum(cf1_int * ocp_coeffs, mask= .not. ieee_is_nan(cf1_int))
       cp(4) = sum(ar_fix_hr * (ocp_coeffs * idx_pdia), mask= .not. ieee_is_nan(ar_fix_hr))
@@ -707,7 +741,7 @@ contains
       do p = 1, nlen
          ri = lp(p)
 
-         cleafavg_pft(ri)  = cl1_int(p)
+         cleafavg_pft(:,ri)  = cl1_int(:,p)
          cawoodavg_pft(ri) = ca1_int(p)
          cfrootavg_pft(ri) = cf1_int(p)
          delta_cveg_1(:,ri) = delta_cveg(:,p)
