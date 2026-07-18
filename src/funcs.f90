@@ -577,7 +577,7 @@ contains
    function water_ue(a, g, p0, vpd,temp) result(wue)
       use types
       !implicit none
-      real(r_8),intent(in) :: a
+      real(r_8),dimension(3),intent(in) :: a
       real(r_8),intent(in) :: g, p0, vpd
       ! +++ BC +++
       real(r_8),intent(in) :: temp     ! Air temperature (°C)
@@ -586,6 +586,7 @@ contains
       real(r_8) :: wue
 
       real(r_8) :: g_in, p0_in, e_in
+      real(r_8) :: a_aux
 
       ! +++ BC +++
       real(r_8) :: conv_factor ! RT/P_atm (m s-1 per mol m-2 s-1)
@@ -612,10 +613,12 @@ contains
       !g_in = (1./g) * 40.87 ! convertendo a resistencia (s m-1) em condutancia mol m-2 s-1
       e_in = g_in * (vpd/p0_in) ! calculando transpiracao mol H20 m-2 s-1
 
-      if(a .eq. 0 .or. e_in .eq. 0) then
+      a_aux = sum(a(:))
+
+      if(a_aux .eq. 0 .or. e_in .eq. 0) then
          wue = 0
       else
-         wue = real(a, kind=r_8)/e_in
+         wue = real(a_aux, kind=r_8)/e_in
       endif
    end function water_ue
 
