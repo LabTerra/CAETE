@@ -43,7 +43,7 @@ contains
     !Input
     !-----
         real(r_8),dimension(ntraits),intent(in) :: dt ! PLS data
-        real(r_8), intent(in) :: temp, ts                 !Mean monthly temperature (oC)
+        real(r_8), intent(in) :: temp, ts             !Mean monthly temperature (oC)
         real(r_8), intent(in) :: p0                   !Mean surface pressure (hPa)
         real(r_8), intent(in) :: w                    !Soil moisture kg m-2
         real(r_8), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
