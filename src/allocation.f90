@@ -83,7 +83,7 @@ module alloc
       real(r_8),intent(in) :: ts   ! soil temp °C
       real(r_8),intent(in) :: wsoil! soil water depth (mm)
       real(r_8),intent(in) :: te   ! plant transpiration (mm/s)
-      real(r_8),intent(in) :: scl1 ! previous day carbon content on leaf compartment (KgC/m2)
+      real(r_8),dimension(3),intent(in) :: scl1 ! previous day carbon content on leaf compartment (KgC/m2)
       real(r_8),intent(in) :: sca1 ! previous day carbon content on aboveground woody biomass compartment(KgC/m2)
       real(r_8),intent(in) :: scf1 ! previous day carbon content on fine roots compartment (KgC/m2)
       real(r_8),intent(in) :: nmin ! N in mineral N pool(g m-2) SOLUTION
@@ -92,7 +92,7 @@ module alloc
       real(r_8),dimension(3),intent(in) :: storage ! Three element array- storage pool([C,N,P]) g m-2
       ! O
       real(r_8),dimension(3),intent(out) :: storage_out_alloc
-      real(r_8),intent(out) :: scl2 ! final carbon content on leaf compartment (KgC/m2)
+      real(r_8),dimension(3),intent(out) :: scl2 ! final carbon content on leaf compartment (KgC/m2)
       real(r_8),intent(out) :: sca2 ! final carbon content on aboveground woody biomass compartment (KgC/m2)
       real(r_8),intent(out) :: scf2 ! final carbon content on fine roots compartment (KgC/m2)
       real(r_8),intent(out) :: cwd  ! coarse wood debris (to litter)(C) g m-2
@@ -112,7 +112,7 @@ module alloc
       real(r_8) :: puptk ! P plant uptake g(P) m-2
       real(r_8) :: scf2_tmp ! Store veg carbon pool in a 64bit fp
       real(r_8) :: sca2_tmp
-      real(r_8) :: scl2_tmp
+      real(r_8), dimension(3) :: scl2_tmp
       real(r_8) :: leaf_av_n
       real(r_8) :: wood_av_n
       real(r_8) :: root_av_n
@@ -171,6 +171,7 @@ module alloc
       real(r_8) :: mult_factor_n, mult_factor_p
       real(r_8) :: n_leaf, p_leaf, new_leaf_n2c, new_leaf_p2c, leaf_litter_o
       real(r_8) :: root_litter_o
+      real(r_8) :: turnover_c1, turnover_c2  !fluxo de C entre as coortes 1-2 e 2-3
       real(r_8) :: cwd_o
 
       ! CC auxiliary
@@ -188,7 +189,7 @@ module alloc
       ! initialize ALL outputs
       storage_out_alloc            = (/0.0D0, 0.0D0, 0.0D0/)
       litter_nutrient_content = (/0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0/)
-      scl2                   = 0.0D0
+      scl2(:)                = 0.0D0
       scf2                   = 0.0D0
       sca2                   = 0.0D0
       cwd                    = 0.0D0
@@ -219,7 +220,7 @@ module alloc
       rp_uptake(:)           = 0.0D0
       scf2_tmp               = 0.0D0
       sca2_tmp               = 0.0D0
-      scl2_tmp               = 0.0D0
+      scl2_tmp(:)            = 0.0D0
       leaf_av_n              = 0.0D0
       wood_av_n              = 0.0D0
       root_av_n              = 0.0D0
@@ -348,7 +349,7 @@ module alloc
       ! INTERNAL VARIABLES
       scf2_tmp = 0.0D0
       sca2_tmp = 0.0D0
-      scl2_tmp = 0.0D0
+      scl2_tmp(:) = 0.0D0
       npp_pot  = 0.0D0
 
       ! You have: kg m-2 year-1
@@ -842,12 +843,17 @@ module alloc
       endif
 
       ! LEAF LITTER FLUX
-      leaf_litter = scl1 / tleaf  !/ tleaf ! kg(C) m-2 year-1
+      leaf_litter = scl1(3) / tleaf  !/ tleaf ! kg(C) m-2 year-1
+      ! LEAF C FLUX BETWEEN COHORTS
+      turnover_c1 = scl1(1) / (tleaf * (1.0/6.0))
+      turnover_c2 = scl1(2) / (tleaf * (4.0/6.0))
       ! ROOT LITTER
       root_litter = scf1 / troot  !/ tfroot! kg(C) m-2 year-1
 
       ! UPDATE C content of each compartment in g m-2
-      scl2 = (1.0D3 * scl1) + daily_growth(leaf) - (leaf_litter * 2.73791075D0)
+      scl2(1) = ((1D3 * scl1(1)) + daily_growth(leaf)) - (turnover_c1 * 2.73791075D0)
+      scl2(2) = ((1D3 * scl1(2)) + (turnover_c1 * 2.73791075D0)) - (turnover_c2 * 2.73791075D0)
+      scl2(3) = ((1D3 * scl1(3)) + (turnover_c2 * 2.73791075D0)) - (leaf_litter * 2.73791075D0)
       scf2 = (1.0D3 * scf1) + daily_growth(root) - (root_litter * 2.73791075D0)
 
       ! ## if it's a woody strategy:
@@ -920,7 +926,7 @@ module alloc
       ! END RETRANSLOCATION CALCULATIONS
 
       ! Finalize
-      scl2 = scl2 * 1.0D-3
+      scl2(:) = scl2(:) * 1.0D-3
       scf2 = scf2 * 1.0D-3
       if(awood .gt. 0.0D0) then
          sca2 = sca2 * 1.0D-3
