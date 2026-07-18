@@ -263,7 +263,7 @@ def catch_out_budget(out):
            "phavg", "aravg", "nppavg", "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
            "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
-           "limitation_status", "uptk_strat", 'cp', 'c_cost_cwm']
+           "limitation_status", "uptk_strat", "cleafavg", 'cp', 'c_cost_cwm']
 
     return dict(zip(lst, out))
 
@@ -568,7 +568,7 @@ class grd:
         self.swsoil = np.zeros(shape=(n,), order='F')
         self.rm = np.zeros(shape=(n,), order='F')
         self.rg = np.zeros(shape=(n,), order='F')
-        self.cleaf = np.zeros(shape=(n,), order='F')
+        self.cleaf = np.zeros(shape=(3, n), order='F')
         self.cawood = np.zeros(shape=(n,), order='F')
         self.cfroot = np.zeros(shape=(n,), order='F')
         self.wue = np.zeros(shape=(n,), order='F')
@@ -693,7 +693,9 @@ class grd:
                     'swsoil': self.swsoil,
                     'rm': self.rm,
                     'rg': self.rg,
-                    'cleaf': self.cleaf,
+                    'cleaf_y': self.cleaf[0],
+                    'cleaf_m': self.cleaf[1],
+                    'cleaf_o': self.cleaf[2],
                     'cawood': self.cawood,
                     'cfroot': self.cfroot,
                     'area': self.area,
@@ -952,7 +954,13 @@ class grd:
 
         # Biomass 
             #Initial value for biomass
-        self.vp_cleaf = np.zeros(shape=(npls,), order='F') + 1.0
+        self.vp_cleaf = np.zeros(shape=(3,npls,), order='F') + 1.0
+        #> in my branch I had:  CHECK WHAT TO DO WITH THAT
+        #cleafaux, self.vp_croot, self.vp_cwood = m.spinup2(
+        #    1.0, self.pls_table)
+        #self.vp_cleaf[0,:] = cleafaux/3
+        #self.vp_cleaf[1,:] = cleafaux/3
+        #self.vp_cleaf[2,:] = cleafaux/3
         self.vp_croot = np.zeros(shape=(npls,), order='F') + 1.0
         self.vp_cwood = np.zeros(shape=(npls,), order='F') + 0.1
         self.vp_cwood[pls_table[6,:] == 0.0] = 0.0
@@ -1248,7 +1256,7 @@ class grd:
                 # INFLATe VARS
                     #Initialize with zero to be fullfilled with data when the running occurs
                 sto   = np.zeros(shape=(3, npls), order='F')
-                cleaf = np.zeros(npls, order='F')
+                cleaf = np.zeros(shape=(3, npls), order='F')
                 cwood = np.zeros(npls, order='F')
                 croot = np.zeros(npls, order='F')
                 dcl   = np.zeros(npls, order='F')
@@ -1264,7 +1272,7 @@ class grd:
                 sto[2, self.vp_lsid] = self.vp_sto[2, :]
                 
                 # Just Check the integrity of the data
-                assert self.vp_lsid.size == self.vp_cleaf.size, 'different array sizes'
+                #assert self.vp_lsid.size == self.vp_cleaf.size, 'different array sizes'
 
                 c = 0 #In each iteration of the loop, the value of c is incremented
                         #allowing access to the elements of the other lists or arrays in the next iteration.
@@ -1273,7 +1281,7 @@ class grd:
                     #in the following loop cleaf will retain the values of vp_cleaf in each
                     #indicated index
                 for n in self.vp_lsid:
-                    cleaf[n] = self.vp_cleaf[c]
+                    cleaf[:,n] = self.vp_cleaf[:,c]
                     cwood[n] = self.vp_cwood[c]
                     croot[n] = self.vp_croot[c]
                     dcl[n]   = self.vp_dcl[c]
@@ -1310,7 +1318,7 @@ class grd:
                         f"Gridcell {self.xyname} has no living Plant Life Strategies - Re-populating")
                     # REPOPULATE]
                     # UPDATE vegetation pools
-                    self.vp_cleaf = np.zeros(shape=(self.vp_lsid.size,)) + 1.0
+                    self.vp_cleaf = np.zeros(shape=(3, self.vp_lsid.size,)) + 1.0
                     self.vp_cwood = np.zeros(shape=(self.vp_lsid.size,))
                     self.vp_croot = np.zeros(shape=(self.vp_lsid.size,)) + 1.0
                     awood = self.pls_table[6, :]
@@ -1549,7 +1557,9 @@ class grd:
                     self.cdef[step] = daily_output['c_defavg']
                     self.vcmax[step] = daily_output['vcmax']
                     self.specific_la[step] = daily_output['specific_la']
-                    self.cleaf[step] = daily_output['cp'][0]
+                    self.cleaf[0, step] = daily_output['cleafavg'][0]
+                    self.cleaf[1, step] = daily_output['cleafavg'][1]
+                    self.cleaf[2, step] = daily_output['cleafavg'][2]
                     self.cawood[step] = daily_output['cp'][1]
                     self.cfroot[step] = daily_output['cp'][2]
                     self.hresp[step] = soil_out['hr']

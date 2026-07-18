@@ -51,7 +51,7 @@ module global_par
    real(r_4),parameter,public :: rho = 997.0                     ! Density of water (Kg/m3)
    real(r_4),parameter,public :: grav = 9.8                      ! Gravity (m/s2)
    real(r_4),parameter,public :: vuln_curve = 3  
-   integer(i_4),parameter,public :: npls = 1000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
+   integer(i_4),parameter,public :: npls = 10000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
    integer(i_4),parameter,public :: ntraits = 20                 ! Number of traits for each PLS
    real(r_8),parameter, public :: ncl = (1.0/60.0)          !(gN/gC) used in maintenance respiration (from Scheiter & Higgins 2008)
    real(r_8),parameter, public :: ncf = (1.0/60.0)          !(gN/gC)
