@@ -48,7 +48,8 @@ contains
         real(r_8), intent(in) :: w                    !Soil moisture kg m-2
         real(r_8), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
         real(r_8), intent(in) :: rh,emax !Relative humidity/MAXIMUM EVAPOTRANSPIRATION
-        real(r_8), intent(in) :: catm, cl1_prod, cf1_prod, ca1_prod        !Carbon in plant tissues (kg/m2)
+        real(r_8), dimension(3),intent(in) :: cl1_prod    !Total carbon in each cohort of leaves (kg/m2)
+        real(r_8), intent(in) :: catm, cf1_prod, ca1_prod !Carbon in plant tissues (kg/m2)
         real(r_8), intent(in) :: beta_leaf            !npp allocation to carbon pools (kg/m2/day)
         real(r_8), intent(in) :: beta_awood
         real(r_8), intent(in) :: beta_froot
@@ -68,8 +69,8 @@ contains
         real(r_8), intent(out) :: klmax                !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
         real(r_8), intent(out) :: krcmax               !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
         real(r_8), intent(out) :: psixylem             !Xylem water potential (MPa)
-        real(r_8), intent(out) :: kxylem                  !Xylem conductance (molm-2s-1MPa-1)
-        real(r_8), intent(out) :: knorm                   !Returns normalized xylem conductance (dimensionless)
+        real(r_8), intent(out) :: kxylem               !Xylem conductance (molm-2s-1MPa-1)
+        real(r_8), intent(out) :: knorm                !Returns normalized xylem conductance (dimensionless)
         real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
         real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
         real(r_8), intent(out) :: laia                 !Leaf area index (m2 leaf/m2 area) 
@@ -80,15 +81,17 @@ contains
         real(r_8), intent(out) :: rm                   !Maintenance respiration (kgC/m2/yr) 
         real(r_8), intent(out) :: rg
         real(r_8), intent(out) :: wue
-        real(r_8), intent(out) :: c_defcit     ! Carbon deficit gm-2 if it is positive, aresp was greater than npp + sto2(1)
-        real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
+        real(r_8), intent(out) :: c_defcit             !Carbon deficit gm-2 if it is positive, aresp was greater than npp + sto2(1)
+        real(r_8), intent(out) :: e                    !Transpiration (molm2s)
+        real(r_8), intent(out) :: sla                  !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
 
 
     !     Internal
     !     --------
 
-        real(r_8) :: tleaf,awood            !leaf/wood turnover time (yr)
+        real(r_8) :: tleaf            !leaf/wood turnover time (yr)
+        real(r_8) :: awood
         real(r_8) :: g1
         real(r_8) :: c4
 
@@ -101,19 +104,20 @@ contains
         integer(i_4) :: c4_int
         real(r_8) :: jl_out
 
-        real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
+        real(r_8), dimension(3) :: f1      !Leaf level gross photosynthesis (molCO2/m2/s)
         real(r_8) :: f1a      !auxiliar_f1
         ! [SUN/SHADE FIX] Sun and shade assimilation rates (before and after water stress)
         real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
         real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
+        real(r_8), dimension(3) :: umol_penalties = (/-0.4, 1.0, 0.6/) !Penalization in photosynthesis for each cohort, defined by Wu et al (2016) and Albert et al (2018)
+        real(r_8), dimension(3) :: age_limits, leaf_age
+        real(r_8), dimension(3) :: penalization_by_age
+        real(r_8) :: age_crit
         real(r_8) :: rc_pot, rc_aux
         real(r_8) :: e_pot
-
-        !Hydraulic parameters
-        !real(r_8) :: psi50
+        integer(i_4) :: i
 
     !getting pls parameters
-
 
         g1  = dt(1)
         tleaf = dt(3)
@@ -125,6 +129,34 @@ contains
         n2cf_resp = dt(12)
         p2cl = dt(13)
         wd_allom = dt(19)
+
+
+        !> Simulation of leaf demography
+        ! Obtain critical age
+        age_crit = (tleaf / 3.0) * 2.0
+
+        ! Obtain leaf age (a) - middle age of each cohort
+        leaf_age(1) = (tleaf * (1.0/12.0))
+        leaf_age(2) = (tleaf * (1.0/2.0))
+        leaf_age(3) = (tleaf * (5.0/6.0))
+
+        do i = 1, 3
+            penalization_by_age(i) = leaf_age_factor(umol_penalties(i), age_crit, leaf_age(i))
+        enddo
+
+        !do i = 1,3
+        !   if (i .le. age_limits(1)) then 
+        !      penalization_by_age(1) = leaf_age_factor(umol_penalties(1), age_crit, leaf_age(1))
+        !   else if (i .gt. age_limits(1) .and. i .le. age_limits(2)) then
+        !      penalization_by_age(2) = leaf_age_factor(umol_penalties(2), age_crit, leaf_age(2))
+        !   else 
+        !      penalization_by_age(3) = leaf_age_factor(umol_penalties(3), age_crit, leaf_age(3))   
+        !   endif 
+        !enddo
+
+        print*,'fa young',penalization_by_age(1)
+        print*,'fa mature',penalization_by_age(2)
+        print*,'fa old',penalization_by_age(3)
 
 
         n2cl = n2cl * 1.0D3 ! N in leaf mg g-1
@@ -208,15 +240,23 @@ contains
     !     Photosysthesis minimum and maximum temperature
     !     ----------------------------------------------
     
+        !if ((temp.ge.-10.0).and.(temp.le.50.0)) then
+        !    do i = 1,3
+        !        f1(i) = f1a * f5 * penalization_by_age(i) ! water stress factor and factor age ! Ancient floating-point underflow spring (from CPTEC-PVM2)
+        !    enddo
+        !else
+        !    f1 = 0.0      !Temperature above/below photosynthesis windown
+        !endif
+
         if ((temp.ge.-10.0).and.(temp.le.50.0)) then
-        f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
+        f1(:) = f1a(:) * f5 ! water stress factor and factor age ! Ancient floating-point underflow spring (from CPTEC-PVM2)
         ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
         ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
         ! fractions (both are within the same atmospheric/soil water environment).
         f1_sun   = f1a_sun   * f5
         f1_shade = f1a_shade * f5
         else
-        f1 = 0.0D0      !Temperature above/below photosynthesis windown
+        f1(:) = 0.0     !Temperature above/below photosynthesis windown
         ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
         f1_sun   = 0.0D0
         f1_shade = 0.0D0
@@ -243,7 +283,11 @@ contains
         ! [SUN/SHADE FIX] Pass f1_sun and f1_shade separately so gross_ph can
         ! compute A_sun*f4sun + A_shade*f4shade (De Pury & Farquhar 1997, Eq. 24).
         ! Previously: gross_ph(f1, cl1_prod, sla) used a single rate for both fractions.
-        ph =  gross_ph(f1_sun, f1_shade, cl1_prod, sla)  ! kg m-2 year-1
+        ph =  gross_ph(f1_sun(:), f1_shade(:), cl1_prod(:), sla)  ! kg m-2 year-1
+        !print*,'gpp:',ph
+
+        !ph_photo = gross_ph_2(f1)
+        !print*,'gpp_2:',ph_photo
     
     !     Autothrophic respiration
     !     ========================

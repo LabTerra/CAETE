@@ -127,25 +127,27 @@ contains
       ! respective irradiance-driven assimilation rates.
       ! The correct canopy GPP is: A_sun*f4sun + A_shade*f4shade
       ! (De Pury & Farquhar 1997, Eq. 24).
-      use types, only: r_8
+      use types, only: r_4, r_8
       !implicit none
 
       ! f1sun : assimilation rate of sun leaves   (molCO2 m-2 s-1)
       ! f1shade: assimilation rate of shade leaves (molCO2 m-2 s-1)
-      real(r_8),intent(in) :: f1sun   ! molCO2 m-2 s-1 — sun leaves
-      real(r_8),intent(in) :: f1shade ! molCO2 m-2 s-1 — shade leaves
-      real(r_8),intent(in) :: cleaf   ! kgC m-2
+      real(r_8),dimension(3),intent(in) :: f1sun   ! molCO2 m-2 s-1 — sun leaves
+      real(r_8),dimension(3),intent(in) :: f1shade ! molCO2 m-2 s-1 — shade leaves
+      real(r_8),dimension(3),intent(in) :: cleaf !kgC m-2
       real(r_8),intent(in) :: sla     ! m2 gC-1
       real(r_8) :: ph
 
       real(r_8) :: f4sun, f4shade
+      real(r_4),dimension(3) :: ph_aux
 
-      f4sun   = f_four(1, cleaf, sla)
-      f4shade = f_four(2, cleaf, sla)
+      f4sun   = f_four(1, cleaf(:), sla)
+      f4shade = f_four(2, cleaf(:), sla)
 
       ! Canopy GPP = A_sun*f4sun + A_shade*f4shade
       ! Replaces the previous: f1*(f4sun+f4shade)
-      ph = real((0.012D0 * 31557600.0D0 * (f1sun*f4sun + f1shade*f4shade)), r_8)
+      ph = real((0.012D0 * 31557600.0D0 * (f1sun(:)*f4sun + f1shade(:)*f4shade)), r_8)
+      ph = sum(ph_aux(:))
       if(ph .lt. 0.0) ph = 0.0
    end function gross_ph
 
@@ -158,12 +160,14 @@ contains
       use types, only: r_8
       !implicit none
 
-      real(r_8),intent(in) :: cleaf !kgC m-2
+      real(r_8),dimension(3),intent(in) :: cleaf !kgC m-2
       real(r_8),intent(in) :: sla   !m2 gC-1
       real(r_8) :: lai
 
+      real(r_8) :: cl_total
+      cl_total = sum(cleaf(:))
 
-      lai  = cleaf * 1.0D3 * sla  ! Converts cleaf from (KgC m-2) to (gCm-2)
+      lai  = cl_total * 1.0D3 * sla  ! Converts cleaf from (KgC m-2) to (gCm-2)
       if(lai .lt. 0.0D0) lai = 0.0D0
 
    end function leaf_area_index
@@ -225,7 +229,7 @@ contains
       ! 20 == shade LAI
       ! Any other number returns sunlai (not scaled to canopy)
 
-      real(r_8),intent(in) :: cleaf ! carbon in leaf (kg m-2)
+      real(r_8),dimension(3),intent(in) :: cleaf ! carbon in leaf (kg m-2)
       real(r_8),intent(in) :: sla   ! specific leaf area (m2 gC-1)
       real(r_8) :: lai_ss           ! leaf area index (m2 m-2)
 
@@ -233,7 +237,7 @@ contains
       real(r_8) :: sunlai
       real(r_8) :: shadelai
 
-      lai = leaf_area_index(cleaf, sla)
+      lai = leaf_area_index(cleaf(:), sla)
 
       sunlai = (1.0D0-(exp(-p26*lai)))/p26
       shadelai = lai - sunlai
