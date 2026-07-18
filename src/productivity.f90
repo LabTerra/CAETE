@@ -190,7 +190,7 @@ contains
     
         !Stomatal resistence
         !===================
-        rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
+        rc_pot = canopy_resistence(vpd, f1a(:), g1, catm,temp) ! Potential RCM leaf level - s m-1
 
         !Stomatal resistence
         !===================
@@ -262,7 +262,7 @@ contains
         f1_shade = 0.0D0
         endif
     
-        rc_aux = canopy_resistence(vpd, f1, g1, catm,temp)  ! RCM leaf level -!s m-1
+        rc_aux = canopy_resistence(vpd, f1(:), g1, catm,temp)  ! RCM leaf level -!s m-1
     
         wue = water_ue(f1(:), rc_aux, p0, vpd,temp)
     
