@@ -146,7 +146,7 @@ contains
 
       ! Canopy GPP = A_sun*f4sun + A_shade*f4shade
       ! Replaces the previous: f1*(f4sun+f4shade)
-      ph = real((0.012D0 * 31557600.0D0 * (f1sun(:)*f4sun + f1shade(:)*f4shade)), r_8)
+      ph_aux(:) = real((0.012D0 * 31557600.0D0 * (f1sun(:)*f4sun + f1shade(:)*f4shade)), r_8)
       ph = sum(ph_aux(:))
       if(ph .lt. 0.0) ph = 0.0
    end function gross_ph
@@ -527,7 +527,7 @@ contains
       ! +++ BC +++
    
       D1 = sqrt(vapour_p_d)
-      gs_aux(:) = = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in(:) * 1.0e6)/ca) ! mol m-2 s-1
+      gs_aux(:) = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in(:) * 1.0e6)/ca) ! mol m-2 s-1
       gs = sum(gs_aux(:))
       ! +++ BC +++
       gs = gs * conv_factor ! convert from mol m-2 s-1 to m s-1
@@ -571,7 +571,7 @@ contains
     ! endif
 
     D1 = sqrt(vapour_p_d)
-    gs_aux(:) = = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in/ca) !mol m-2 s-1
+    gs_aux(:) = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in(:)/ca) !mol m-2 s-1
     gs = sum(gs_aux(:))
  end function stomatal_conductance
 
@@ -926,8 +926,9 @@ contains
       integer(i_4) :: n  ! Layer localization counter/index
 
       ! [SUN/SHADE] Local variables for sun/shade irradiance split
-      real(r_8) :: sunlai_loc_aux, f1ab_shade_aux
-      real(r_8),dimension(3) :: lai_loc, sunlai_loc ! LAI and sunlit-LAI of this PLS
+      real(r_8) :: f1ab_shade_aux
+      real(r_8),dimension(3) :: lai_loc, sunlai_loc_aux ! LAI and auxiliar sunlit-LAI of this PLS
+      real(r_8) :: sunlai_loc ! sunlit-LAI of this PLS
       real(r_8) :: I_sun, I_shade      ! irradiance reaching sun and shade leaves
       ! C3 shade-path intermediates (parallel to b/c/delta/jp and b2/c2/delta2/f1a)
       real(r_8) :: jl_sh                        ! shade light-limited rate
@@ -1042,7 +1043,7 @@ contains
       ! with LAI_sun = (1 - exp(-p26*LAI)) / p26 (De Pury & Farquhar 1997).
       ! p26 = beam (sun) extinction coefficient; p27 = diffuse (shade) extinction coefficient.
       lai_loc(:)    = leaf_area_index(cleaf(:), sla)
-      sunlai_loc_aux = (1.0D0 - exp(-p26 * lai_loc(:))) / p26
+      sunlai_loc_aux(:) = (1.0D0 - exp(-p26 * lai_loc(:))) / p26
       sunlai_loc = sum(sunlai_loc_aux(:))
       I_sun   = aux_ipar
       I_shade = aux_ipar * exp(-p27 * sunlai_loc)
@@ -1500,7 +1501,7 @@ contains
 
       cl_total = sum(cl1_mr(:))
 
-      rml64 = ((ncl*(cl1_cl_totalmr*1.0D3))*a1*exp(a2 * temp))
+      rml64 = ((ncl*(cl_total*1.0D3))*a1*exp(a2 * temp))
             ! rml64 = ((n2cl * (cl_total * 1.0D3)) * a1 * exp(a2 * temp))
 
       ! print*, 'rml64 previous', rml64
@@ -1655,13 +1656,15 @@ contains
 
       integer(kind=i_4),parameter :: npft = npls ! plss futuramente serao
 
-      real(kind=r_8),dimension(npft),intent( in) :: cleaf1, cfroot1, cawood1, awood
+      real(kind=r_8),dimension(3,npft),intent(in) :: cleaf1
+      real(kind=r_8),dimension(npft),intent(in) :: cfroot1, cawood1, awood
       real(kind=r_8),dimension(npft),intent(out) :: ocp_coeffs
       logical(kind=l_1),dimension(npft),intent(out) :: ocp_wood
       integer(kind=i_4),dimension(npft),intent(out) :: run_pls
       real(kind=r_8), dimension(npls), intent(out) :: c_to_soil ! NOT IMPLEMENTED IN BUDGET
       logical(kind=l_1),dimension(npft) :: is_living
-      real(kind=r_8),dimension(npft) :: cleaf, cawood, cfroot
+      real(kind=r_8),dimension(3,npft) :: cleaf
+      real(kind=r_8),dimension(npft) :: cawood, cfroot
       real(kind=r_8),dimension(npft) :: total_biomass_pft,total_w_pft
       integer(kind=i_4) :: p,i
       integer(kind=i_4),dimension(1) :: max_index
@@ -1691,16 +1694,18 @@ contains
 
       ! check for nan in cleaf cawood cfroot
       do p = 1,npft
-         if(ieee_is_nan(cleaf(p))) cleaf(p) = 0.0D0
+         if(ieee_is_nan(cleaf(1,p))) cleaf(1,p) = 0.0D0
+         if(ieee_is_nan(cleaf(2,p))) cleaf(2,p) = 0.0D0
+         if(ieee_is_nan(cleaf(3,p))) cleaf(3,p) = 0.0D0
          if(ieee_is_nan(cfroot(p))) cfroot(p) = 0.0D0
          if(ieee_is_nan(cawood(p))) cawood(p) = 0.0D0
       enddo
 
       do p = 1,npft
-         if(cleaf(p) .lt. cmin .and. cfroot(p) .lt. cmin) then
+         if(sum(cleaf(:,p)) .lt. cmin .and. cfroot(p) .lt. cmin) then
             is_living(p) = .false.
-            c_to_soil(p) = cleaf(p) + cawood(p) + cfroot(p)
-            cleaf(p) = 0.0D0
+            c_to_soil(p) = sum(cleaf(:,p)) + cawood(p) + cfroot(p)
+            cleaf(:,p) = 0.0D0
             cawood(p) = 0.0D0
             cfroot(p) = 0.0D0
          else
@@ -1711,7 +1716,7 @@ contains
 
       do p = 1,npft
          ! total_biomass_pft(p) = cleaf(p) + cfroot(p) + (sapwood * cawood(p)) ! only sapwood?
-         total_biomass_pft(p) = cleaf(p) + cfroot(p) + cawood(p)
+         total_biomass_pft(p) = sum(cleaf(:,p)) + cfroot(p) + cawood(p)
          total_biomass = total_biomass + total_biomass_pft(p)
          total_wood = total_wood + cawood(p)
          total_w_pft(p) = cawood(p)
