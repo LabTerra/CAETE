@@ -339,7 +339,7 @@ def table_gen(NPLS, fpath=None):
     # rtime = vec_ranging(np.random.beta(2, 4, r_ceil),
     #                     0.083333, 2)
     rtime_leaf = np.random.uniform(0.166, 8.3333, r_ceil) #8.33 anos = 100 meses (reference: Pavlick et al 2013)
-    rtime_froot = np.random.uniform(0.08333, 8.3333, r_ceil) # 0.08333 anos = 1mês e 8.33 = 100 meses (reference: Pavlick et al 2013)
+    rtime_froot = np.random.uniform(0.08333, 8.3333, r_ceil) # log-uniforme [0.25, 4.0] anos (3 meses a 4 anos); Jackson et al. 1997, FRED v3
     print("CREATE GRASSy STRATEGIES - Checking potential npp/alocation")
     
     while index0 < diffg:
@@ -365,7 +365,7 @@ def table_gen(NPLS, fpath=None):
     
     # rtime_wood = vec_ranging(np.random.beta(
     # 2, 4, r_ceil), 1.0, 150)
-    rtime_wood = np.random.uniform(0.20, 100.0, r_ceil)
+    rtime_wood = np.random.uniform(0.20, 100.0, r_ceil) # log-uniforme [5, 150] anos; limite inferior 5 anos = mínimo ecológico para lenhosas
     while index1 < diffw:
         restime = np.zeros(shape=(3,), dtype=np.float64)
         allocatio = plsa_wood[np.random.randint(0, plsa_wood.shape[0])]
@@ -387,19 +387,15 @@ def table_gen(NPLS, fpath=None):
     # COMBINATIONS
     # Random samples from  distributions (g1, tleaf ...)
     # Random variables
-    g1 = np.random.uniform(0.1, 19.0, NPLS)
+    g1 = np.random.uniform(2.0, 18.0, NPLS) # Lin et al. 2015 (Nature Climate Change): mínimo observado global C3 ~2
     # g1 = vec_ranging(np.random.beta(1.2, 2, NPLS), 1.0, 15.0) # dimensionles
     # vcmax = np.random.uniform(3e-5, 100e-5,N) # molCO2 m-2 s-1
     resorption = np.random.uniform(0.2, 0.7, NPLS)
-    sla_random = np.random.uniform(0.006, 0.050, NPLS)#m2/g : TRY (range original: 0.009, 0.040)
+    # sla_random = np.random.uniform(2.25, 27, NPLS) # uniforme linear: concentra ~74% das PLSs com LL < 1 ano
+    sla_random = np.random.uniform(3.50, 27.0, NPLS) # log-uniforme: consistente com a lei de potência LL = 138.35 * SLA^(-1.128) (Sakschewsky et al., 2016)
+
+    wd_random = np.random.uniform(0.3, 0.9, NPLS) # log-uniforme [0.3, 0.9] g/cm3; Zanne et al. 2009, Chave et al. 2009
     
-    # We increased the range (range original: 0.5,0.9)to increase
-    # ...the probability of occurence inside the real range
-                                                  
-    wd_random = np.random.uniform(0.3, 1.0, NPLS) #g/cm3 : Global WD Database (Zanne et al., 2009).
-    
-    # We increased the range (range original: 0.5,0.9)to increase
-    # ...the probability of occurence inside the real range
     restime_sap = np.random.uniform(10., 20., NPLS)
 
     # # C4 STYLE

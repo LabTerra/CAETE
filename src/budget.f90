@@ -198,7 +198,7 @@ contains
       do i = 1,npls
          awood_aux(i) = dt(7,i)
          pdia_aux(i) = dt(17,i)
-         dwood_aux(i) = dt(18,i)
+         dwood_aux(i) = dt(19,i)  ! wd_random (g/cm³) — dt(18) is sla_random
          !sla_aux(i) = dt(19,i)
          cl1_pft(i) = cl1_in(i)
          ca1_pft(i) = ca1_in(i)
@@ -338,6 +338,7 @@ contains
          ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
+         ! SLA via Reich et al. (1997), derived from leaf longevity (tau_leaf, dt(3)).
          idx_pre = leaf_area_index(cl1_pft(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
@@ -438,6 +439,15 @@ contains
                &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+
+         ! productivity.f90 no longer clamps nppa to zero when ar > ph (that clamp
+         ! was removed so alloc3.f90/budget_allom.f90 can pay the deficit from
+         ! storage first). This legacy N/P-coupled path was built and validated
+         ! around nppa never going negative here - the deficit is instead carried
+         ! entirely by c_def(p) and paid from carbon_in_storage below, then from
+         ! structural pools if unmet (lines ~449-534). Restore that assumption
+         ! locally so this path's mass balance and nppavg output are unchanged.
+         if (nppa(p) .lt. 0.0D0) nppa(p) = 0.0D0
 
          evap(p) = penman(p0,temp,rh,available_energy(temp),rc2(p)) !Actual evapotranspiration (evap, mm/day)
 

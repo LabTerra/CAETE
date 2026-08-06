@@ -23,7 +23,7 @@ INTERFACES = $(MODNAME).pyf
 FC = gfortran
 
 # Sources for compilation in run mode (F2PY)
-sources = global.f90 funcs.f90 soil_dec.f90 cc.f90 allocation.f90 allocation2.f90 productivity.f90 budget.f90 budget_allom.f90
+sources = global.f90 funcs.f90 soil_dec.f90 cc.f90 allocation.f90 alloc3.f90 productivity.f90 budget.f90 budget_allom.f90
 
 # FLAGS DE REPRODUTIBILIDADE NUMÉRICA
 # -fno-unsafe-math-optimizations: Desativa otimizações que podem violar padrões IEEE

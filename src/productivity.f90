@@ -71,13 +71,16 @@ contains
         real(r_8), intent(out) :: rm                   !Maintenance respiration (kgC/m2/yr) 
         real(r_8), intent(out) :: rg
         real(r_8), intent(out) :: wue
-        real(r_8), intent(out) :: c_defcit     ! Carbon deficit gm-2 if it is positive, aresp was greater than npp + sto2(1)
+        real(r_8), intent(out) :: c_defcit     ! Diagnostic only (gC/m2/day): magnitude of ar-ph when ar > ph.
+                                                ! nppa itself carries the (possibly negative) sign and is what
+                                                ! alloc3.f90 actually uses to pay the deficit from storage.
         real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
     !     Internal
     !     --------
 
-        real(r_8) :: tleaf,awood            !leaf/wood turnover time (yr)
+        real(r_8) :: awood                  !wood allocation fraction (to identify grasses)
+        real(r_8) :: tleaf                  !leaf residence time (yr) - dt(3), drives SLA via Reich et al. 1997
         real(r_8) :: g1
         real(r_8) :: c4
 
@@ -98,7 +101,6 @@ contains
 
     !getting pls parameters
 
-
         g1  = dt(1)
         tleaf = dt(3)
         awood = dt(7)
@@ -108,7 +110,6 @@ contains
         n2cw_resp = dt(11)
         n2cf_resp = dt(12)
         p2cl = dt(13)
-
 
         n2cl = n2cl * 1.0D3 ! N in leaf mg g-1
         p2cl = p2cl * 1.0D3 ! P in leaf mg g-1
@@ -120,10 +121,8 @@ contains
     !     ==============
     ! rate (molCO2/m2/s)
     
-        ! [SLA CALCULADO] Calcula sla ANTES de photosynthesis_rate
-        ! spec_leaf_area(tleaf) deve ser chamada aqui para que sla
-        ! esteja disponivel na chamada de photosynthesis_rate abaixo
-        sla = spec_leaf_area(tleaf)
+        ! SLA via Reich et al. (1997), derived from leaf longevity (tleaf, dt(3)).
+        sla = spec_leaf_area(tleaf)  ! m2/gC
     
         ! [LIGHT COMP] Repassa linc_layer, nl_shared e lsize_shared para
         ! photosynthesis_rate, que usara esses valores em vez de recalcular
@@ -138,31 +137,35 @@ contains
         ! VPD
         !========
         vpd = vapor_p_defcit(temp,rh)
-    
+
         !Stomatal resistence
         !===================
         rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
-    
+
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
         f5 =  water_stress_modifier(w, cf1_prod, rc_pot, emax, wmax)
-    
     
     !     Photosysthesis minimum and maximum temperature
     !     ----------------------------------------------
     
         if ((temp.ge.-10.0).and.(temp.le.50.0)) then
-        f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
-        ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
-        ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
-        ! fractions (both are within the same atmospheric/soil water environment).
-        f1_sun   = f1a_sun   * f5
-        f1_shade = f1a_shade * f5
+
+            f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
+
+            ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
+            ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
+            ! fractions (both are within the same atmospheric/soil water environment).
+            
+            f1_sun   = f1a_sun   * f5
+            f1_shade = f1a_shade * f5
+
         else
-        f1 = 0.0D0      !Temperature above/below photosynthesis windown
-        ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
-        f1_sun   = 0.0D0
-        f1_shade = 0.0D0
+            f1 = 0.0D0      !Temperature above/below photosynthesis windown
+
+            ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
+            f1_sun   = 0.0D0
+            f1_shade = 0.0D0
         endif
     
         rc_aux = canopy_resistence(vpd, f1, g1, catm,temp)  ! RCM leaf level -!s m-1
@@ -198,29 +201,33 @@ contains
         rg = g_resp(beta_leaf,beta_awood, beta_froot,awood)
     
         if (rg.lt.0) then
-        rg = 0.0
+            rg = 0.0
         endif
     
     !     c Autotrophic (plant) respiration -ar- (kgC/m2/yr)
     !     Respiration minimum and maximum temperature
     !     -------------------------------------------
         if ((temp.ge.-10.0).and.(temp.le.50.0)) then
-        ar = rm + rg
+            ar = rm + rg
         else
-        ar = 0.0               !Temperature above/below respiration windown
+            ar = 0.0               !Temperature above/below respiration windown
         endif
     !     Net primary productivity(kgC/m2/yr)
     !     ====================================
         nppa = ph - ar
-    ! this operation affects the model mass balance
-    ! If ar is bigger than ph, what is the source or respired C?
-    
+
+        ! c_defcit is a diagnostic only (magnitude of the shortfall when ar > ph).
+        ! nppa is NOT clamped to zero here: alloc3.f90 (allocation3/grass_allocation3)
+        ! consumes negative nppa directly, paying it from labile storage first and
+        ! only then from structural pools (starvation rule). Zeroing nppa here would
+        ! hide the deficit from that mechanism and force it to be re-applied
+        ! downstream, double counting it (see budget_allom.f90).
         if(ar .gt. ph) then
-        c_defcit = ((ar - ph) * 2.73791D0) ! tranform kg m-2 year-1 in  g m-2 day-1
-        nppa = 0.0D0
+            c_defcit = ((ar - ph) * 2.73791D0) ! tranform kg m-2 year-1 in g m-2 day-1
         else
-        c_defcit = 0.0D0
+            c_defcit = 0.0D0
         endif
  
     end subroutine prod
+
 end module productivity

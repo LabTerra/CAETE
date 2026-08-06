@@ -39,7 +39,7 @@ module budget_allom
       &, specific_la_1, ocpavg)
 
       use types
-      use global_par, only: ntraits, npls, light_comp
+      use global_par, only: ntraits, npls, light_comp, sapwood
       use alloc
       use productivity
       use omp_lib
@@ -48,7 +48,7 @@ module budget_allom
 
       use photo
       use water, only: evpot2, penman, available_energy, runoff
-      use alloc2
+      use alloc3
 
       !==========================================================================
       !     ----------------------------INPUTS-------------------------------
@@ -100,7 +100,6 @@ module budget_allom
       real(r_8),dimension(npls),intent(out) :: cheart_out
       real(r_8),dimension(npls),intent(out) :: csto_out
 
-
       !Delta vegetation pools
       real(r_8),dimension(npls),intent(out) :: dleaf_out
       real(r_8),dimension(npls),intent(out) :: dwood_out
@@ -108,8 +107,6 @@ module budget_allom
       real(r_8),dimension(npls),intent(out) :: dsap_out
       real(r_8),dimension(npls),intent(out) :: dheart_out
       real(r_8),dimension(npls),intent(out) :: dsto_out
-
-
       real(r_8),dimension(npls),intent(out) :: ocpavg    ! [0-1] Gridcell occupation
 
       !CWM OUTPUTS
@@ -137,7 +134,6 @@ module budget_allom
       real(r_8), intent(out) :: cheart_grd
       real(r_8), intent(out) :: csto_grd
 
-
       !==========================================================================
 
       !==========================================================================
@@ -164,7 +160,6 @@ module budget_allom
       real(r_8),dimension(npls) :: cheart_pls
       real(r_8),dimension(npls) :: csto_pls
 
-
       !Carbon vegetation pools after allocation routine
       real(r_8),dimension(:), allocatable :: cleaf_pls2
       real(r_8),dimension(:), allocatable :: cwood_pls2
@@ -185,7 +180,6 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: leaf_inc_min
       real(r_8),dimension(:), allocatable :: root_inc_min
 
-
       !Carbon vegetation pools (auxiliar for internal convertions)
       real(r_8),dimension(:), allocatable :: cleaf_pls_aux
       real(r_8),dimension(:), allocatable :: cwood_pls_aux
@@ -193,7 +187,6 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: csap_pls_aux
       real(r_8),dimension(:), allocatable :: cheart_pls_aux
       real(r_8),dimension(:), allocatable :: csto_pls_aux
-
 
       !Delta veg pools
       real(r_8),dimension(npls) :: dleaf
@@ -210,7 +203,6 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: dsap_pls_aux
       real(r_8),dimension(:), allocatable :: dheart_pls_aux
       real(r_8),dimension(:), allocatable :: dsto_pls_aux
-
 
       !Carbon Cycle
       real(r_8),dimension(:),allocatable :: ph           !Canopy gross photosynthesis (kgC/m2/yr)
@@ -265,7 +257,6 @@ module budget_allom
       real(r_8), dimension(:), allocatable :: height_pls
       real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
 
-
       !===========================================================================
 
       !Initializing
@@ -281,7 +272,6 @@ module budget_allom
          csap_pls(i)   = csap_in(i)
          cheart_pls(i) = cheart_in(i)
          csto_pls(i)   = csto_in(i)
-
 
          dleaf(i)  = dleaf_in(i)
          dwood(i)  = dwood_in(i)
@@ -300,7 +290,6 @@ module budget_allom
 
       nlen = sum(run)    ! New length for the arrays in the main loop
                          ! get the total number of alives
-
       
       allocate(lp(nlen))
       allocate(ocp_coeffs(nlen))
@@ -328,16 +317,15 @@ module budget_allom
       ! Pre-compute heights from current carbon stocks.
       ! height_pls must exist before the canopy pre-loop (which uses it for
       ! layer assignment) and before max_height (which sizes the canopy).
-      ! Uses the same conversion as allocation2.F90: kgC/m2 * 1D3 -> gC.
+      ! Uses the same kgC/m2 -> gC conversion (*1.0D3) as alloc3.f90.
+
       allocate(height_pls(nlen))
       height_pls(:) = 0.0D0
       do p_pre = 1, nlen
          ri = lp(p_pre)
          if (awood_aux(ri) .gt. 0.0D0) then
-            height_pls(p_pre) = height_calc( &
+            height_pls(p_pre) = height_from_stem_carbon( &
                (csap_pls(ri) + cheart_pls(ri)) * 1.0D3, &
-               csap_pls(ri) * 1.0D3,                    &
-               cleaf_pls(ri) * 1.0D3,                   &
                dt(19,ri))
          end if
       end do
@@ -421,6 +409,7 @@ module budget_allom
       ! elas recebem ipar total diretamente em photosynthesis_rate e nao
       ! competem por camadas do dossel. Inclui-las causaria acumulo de LAI
       ! incorreto na camada 1.
+
       do p_pre = 1, nlen
          ri = lp(p_pre)
  
@@ -433,6 +422,7 @@ module budget_allom
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
 
+         ! SLA via Reich et al. (1997), derived from leaf longevity (tau_leaf, dt(3)).
          idx_pre = leaf_area_index(cleaf_pls(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
@@ -500,6 +490,7 @@ module budget_allom
       else
          call OMP_SET_NUM_THREADS(3)
       endif
+
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
@@ -518,25 +509,47 @@ module budget_allom
          ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
          ! agregado de todas as PLS (pre-loop acima).
 
+         ! m_resp() (called inside prod -> productivity.f90) derives sapwood
+         ! carbon internally as `sapwood * ca1_prod`, assuming ca1_prod is the
+         ! TOTAL wood pool (sap+heart), as it is in the classic (non-allom)
+         ! scheme where sap/heart aren't tracked separately. Here csap_pls(ri)
+         ! is already sapwood-only, so passing it unscaled would apply the
+         ! `sapwood` fraction twice, underestimating sapwood maintenance
+         ! respiration by ~20x. Dividing by `sapwood` here cancels the
+         ! internal multiplication so m_resp receives the correct sapwood
+         ! mass, without changing the shared prod/m_resp code used by budget.f90.
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               &, cleaf_pls(ri), csap_pls(ri)/sapwood, croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
-         
+
          !call prod(dt1, ocp_wood(ri), catm, temp, soil_temp, p0, w, ipar&
          !   &, rh, emax, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
          !   &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p)&
          !   &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
-
          
          evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
          
-         call allocation2(step, ri, p, dt1,nppa(p)&
-            &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_pls(ri)&
-            &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
-            &,leaf_req(p), leaf_inc_min(p), root_inc_min(p),height_pls(p))
-         
+         ! alloc3 substitui integralmente o allocation2 antigo (alloc2): alocação
+         ! alométrica gradual com storage lábil para lenhosas (allocation3), e
+         ! alocação proporcional a NPP via aleaf/aroot para gramíneas
+         ! (grass_allocation3). height_pls(p) já foi calculado no pré-loop
+         ! (height_from_stem_carbon) e é reutilizado aqui sem recálculo, para
+         ! garantir consistência com a competição por luz no mesmo timestep.
+
+         if (dt1(7) .gt. 0.0D0) then
+            call allocation3(step, ri, p, dt1, nppa(p)&
+               &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_pls(ri), height_pls(p)&
+               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
+         else
+            call grass_allocation3(p, dt1, nppa(p), cleaf_pls(ri), croot_pls(ri), csto_pls(ri)&
+               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p))
+            leaf_req(p) = 0.0D0
+            leaf_inc_min(p) = 0.0D0
+            root_inc_min(p) = 0.0D0
+         end if
 
          !Carbon use efficiency & Delta C
          if(ph(p) < 1.0D-15 .or. nppa(p) < 1.0D-15) then
@@ -545,43 +558,27 @@ module budget_allom
             cue(p) = nppa(p)/ph(p)
          endif
 
-         !Mass balance (c deficit)
-         c_def(p) = c_def(p)/2.73791D0 ! transforms to year
-
-         if (c_def(p).gt.0.0D0) then
-            if (dt1(7) .gt. 0.0D0) then
-               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.15D0)
-               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.15D0)
-               csap_int(p)  = csap_pls2(p) - (c_def(p) * 0.15D0)
-               cheart_int(p) = cheart_pls2(p) + (csap_pls2(p) - (c_def(p) * 0.15D0))
-               csto_int(p) = csto_pls2(p) - (c_def(p)*0.55D0)
-               cwood_int(p) = csap_int(p) + cheart_int(p)
-               
-            else
-               cleaf_int(p) = cleaf_pls2(p) - (c_def(p) * 0.5D0)
-               croot_int(p) = croot_pls2(p) - (c_def(p) * 0.5D0)
-               csap_int(p)  = 0.0D0
-               cheart_int(p) = 0.0D0
-               csto_int(p) = 0.0D0
-               cwood_int(p) = 0.0D0
-            endif
-         else 
-            if (dt1(7) .gt. 0.0D0)then
-               cleaf_int(p) = cleaf_pls2(p) 
-               croot_int(p) = croot_pls2(p) 
-               csap_int(p)  = csap_pls2(p)
-               cheart_int(p) = cheart_pls2(p) 
-               csto_int(p) = csto_pls2(p) 
-               cwood_int(p) = csap_int(p) + cheart_int(p)
-            else
-               cleaf_int(p) = cleaf_pls2(p) 
-               croot_int(p) = croot_pls2(p) 
-               csap_int(p)  = 0.0D0
-               cheart_int(p) = 0.0D0
-               csto_int(p) = 0.0D0
-               cwood_int(p) = 0.0D0
-            endif
-         endif
+         ! NOTE ON CARBON DEFICIT (ar > ph): previously this block re-applied
+         ! c_def here as a second, independent discount on top of
+         ! cleaf_pls2/csap_pls2/csto_pls2/etc, using fixed fractions and no
+         ! floor at zero. That double-counted the deficit already computed in
+         ! productivity.f90 and bypassed storage entirely, since nppa arrived
+         ! here pre-zeroed. The deficit is now paid exactly once, upstream,
+         ! inside allocation3/grass_allocation3 (alloc3.f90): negative nppa is
+         ! consumed from labile storage first, and only the unmet remainder
+         ! triggers structural starvation (leaf/root/sapwood->heartwood).
+         ! c_def(p)/c_defcit remains available purely as a diagnostic of the
+         ! raw (ar-ph) shortfall; it must not be subtracted from pools again
+         ! here. cleaf_pls2/csap_pls2/cheart_pls2/csto_pls2 already reflect
+         ! that outcome for both the woody and grass paths (grass_allocation3
+         ! itself returns zero sap/heart/wood), so they are passed through
+         ! directly.
+         cleaf_int(p)  = cleaf_pls2(p)
+         croot_int(p)  = croot_pls2(p)
+         csap_int(p)   = csap_pls2(p)
+         cheart_int(p) = cheart_pls2(p)
+         csto_int(p)   = csto_pls2(p)
+         cwood_int(p)  = csap_int(p) + cheart_int(p)
 
          if (cleaf_int(p).lt.0.0D0)  cleaf_int(p) = 0.0D0
          if (croot_int(p).lt.0.0D0)  croot_int(p) = 0.0D0
@@ -597,7 +594,6 @@ module budget_allom
          ! mr_sto = 0.0D0
          ! sr = 0.0D0
 
-         
          !calculating deltas
          if (dt1(7) .gt. 0.0D0)then
             dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
@@ -615,14 +611,12 @@ module budget_allom
             dwood_pls_aux(p)  = 0.0D0
          endif
 
-
          if(dleaf_pls_aux(p).lt.0.0D0)  dleaf_pls_aux(p) = 0.0D0
          if(droot_pls_aux(p).lt.0.0D0)  droot_pls_aux(p) = 0.0D0
          if(dsap_pls_aux(p).lt.0.0D0)   dsap_pls_aux(p) = 0.0D0
          if(dheart_pls_aux(p).lt.0.0D0) dheart_pls_aux(p) = 0.0D0
          if(dsto_pls_aux(p).lt.0.0D0)   dsto_pls_aux(p) = 0.0D0
          if(dwood_pls_aux(p).lt.0.0D0)  dwood_pls_aux(p) = 0.0D0
-
 
       enddo
       !$OMP END PARALLEL DO
@@ -658,14 +652,12 @@ module budget_allom
       dheart_out(:) = 0.0D0
       dsto_out(:)   = 0.0D0
 
-
       cleaf_grd  = 0.0D0
       cwood_grd  = 0.0D0
       croot_grd  = 0.0D0
       csap_grd   = 0.0D0
       cheart_grd = 0.0D0
       csto_grd   = 0.0D0
-
 
       ! Calculate CWM for ecosystem processes
  
@@ -698,7 +690,6 @@ module budget_allom
       !daily output to carbon pools (not CWM)
       do p = 1, nlen
          ri = lp(p)
-         
 
          cleaf_out(ri)  =  cleaf_int(p) 
          croot_out(ri)  =  croot_int(p)
@@ -706,7 +697,6 @@ module budget_allom
          csap_out(ri)   =  csap_int(p)
          csto_out(ri)   =  csto_int(p)
          cwood_out(ri)  =  cheart_out(ri) + csap_out(ri)
-
       
          !deltas
          dleaf_out(ri)  =  dleaf_pls_aux(p)
@@ -715,10 +705,8 @@ module budget_allom
          dsap_out(ri)   =  dsap_pls_aux(p)
          dsto_out(ri)   =  dsto_pls_aux(p)
          dwood_out(ri)  =  dheart_out(ri) + dsap_out(ri)
-
          
       enddo
-
 
       deallocate(lp)
       deallocate(evap)
@@ -772,7 +760,6 @@ module budget_allom
       deallocate(lai_layer)
       deallocate(linc_layer)
       deallocate(lavai_layer)
-
 
    end subroutine daily_budget_allom
  

@@ -22,7 +22,7 @@ module alloc
                           & prep_out_n, prep_out_p,&
                           & retran_nutri_cost, select_active_strategy
     use global_par, only: ntraits, sapwood
-    use photo, only: f_four, spec_leaf_area, realized_npp
+    use photo, only: f_four, realized_npp, leaf_long  ! leaf_long: LL(months) from SLA(mm²/mg) - Sakschewsky et al. 2016
 
     implicit none
     private
@@ -143,9 +143,10 @@ module alloc
       real(r_8) :: aleaf     ! allocatation to plant compartments
       real(r_8) :: awood
       real(r_8) :: aroot
-      real(r_8) :: tleaf  ! Residence time(yr)
+      real(r_8) :: tleaf  ! Leaf residence time (yr) — derived from SLA via leaf_long (Sakschewsky 2016)
       real(r_8) :: twood
       real(r_8) :: troot
+      real(r_8) :: sla_mm2_mg  ! SLA from plsgen.py (mm²/mg dry mass) — dt(18)
       real(r_8) :: leaf_n2c  ! N:C ratios
       real(r_8) :: wood_n2c
       real(r_8) :: root_n2c
@@ -257,7 +258,11 @@ module alloc
       !  head = ['g1', 'resopfrac', 'tleaf', 'twood', 'troot', 'aleaf', 'awood', 'aroot', 'c4',
       !  'leaf_n2c', 'awood_n2c', 'froot_n2c', 'leaf_p2c', 'awood_p2c', 'froot_p2c', pdia, amp]
       resorpt_frac = dt(2)
-      tleaf = dt(3) ! RESIDENCE TIME (years)
+      ! [SLA→LL] Leaf residence time derived from SLA via Sakschewsky et al. (2016):
+      ! leaf_long(SLA[mm²/mg]) → LL[months] / 12 → tleaf[years]
+      ! dt(3) (random tleaf) is superseded; dt(18) = sla_random (mm²/mg) drives tleaf.
+      sla_mm2_mg = dt(18)
+      tleaf = leaf_long(sla_mm2_mg) / 12.0D0
       twood = dt(4)
       troot = dt(5)
       aleaf = dt(6) ! ALLOCATION  (proportion  %/100)

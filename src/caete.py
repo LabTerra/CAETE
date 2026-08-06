@@ -909,13 +909,20 @@ class grd:
 
         #Initial value for biomass for alloc_allom
         #for trees
+        # Seedling-scale pools (kgC/m2), same order of magnitude as the
+        # classic (non-allom) scheme's cwood=0.1 seed. The previous values
+        # (heart=80, sap=20, sto=15 -> >115 kgC/m2 of wood+reserve on day 1,
+        # against ~1 kgC/m2 of leaf) put every woody PLS's maintenance
+        # respiration far above what its initial leaf area could ever
+        # photosynthesize, driving persistent negative NPP that triggered
+        # alloc3's starvation rule and collapsed biomass from the very start.
         self.vp_cleaf_allom = np.zeros(shape=(npls,), order='F') + 1.0
         self.vp_croot_allom = np.zeros(shape=(npls,), order='F') + 0.8
-        self.vp_cheart_allom = np.zeros(shape=(npls,), order='F')+ 80.#0.85*(self.vp_cwood_allom)
-        self.vp_csap_allom = np.zeros(shape=(npls,), order='F') + 20. #0.15*(self.vp_cwood_allom)
-        self.vp_csto_allom = np.zeros(shape=(npls,), order='F') + 15.0
+        self.vp_csap_allom = np.zeros(shape=(npls,), order='F') + 0.1
+        self.vp_cheart_allom = np.zeros(shape=(npls,), order='F') + 0.0
+        self.vp_csto_allom = np.zeros(shape=(npls,), order='F') + 0.1
         self.vp_cwood_allom = np.zeros(shape=(npls,), order='F') + self.vp_csap_allom + self.vp_cheart_allom
-        
+
         #for grasses
         self.vp_cwood_allom[self.pls_table[6, :] == 0.0]  = 0.0
         self.vp_cheart_allom[self.pls_table[6, :] == 0.0] = 0.0
@@ -1771,22 +1778,24 @@ class grd:
 
                     # REPOPULATE
                     # UPDATE vegetation pools
+                    # Seedling-scale re-seed pools (kgC/m2) - see the matching
+                    # comment on the initial-condition block above for why
+                    # heart=80/sap=20/sto=15 caused an immediate NPP collapse.
                     self.vp_cleaf_allom = np.zeros(shape=(npls,), order='F') + 1.0
                     self.vp_croot_allom = np.zeros(shape=(npls,), order='F') + 0.8
-                    self.vp_csto_allom = np.zeros(shape=(npls,), order='F') + 15.0
-                    
+                    self.vp_csto_allom = np.zeros(shape=(npls,), order='F') + 0.1
+
                     #wood tissues = 0 when grass
                     self.vp_cheart_allom = np.zeros(shape=(npls,), order='F')
                     self.vp_csap_allom = np.zeros(shape=(npls,), order='F')
                     self.vp_cwood_allom = np.zeros(shape=(npls,), order='F')
 
-
                     #identify if no grass
                     awood = self.pls_table[6, :]
                     for i0, i in enumerate(self.vp_lsid):
                         if awood[i] > 0.0:
-                            self.vp_cheart_allom = np.zeros(shape=(npls,), order='F')+ 80.#0.85*(self.vp_cwood_allom)
-                            self.vp_csap_allom = np.zeros(shape=(npls,), order='F') + 20. #0.15*(self.vp_cwood_allom)
+                            self.vp_cheart_allom = np.zeros(shape=(npls,), order='F') + 0.0
+                            self.vp_csap_allom = np.zeros(shape=(npls,), order='F') + 0.1
                             self.vp_cwood_allom = np.zeros(shape=(npls,), order='F') + self.vp_csap_allom + self.vp_cheart_allom
                     
                     self.vp_dcl_allom = np.zeros(shape=(self.vp_lsid.size,))

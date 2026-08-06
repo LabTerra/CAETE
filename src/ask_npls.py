@@ -70,7 +70,8 @@ module global_par
    real(r_8), parameter, public :: klatosa =  10000.0
    !# real(r_8), parameter, public :: sla_allom = 0.023 !provisory !m2/g
    real(r_8), parameter, public :: ltor = 0.77302587552347657
-   real(r_8), parameter, public :: krp = 1.6  
+   real(r_8), parameter, public :: krp = 1.6
+   real(r_8), parameter, public :: crown_area_max = 30.0D0 !m2 - max crown footprint per individual (LPJ-mFire establishment.f90; same value already used in pls_allometry, funcs.f90)
    integer(i_4),public :: light_comp = 1  ! 1 = ON, 0 = OFF (default ON)
 
    !allocation parameters
@@ -87,6 +88,14 @@ module global_par
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
    real(r_8), parameter, public :: h_turnover = 1./150.!1/50. !Sitch et al 2003
+
+   !gradual allocation parameters (woody allometric allocation with labile storage)
+   real(r_8), parameter, public :: year_days = 365.242D0                     ! days per year (same convention as alloc/allocation.f90: 1000/365.242 = 2.73791075D0)
+   real(r_8), parameter, public :: max_allocation_fraction = 0.005D0          ! max daily structural growth as a fraction of living C
+   real(r_8), parameter, public :: allometric_adjustment_days = 365.0D0       ! relaxation timescale (days) for allometric deficits
+   real(r_8), parameter, public :: leaf_background_timescale_years = 3.0D0    ! background leaf demand timescale (years)
+   real(r_8), parameter, public :: root_background_timescale_years = 3.0D0    ! background root demand timescale (years)
+   real(r_8), parameter, public :: sapwood_background_timescale_years = 15.0D0! background sapwood demand timescale (years)
 
 end module global_par
 
@@ -116,7 +125,7 @@ module photo_par
         p20 = 0.10D0         ,&          !Critical humidity deficit (kg/kg)
         p25 = 9.1D-5         ,&          !Maximum gross photosynthesis rate (molCO2/m2/s)
         p26 = 0.50D0         ,&          !light extinction coefficient for IPAR/sun (0.5/sen90)
-        p27 = 0.80D0         ,&          !light extinction coefficient for IPAR/shade (0.5/sen20)
+        p27 = 0.80D0         ,&          !diffuse light extinction coefficient (De Pury & Farquhar 1997)
         alphap = 0.0913D0    ,&          ! 0.0913 parameter for v4m. Hard to explain. See Chen et al. 1994
         vpm25 =  85.0D0      ,&          ! µmol m-2 s-1 PEPcarboxylase CO2 saturated rate of carboxilation at 25°C
         h_vpm = 185075.0D0   ,&          ! Arrhenius eq. constant

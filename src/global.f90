@@ -48,7 +48,7 @@ module global_par
    real(r_8),parameter,public :: gm = 3.26D0 * 86400D0           ! (*86400 transform s/mm to dia/mm)
    real(r_8),parameter,public :: sapwood = 0.05D0                ! Fraction of wood tissues that are sapwood
    real(r_8),parameter,public :: ks = 0.25                       ! P Sorption
-   integer(i_4),parameter,public :: npls = 1000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
+   integer(i_4),parameter,public :: npls = 3000                  ! Number of Plant Life Strategies-PLSs simulated (Defined at compile time)
    integer(i_4),parameter,public :: ntraits = 20                 ! Number of traits for each PLS
    real(r_8),parameter, public :: ncl = (1.0/60.0)          !(gN/gC) used in maintenance respiration (from Scheiter & Higgins 2008)
    real(r_8),parameter, public :: ncf = (1.0/60.0)          !(gN/gC)
@@ -62,7 +62,8 @@ module global_par
    real(r_8), parameter, public :: klatosa =  10000.0
    !# real(r_8), parameter, public :: sla_allom = 0.023 !provisory !m2/g
    real(r_8), parameter, public :: ltor = 0.77302587552347657
-   real(r_8), parameter, public :: krp = 1.6  
+   real(r_8), parameter, public :: krp = 1.6
+   real(r_8), parameter, public :: crown_area_max = 30.0D0 !m2 - max crown footprint per individual (LPJ-mFire establishment.f90; same value already used in pls_allometry, funcs.f90)
    integer(i_4),public :: light_comp = 1  ! 1 = ON, 0 = OFF (default ON)
 
    !allocation parameters
@@ -79,6 +80,14 @@ module global_par
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
    real(r_8), parameter, public :: h_turnover = 1./150.!1/50. !Sitch et al 2003
+
+   !gradual allocation parameters (woody allometric allocation with labile storage)
+   real(r_8), parameter, public :: year_days = 365.242D0                     ! days per year (same convention as alloc/allocation.f90: 1000/365.242 = 2.73791075D0)
+   real(r_8), parameter, public :: max_allocation_fraction = 0.005D0          ! max daily structural growth as a fraction of living C
+   real(r_8), parameter, public :: allometric_adjustment_days = 365.0D0       ! relaxation timescale (days) for allometric deficits
+   real(r_8), parameter, public :: leaf_background_timescale_years = 3.0D0    ! background leaf demand timescale (years)
+   real(r_8), parameter, public :: root_background_timescale_years = 3.0D0    ! background root demand timescale (years)
+   real(r_8), parameter, public :: sapwood_background_timescale_years = 15.0D0! background sapwood demand timescale (years)
 
 end module global_par
 

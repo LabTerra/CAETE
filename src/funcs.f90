@@ -34,6 +34,7 @@ module photo
         f_four                 ,& ! (f), auxiliar function (calculates f4sun or f4shade or sunlai)
         spec_leaf_area         ,& ! (f), specific leaf area (m2 g-1)
         sla_reich              ,& ! (f), specific leaf area (m2 g-1)
+        leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
@@ -120,6 +121,7 @@ contains
       ! respective irradiance-driven assimilation rates.
       ! The correct canopy GPP is: A_sun*f4sun + A_shade*f4shade
       ! (De Pury & Farquhar 1997, Eq. 24).
+      
       use types, only: r_8
       !implicit none
 
@@ -139,7 +141,9 @@ contains
       ! Canopy GPP = A_sun*f4sun + A_shade*f4shade
       ! Replaces the previous: f1*(f4sun+f4shade)
       ph = real((0.012D0 * 31557600.0D0 * (f1sun*f4sun + f1shade*f4shade)), r_8)
+
       if(ph .lt. 0.0) ph = 0.0
+
    end function gross_ph
 
    !=================================================================
@@ -157,7 +161,13 @@ contains
 
 
       lai  = cleaf * 1.0D3 * sla  ! Converts cleaf from (KgC m-2) to (gCm-2)
+
       if(lai .lt. 0.0D0) lai = 0.0D0
+
+      ! No upper clamp here on purpose: LAI should stay physically reasonable
+      ! because cleaf itself is bounded (initial condition scaled by SLA in
+      ! caete.py, and afterward by the pipe-model leaf/sapwood allometry in
+      ! alloc3.f90), not because this function caps the arithmetic.
 
    end function leaf_area_index
 
@@ -198,9 +208,25 @@ contains
 
       tl0 = tau_leaf * 12.0D0
 
-      sla = 266.0D0 * (tl0 ** (-0.55D0)) 
+      sla = 266.0D0 * (tl0 ** (-0.55D0))
 
    end function sla_reich
+
+   !=================================================================
+   !=================================================================
+   function leaf_long(sla) result(ll)
+      ! Leaf longevity from SLA - Sakschewsky et al. (2016)
+      ! LL (months) = 138.35 * SLA (mm2/mg) ^ (-1.128)
+      
+      use types, only : r_8
+      !implicit none
+
+      real(r_8), intent(in) :: sla  !mm2/mg de massa seca
+      real(r_8) :: ll               !leaf longevity (months)
+
+      ll = 138.35D0 * (sla ** (-1.128D0))
+
+   end function leaf_long
 
    !=================================================================
    !=================================================================
@@ -229,7 +255,20 @@ contains
       lai = leaf_area_index(cleaf, sla)
 
       sunlai = (1.0D0-(exp(-p26*lai)))/p26
-      shadelai = lai - sunlai
+
+      ! [SHADELAI FIX] shadelai used to be "lai - sunlai": since sunlai saturates
+      ! (bounded by 1/p26 as LAI->infinity) but raw LAI does not, that definition
+      ! made shadelai grow WITHOUT BOUND as leaf carbon increased, while gross_ph
+      ! multiplies it by a non-vanishing shade-leaf assimilation rate (f1shade) -
+      ! producing unbounded GPP that scales linearly with leaf mass forever
+      ! (confirmed empirically: GPP/cleaf stayed ~constant from cleaf=100 up to
+      ! cleaf=1e35 kgC/m2). Physically, leaves deeper in a closed canopy receive
+      ! exponentially less diffuse light with depth, so the shaded fraction's
+      ! contribution to canopy assimilation must also saturate as LAI grows -
+      ! same Beer-Lambert integral form already used for sunlai above, just with
+      ! the diffuse (shade) extinction coefficient p27 instead of the beam
+      ! (sun) coefficient p26.
+      shadelai = (1.0D0-(exp(-p27*lai)))/p27
 
       lai_ss = sunlai
 
@@ -243,17 +282,18 @@ contains
 
       !Scaling-up to canopy level (dimensionless)
       !------------------------------------------
-      !Sun/Shade approach to canopy scaling !Based in de Pury & Farquhar (1997)
+      !Sun/Shade approach to canopy scaling - De Pury & Farquhar (1997)
+      ! f4sun  = Lsl = (1 - exp(-kb*LAI)) / kb = sunlai   (Eq. A1)
+      ! f4shade = Lsh = (1 - exp(-kd*LAI)) / kd = shadelai (bounded, see above)
+      ! GPP_canopy = A_sun*f4sun + A_shade*f4shade
       !------------------------------------------------------------------------
       if(fs .eq. 1) then
-         ! f4sun
-         lai_ss = (1.0-(exp(-p26*sunlai)))/p26 !sun decl 90 degrees
+         lai_ss = sunlai
          return
       endif
 
       if(fs .eq. 2) then
-         !f4shade
-         lai_ss = (1.0-(exp(-p27*shadelai)))/p27 !sun decl ~20 degrees
+         lai_ss = shadelai
          return
       endif
    end function f_four
@@ -807,10 +847,15 @@ contains
       ! and simply locates the current PLS's layer to read the correct incident light.
       ! =====================================================================
  
-      ! Grass (awood = 0) receives 80% of IPAR
+      ! Grass (awood = 0) sits at the forest floor (height = 0), inside canopy
+      ! layer 1. linc_layer(1) already holds the light that survived Beer-Lambert
+      ! extinction through every woody layer above (or the full ipar, if there is
+      ! no woody canopy / light_comp is off) - so grass is shaded by the woody
+      ! canopy exactly like a real understory, instead of always getting a fixed
+      ! fraction of full sun regardless of canopy closure.
       if (cawood1 .eq. 0.0D0) then
-         aux_ipar = ipar - (ipar * 0.20)
- 
+         aux_ipar = linc_layer(1)
+
       else
          ![LIGH_COMP]
          ! Locates the PLS's layer and reads linc_layer
@@ -1004,7 +1049,6 @@ contains
    !=================================================================
    !=================================================================
 
-
    subroutine spinup3(nppot,dt,cleafini,cfrootini,cawoodini)
       use types
       implicit none
@@ -1150,13 +1194,16 @@ contains
       real(kind=r_8),dimension(npls) :: aleaf  !npp percentage alocated to leaf compartment
       real(kind=r_8),dimension(npls) :: aawood !npp percentage alocated to aboveground woody biomass compartment
       real(kind=r_8),dimension(npls) :: afroot !npp percentage alocated to fine roots compartmentc
-      real(kind=r_8),dimension(npls) :: tleaf  !turnover time of the leaf compartment (yr)
+      real(kind=r_8),dimension(npls) :: tleaf  !leaf residence time (yr) — from leaf_long(SLA)
       real(kind=r_8),dimension(npls) :: tawood !turnover time of the aboveground woody biomass compartment (yr)
       real(kind=r_8),dimension(npls) :: tfroot !turnover time of the fine roots compartment
       logical(kind=l_1) :: iswoody
 
       ! catch 'C turnover' traits
-      tleaf  = dt(3,:)
+      ! tleaf derived from SLA via Sakschewsky et al. (2016) — consistent with allocation.f90
+      do i6 = 1, npls
+         tleaf(i6) = leaf_long(dt(18, i6)) / 12.0D0   ! leaf_long(mm²/mg) → months / 12 → years
+      enddo
       tawood = dt(4,:)
       tfroot = dt(5,:)
       aleaf  = dt(6,:)
@@ -1224,17 +1271,17 @@ contains
   !===================================================================
   !===================================================================
 
-   function m_resp(temp, ts,cl1_mr,cf1_mr,cs1_mr,&
+    function m_resp(temp, ts,cl1_mr,cf1_mr,ca1_mr,&
         & n2cl,n2cw,n2cf,aawood_mr) result(rm)
 
       use types, only: r_8
-      use global_par, only: sapwood, ncf, ncl, ncs
+      use global_par, only: sapwood
       !implicit none
 
       real(r_8), intent(in) :: temp, ts
       real(r_8), intent(in) :: cl1_mr
       real(r_8), intent(in) :: cf1_mr
-      real(r_8), intent(in) :: cs1_mr
+      real(r_8), intent(in) :: ca1_mr
       real(r_8), intent(in) :: n2cl
       real(r_8), intent(in) :: n2cw
       real(r_8), intent(in) :: n2cf
@@ -1243,46 +1290,30 @@ contains
 
       real(r_8) :: csa, rm64, rml64
       real(r_8) :: rmf64, rms64
-      real(r_8) :: t_resp !Temperature influence on respiration
-      ! real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0
-      ! real(r_8), parameter :: a1 = 15.0D0, a2 = 0.04D0
-      real(r_8), parameter :: a1 = 15.0D0, a2 = 0.03D0
+      real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0
 
       !   Autothrophic respiration
       !   ========================
       !   Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
-      !ATTENTION: . The “seed” and storage carbon pools are not subject to maintenance res10 piration within the model, however, they do decay at a constant rate as described in
-!Sect. A6.
 
-      t_resp = (3.22 - (0.046 * temp))**((temp - 20)/10)
       ! sapwood carbon content (kgC/m2). X% of woody tissues (Pavlick, 2013)
       ! only for woody PLSs
       if(aawood_mr .gt. 0.0) then
-         csa = cs1_mr
-         ! rms64 = ((n2cw * (csa * 1.0D3)) * a1 * exp(a2 * temp))
-         rms64 = ((ncs * (csa * 1.0D3)) * a1 * exp(a2 * temp))
-
+         csa = sapwood * ca1_mr
+         rms64 = ((n2cw * (csa * 1.0D3)) * a1 * dexp(a2 * temp))
       else
          rms64 = 0.0
       endif
 
-      rml64 = ((ncl*(cl1_mr*1.0D3))*a1*exp(a2 * temp))
-            ! rml64 = ((n2cl * (cl1_mr * 1.0D3)) * a1 * exp(a2 * temp))
+      rml64 = ((n2cl * (cl1_mr * 1.0D3)) * a1 * dexp(a2 * temp))
 
-      ! print*, 'rml64 previous', rml64
-
-      ! rml64 = 0.3*((cl1_mr*1.0D3)/(1.0/29.0))*1.6180
-      ! print*, 'rml64 lpj', rml64
-
-      rmf64 = ((ncf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
-!
-      ! rmf64 = ((n2cf * (cf1_mr * 1.0D3)) * a1 * exp(a2 * ts))
+      rmf64 = ((n2cf * (cf1_mr * 1.0D3)) * a1 * dexp(a2 * ts))
 
       rm64 = (rml64 + rmf64 + rms64) * 1.0D-3
 
       rm = real(rm64,r_8)
 
-      if (rm .lt. 0) then
+      if (rm .lt. 0.0) then
          rm = 0.0
       endif
 
@@ -1540,14 +1571,15 @@ contains
       real(r_8),dimension(ntraits, npls),intent(in) :: dt
       real(r_8),dimension(npft),intent(in) :: cawood1, awood
       real(r_8),dimension(npft),intent(out) :: height, diameter, crown_area !fpc_ind, fpc_grid
-      real(r_8),dimension(npft) :: cawood, dwood, crown_area_max
+      real(r_8),dimension(npft) :: cawood, dwood
       !5 = número de individuos arbitrário
 
-      
+
       ! ============================
-      dwood = dt(18,:)
+      dwood = dt(19,:)   ! wd_random (g/cm³) — dt(18) is sla_random, dt(19) is wood density
       cawood = cawood1
-      crown_area_max = 30.0 !m2 !number from lplmfire code (establishment.f90)
+      ! crown_area_max now a global_par constant (see global.f90) so alloc3.f90
+      ! can reuse the exact same ceiling
       ! ============================
     
       do p = 1, npft !INICIALIZE OUTPUTS VARIABLES
@@ -1567,7 +1599,7 @@ contains
             diameter(p) = (4*(cawood(p)*1.0D3)/(dwood(p)*1.0D6*pi*k_allom2))&
             &**(1.0D0/(2.0D0+k_allom3))
             height(p) = k_allom2*(diameter(p)**k_allom3)
-            crown_area(p) = min(crown_area_max(p), k_allom1*(diameter(p)**krp))
+            crown_area(p) = min(crown_area_max, k_allom1*(diameter(p)**krp))
          endif
       enddo
       
