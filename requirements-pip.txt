@@ -1,0 +1,16 @@
+numpy==2.5.1
+netCDF4==1.7.4
+cftime==1.6.5
+joblib==1.5.3
+tables==3.11.1
+pandas==3.0.5
+meson==1.11.2
+ninja==1.13.0
+lxml==6.1.1
+pyproj==3.7.2
+polars==1.43.2
+lz4==4.4.5
+pyarrow==25.0.0
+h5py==3.16.0
+xarray==2026.7.0
+matplotlib==3.11.1

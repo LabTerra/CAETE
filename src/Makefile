@@ -56,4 +56,4 @@ so: interface
 # Clean directory
 clean:
 	rm -rf test *.mod *.s *.o pls_ex.txt __pycache__ run_debug
-	clear
+	rm -rf NP1.npy NP2.npy NP3.npy wallo.npy gallo.npy
