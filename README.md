@@ -1,29 +1,54 @@
 
 # CAETÊ
 
-This is the implementation of the Dynamic Vegetation Model CAETÊ (CArbon and Ecosystem Trait-based Evaluation model) - including Nitrogen and Phosphorus cycling.
+## Run CAETÊ using docker
 
-## Development Dependencies
+### 1. Install Docker
 
-CAETÊ depends on a few packages that must be installed beforehand.
-You can install them using your favorite package manager: `apt`, `brew`, `pip`, `poetry`, etc.
+- Mac/Windows: [Docker Desktop](https://docs.docker.com/desktop/)
+- Linux: [Docker Engine](https://docs.docker.com/engine/install/)
 
-General Dependencies
+Checking if docker was was correclty installed:
+1) Open terminal and type command `docker`;
+2) Open terminal and type command `docker-compose`;
+3) Open terminal and type command `docker run hello-world`;
 
-- make (for building automation)
-- gfortran
-- gdb (optional for debug)
-- python-is-python3 (make sure that you can call your python3 as python or change the Makefile - line 20)
-Python Dependencies
+!!! warning "Warning"
+    In case you installed docker on Linux and you are receiving errors when trying to run without sudo, please follow the entire tutorial above. It includes following [Linux postinstall instructions](https://docs.docker.com/engine/install/linux-postinstall)
 
-- pyenv (optional)
-- numpy/f2py
-- cftime
-- joblib
-- netCDF4
-- tables
+### 2. (OPTIONAL) Install VSCode - Install in case you want to open CAETÊ source code
 
-Make sure you have them properly installed before running the code.
+To install VSCode, please download it and install using the following link: https://code.visualstudio.com/download
+
+### 3. (OPTIONAL) Install Git - Install it in case you want to clone CAETÊ repository from Github
+
+Before install, check if git is already installed. To do this, please open a terminal and type the command `git`. In case you need to install git, please follow the instructions on https://git-scm.com/install/
+
+To check if git was correclty installed, please open terminal and type command `git`.
+
+### 4. Run CAETÊ using docker
+
+**4.1)** Open this branch's URL (https://github.com/LabTerra/CAETE/tree/lu-docker) and download CAETÊ source code ZIP from Github (Figure below)
+
+<img src="download-source-code.png" width="300">
+
+**4.2)** Extract the ZIP file inside a folder you prefer in your computer;
+
+**4.3)** Open a terminal inside this CAETÊ repository folder;
+
+**4.4)** Run a command from below list:
+
+- **CAETE-BASH:** The following command opens the bash inside container (CAETÊ folder). Use this command to run any CAETÊ command mannualy, such as `make so`, `python model_driver.py`, etc:
+    `docker compose run caete-bash`
+- **CAETE-RUN:** The following command compiles and runs CAETÊ with interactive arguments (default):
+    `docker compose run caete-run`
+- **CAETE-RUN without interactive arguments:** The following command compiles and runs CAETÊ without interactive arguments. It means you can set the CAETÊ input interactive arguments on command line:
+    - **Locally:**
+        `PLS=1000 MASK=a VERSION=1 SOMBRERO=n OUTPUT_NAME=test ZONE=c docker compose run caete-run`
+    - **Sombrero:**
+        `PLS=1000 MASK=a VERSION=1 SOMBRERO=y CLIMATOLOGY=5 docker compose run caete-run`
+
+## WARNING: README NOT REVISED FROM HERE
 
 ## Running and Developing CAETÊ
 
