@@ -13,8 +13,8 @@ Checking if docker was was correclty installed:
 2) Open terminal and type command `docker-compose`;
 3) Open terminal and type command `docker run hello-world`;
 
-!!! warning "Warning"
-    In case you installed docker on Linux and you are receiving errors when trying to run without sudo, please follow the entire tutorial above. It includes following [Linux postinstall instructions](https://docs.docker.com/engine/install/linux-postinstall)
+> [!WARNING]
+> In case you installed docker on Linux and you are receiving errors when trying to run without sudo, please follow the entire tutorial above. It includes following [Linux postinstall instructions](https://docs.docker.com/engine/install/linux-postinstall)
 
 ### 2. (OPTIONAL) Install VSCode - Install in case you want to open CAETÊ source code
 
@@ -30,9 +30,9 @@ To check if git was correclty installed, please open terminal and type command `
 
 **4.1)** Open this branch's URL (https://github.com/LabTerra/CAETE/tree/lu-docker) and download CAETÊ source code ZIP from Github (Figure below)
 
-<h1 align="center">
+<p align="center">
     <img src="download-source-code.png" width="350">
-</h1>
+</p>
 
 **4.2)** Extract the ZIP file inside a folder you prefer in your computer;
 
@@ -42,9 +42,9 @@ To check if git was correclty installed, please open terminal and type command `
 
 There are 2 ways of running CAETÊ using Docker, which are **docker compose run caete-bash** and **docker compose run caete-run**. The differences are described below.
 
-<h1 align="center">
+<p align="center">
     <img src="docker-compose-figure.jpg" height="500">
-</h1>
+</p>
 
 Commands:
 - **CAETE-BASH:** `docker compose run caete-bash`
