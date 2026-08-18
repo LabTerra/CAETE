@@ -30,23 +30,34 @@ To check if git was correclty installed, please open terminal and type command `
 
 **4.1)** Open this branch's URL (https://github.com/LabTerra/CAETE/tree/lu-docker) and download CAETÊ source code ZIP from Github (Figure below)
 
-<img src="download-source-code.png" width="300">
+<h1 align="center">
+    <img src="download-source-code.png" width="350">
+</h1>
 
 **4.2)** Extract the ZIP file inside a folder you prefer in your computer;
 
 **4.3)** Open a terminal inside this CAETÊ repository folder;
 
-**4.4)** Run a command from below list:
+**4.4)** Run CAETÊ using Docker:
 
-- **CAETE-BASH:** The following command opens the bash inside container (CAETÊ folder). Use this command to run any CAETÊ command mannualy, such as `make so`, `python model_driver.py`, etc:
-    `docker compose run caete-bash`
-- **CAETE-RUN:** The following command compiles and runs CAETÊ with interactive arguments (default):
-    `docker compose run caete-run`
-- **CAETE-RUN without interactive arguments:** The following command compiles and runs CAETÊ without interactive arguments. It means you can set the CAETÊ input interactive arguments on command line:
+There are 2 ways of running CAETÊ using Docker, which are **docker compose run caete-bash** and **docker compose run caete-run**. The differences are described below.
+
+<h1 align="center">
+    <img src="docker-compose-figure.jpg" height="500">
+</h1>
+
+Commands:
+- **CAETE-BASH:** `docker compose run caete-bash`
+- **CAETE-RUN:**  `docker compose run caete-run`
+- **CAETE-RUN without interactive arguments:** The following commands runs docker compose **caete-run** setting previously the interactive arguments of CAETÊ:
     - **Locally:**
-        `PLS=1000 MASK=a VERSION=1 SOMBRERO=n OUTPUT_NAME=test ZONE=c docker compose run caete-run`
+        - **Linux | Git Bash | WSL**: `PLS=1000 MASK=a VERSION=1 SOMBRERO=n OUTPUT_NAME=test ZONE=c docker compose run caete-run`
+        - **Windows CMD**: `set PLS=1000&& set MASK=a&& set VERSION=1&& set SOMBRERO=n&& set OUTPUT_NAME=test&& set ZONE=c&& docker compose run caete-run`
+        - **Windows Powershell**: `$env:PLS="1000"; $env:MASK="a"; $env:VERSION="1"; $env:SOMBRERO="n"; $env:OUTPUT_NAME="test"; $env:ZONE="c"; docker compose run caete-run`
     - **Sombrero:**
-        `PLS=1000 MASK=a VERSION=1 SOMBRERO=y CLIMATOLOGY=5 docker compose run caete-run`
+        - **Linux | Git Bash | WSL**: `PLS=1000 MASK=a VERSION=1 SOMBRERO=y CLIMATOLOGY=5 docker compose run caete-run`
+        - **Windows CMD**: `set PLS=1000&& set MASK=a&& set VERSION=1&& set SOMBRERO=y&& set CLIMATOLOGY=5&& docker compose run caete-run`
+        - **Windows Powershell**: `$env:PLS="1000"; $env:MASK="a"; $env:VERSION="1"; $env:SOMBRERO="y"; $env:CLIMATOLOGY="5"; docker compose run caete-run`
 
 ## WARNING: README NOT REVISED FROM HERE
 

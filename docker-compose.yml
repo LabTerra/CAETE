@@ -1,14 +1,22 @@
 # ---------------------------------------------------------------------------------------------------
 # Examples:
+#
 #   - Open bash inside container (CAETÊ folder). Use this command to run any command mannualy:
-#       docker compose run caete-bash
+#         docker compose run caete-bash
+#
 #   - Compile and run CAETÊ with interactive arguments:
-#       docker compose run caete-run
+#         docker compose run caete-run
+#
 #   - Compile and run CAETÊ without interactive arguments:
-#     - Local:
-#         PLS=1000 MASK=a VERSION=1 SOMBRERO=n OUTPUT_NAME=test ZONE=c docker compose run caete-run
-#     - Sombrero:
-#         PLS=1000 MASK=a VERSION=1 SOMBRERO=y CLIMATOLOGY=5 docker compose run caete-run
+#       - Local:
+#           - Linux | Git Bash | WSL ==> PLS=1000 MASK=a VERSION=1 SOMBRERO=n OUTPUT_NAME=test ZONE=c docker compose run caete-run
+#           - Windows CMD ==> set PLS=1000&& set MASK=a&& set VERSION=1&& set SOMBRERO=n&& set OUTPUT_NAME=test&& set ZONE=c&& docker compose run caete-run
+#           - Windows Powershell ==> $env:PLS="1000"; $env:MASK="a"; $env:VERSION="1"; $env:SOMBRERO="n"; $env:OUTPUT_NAME="test"; $env:ZONE="c"; docker compose run caete-run
+#
+#       - Sombrero:
+#           - Linux | Git Bash | WSL ==> PLS=1000 MASK=a VERSION=1 SOMBRERO=y CLIMATOLOGY=5 docker compose run caete-run
+#           - Windows CMD ==> set PLS=1000&& set MASK=a&& set VERSION=1&& set SOMBRERO=y&& set CLIMATOLOGY=5&& docker compose run caete-run
+#           - Windows Powershell ==> $env:PLS="1000"; $env:MASK="a"; $env:VERSION="1"; $env:SOMBRERO="y"; $env:CLIMATOLOGY="5"; docker compose run caete-run
 # ---------------------------------------------------------------------------------------------------
 
 services:
@@ -30,13 +38,13 @@ services:
   caete-run:
     <<: *caete-base
     environment:
-      - PLS=${PLS}
-      - MASK=${MASK}
-      - VERSION=${VERSION}
-      - SOMBRERO=${SOMBRERO}
-      - CLIMATOLOGY=${CLIMATOLOGY}
-      - OUTPUT_NAME=${OUTPUT_NAME}
-      - ZONE=${ZONE}
+      - PLS=${PLS:-}
+      - MASK=${MASK:-}
+      - VERSION=${VERSION:-}
+      - SOMBRERO=${SOMBRERO:-}
+      - CLIMATOLOGY=${CLIMATOLOGY:-}
+      - OUTPUT_NAME=${OUTPUT_NAME:-}
+      - ZONE=${ZONE:-}
     command:
       - bash
       - -c
@@ -46,15 +54,15 @@ services:
         #### make clean &&
         if [ -n "${PLS:-}" ] && [ -n "${MASK:-}" ] && [ -n "${VERSION:-}" ] && [ -n "${SOMBRERO:-}" ]; then
           echo -e '\n=================\n Compiling CAETE\n=================\n' &&
-          echo "$PLS" | make so
+          echo "${PLS}" | make so
           echo -e '\n\n===============\n Running CAETE\n===============\n' &&
-          if [ "$SOMBRERO" = "y" ]; then
-            printf "%s\n%s\n%s\n%s\n%s" "$MASK" "$VERSION" "$SOMBRERO" "$CLIMATOLOGY" | python model_driver.py
-          elif [ "${SOMBRERO:-}" = "n" ]; then
-            printf "%s\n%s\n%s\n%s\n%s" "$MASK" "$VERSION" "$SOMBRERO" "$OUTPUT_NAME" "$ZONE" | python model_driver.py
+          if [ "${SOMBRERO}" = "y" ]; then
+            printf "%s\n%s\n%s\n%s\n%s" "${MASK}" "${VERSION}" "${SOMBRERO}" "${CLIMATOLOGY}" | python model_driver.py
+          elif [ "${SOMBRERO}" = "n" ]; then
+            printf "%s\n%s\n%s\n%s\n%s" "${MASK}" "${VERSION}" "${SOMBRERO}" "${OUTPUT_NAME}" "${ZONE}" | python model_driver.py
           else
             echo "ERROR: SOMBRERO var value must be (y/n)"
-            exit
+            exit 1
           fi
         else
           echo -e '\n=================\n Compiling CAETE\n=================\n' &&
