@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>CAETÊ</title>
   <style>
-
 html {
 color: #1a1a1a;
 background-color: #fdfdfd;
@@ -242,28 +241,21 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; }
 <li><a href="#caetê" id="toc-caetê"><span class="toc-section-number">1</span> CAETÊ</a>
 <ul>
 <li><a href="#help" id="toc-help"><span class="toc-section-number">1.1</span> Help</a></li>
-<li><a href="#contributors" id="toc-contributors"><span class="toc-section-number">1.2</span> Contributors</a></li>
+<li><a href="#contributors" id="toc-contributors"><span class="toc-section-number">1.2</span>
+<strong>CONTRIBUTORS</strong></a></li>
 </ul></li>
 <li><a href="#system-configuration" id="toc-system-configuration"><span class="toc-section-number">2</span> System Configuration</a>
 <ul>
-<li><a href="#table-of-contents" id="toc-table-of-contents"><span class="toc-section-number">2.1</span> Table of Contents</a></li>
-<li><a href="#windows-setup" id="toc-windows-setup"><span class="toc-section-number">2.2</span> Windows Setup</a>
+<li><a href="#windows-setup" id="toc-windows-setup"><span class="toc-section-number">2.1</span> Windows setup</a>
 <ul>
-<li><a href="#system-encoding" id="toc-system-encoding"><span class="toc-section-number">2.2.1</span> System Encoding</a></li>
-<li><a href="#c-compiler-and-build-tools" id="toc-c-compiler-and-build-tools"><span class="toc-section-number">2.2.2</span> C Compiler and Build
-Tools</a></li>
-<li><a href="#fortran-compiler" id="toc-fortran-compiler"><span class="toc-section-number">2.2.3</span> Fortran Compiler</a></li>
-<li><a href="#python-and-dependencies" id="toc-python-and-dependencies"><span class="toc-section-number">2.2.4</span> Python and Dependencies</a></li>
+<li><a href="#system-encoding" id="toc-system-encoding"><span class="toc-section-number">2.1.1</span> System Encoding</a></li>
+<li><a href="#c-compiler-and-build-tools" id="toc-c-compiler-and-build-tools"><span class="toc-section-number">2.1.2</span> C compiler and build
+tools</a></li>
+<li><a href="#fortran-compiler" id="toc-fortran-compiler"><span class="toc-section-number">2.1.3</span> Fortran compiler</a></li>
+<li><a href="#python-and-python-dependencies" id="toc-python-and-python-dependencies"><span class="toc-section-number">2.1.4</span> Python and Python
+dependencies</a></li>
 </ul></li>
-<li><a href="#alternative-using-gfortran-in-windows" id="toc-alternative-using-gfortran-in-windows"><span class="toc-section-number">2.3</span> Alternative: Using gfortran in
-windows</a></li>
-<li><a href="#linuxmacos-setup" id="toc-linuxmacos-setup"><span class="toc-section-number">2.4</span> Linux/MacOS setup</a></li>
-<li><a href="#running-the-model" id="toc-running-the-model"><span class="toc-section-number">2.5</span> Running the model</a>
-<ul>
-<li><a href="#generating-the-pls-table" id="toc-generating-the-pls-table"><span class="toc-section-number">2.5.1</span> Generating the PLS
-table</a></li>
-<li><a href="#model-configuration" id="toc-model-configuration"><span class="toc-section-number">2.5.2</span> Model configuration</a></li>
-</ul></li>
+<li><a href="#linuxmacos-setup" id="toc-linuxmacos-setup"><span class="toc-section-number">2.2</span> Linux/MacOS setup</a></li>
 </ul></li>
 <li><a href="#building-the-caete-source-code" id="toc-building-the-caete-source-code"><span class="toc-section-number">3</span> Building the CAETE Source Code</a>
 <ul>
@@ -276,18 +268,19 @@ management</a></li>
 Linux</a>
 <ul>
 <li><a href="#risks" id="toc-risks"><span class="toc-section-number">4.0.1</span> Risks</a></li>
+<li><a href="#safer-alternatives" id="toc-safer-alternatives"><span class="toc-section-number">4.0.2</span> Safer Alternatives</a></li>
 </ul></li>
 <li><a href="#double-check-your-python-version" id="toc-double-check-your-python-version"><span class="toc-section-number">5</span> Double-Check Your Python
 Version</a></li>
 <li><a href="#makefile-usage" id="toc-makefile-usage"><span class="toc-section-number">6</span> Makefile Usage</a></li>
-<li><a href="#running-the-model-1" id="toc-running-the-model-1"><span class="toc-section-number">7</span> Running the Model</a></li>
+<li><a href="#running-the-model" id="toc-running-the-model"><span class="toc-section-number">7</span> Running the Model</a></li>
 <li><a href="#input-data" id="toc-input-data"><span class="toc-section-number">8</span> Input Data</a>
 <ul>
 <li><a href="#input-sources" id="toc-input-sources"><span class="toc-section-number">8.0.1</span> Input Sources</a></li>
 <li><a href="#download-links" id="toc-download-links"><span class="toc-section-number">8.0.2</span> Download Links</a></li>
 </ul></li>
-<li><a href="#caete-dvm-model-codebase-overview-under-development.-needs-update" id="toc-caete-dvm-model-codebase-overview-under-development.-needs-update"><span class="toc-section-number">9</span> CAETE-DVM Model Codebase Overview
-(Under development. Needs update)</a>
+<li><a href="#caete-dvm-model-codebase-overview-needs-update" id="toc-caete-dvm-model-codebase-overview-needs-update"><span class="toc-section-number">9</span> CAETE-DVM Model Codebase Overview
+(Needs update)</a>
 <ul>
 <li><a href="#model-architecture-and-core-functionality" id="toc-model-architecture-and-core-functionality"><span class="toc-section-number">9.1</span> Model Architecture and Core
 Functionality</a></li>
@@ -382,24 +375,22 @@ Summary</a></li>
 </ul>
 </nav>
 <h1 data-number="1" id="caetê"><span class="header-section-number">1</span> CAETÊ</h1>
-<p>This repository contains the implementation of the CAETÊ (CArbon and
-Ecosystem Trait-based Evaluation) Dynamic Vegetation Model, which
-includes Nitrogen and Phosphorus cycling.</p>
-<p>The <code>master</code> branch contains the current development
-version of the model. A prototype version of the model is available on
-the <code>CAETE-DVM-v0.1</code> branch.</p>
-<p><a href="build_instruction_slides.md">Overview</a></p>
+<p>The prototype version of the model is stored in the branch
+CAETE-DVM-v0.1</p>
+<p>This is the implementation of the Dynamic Vegetation Model CAETÊ
+(CArbon and Ecosystem Trait-based Evaluation model) - including Nitrogen
+and Phosphorus cycling.</p>
 <p><a href="system_config.md">System requirements, building, and
 running</a></p>
 <p><a href="input_data.md">Input data</a></p>
 <p><a href="./caete_architecture.md">Model architecture</a></p>
 <h2 data-number="1.1" id="help"><span class="header-section-number">1.1</span> Help</h2>
 <p>If you need help configuring your development environment, installing
-Python, managing CAETÊ dependencies, or setting up a debugging
-environment in VS Code, please open an issue in this repository. You can
-also refer to the <a href="https://github.com/fmammoli/CAETE-Tutorials">CAETÊ starting pack
-tutorial</a>, but please note that its content is outdated.</p>
-<h2 data-number="1.2" id="contributors"><span class="header-section-number">1.2</span> Contributors</h2>
+python, installing CAETÊ dependencies or setting up a debug enviornment
+in vscode, open an issue in this repository. Check the <a href="https://github.com/fmammoli/CAETE-Tutorials">CAETÊ starting pack
+tutorial</a> (Outdated content).</p>
+<h2 data-number="1.2" id="contributors"><span class="header-section-number">1.2</span>
+<strong>CONTRIBUTORS</strong></h2>
 <ul>
 <li>Anja Rammig</li>
 <li>Bárbara R. Cardeli</li>
@@ -412,41 +403,35 @@ tutorial</a>, but please note that its content is outdated.</p>
 <li>Gabriel Marandola</li>
 <li>Helena Alves</li>
 <li>Katrin Fleischer</li>
-<li>Phillip Papastefanou</li>
+<li>Phillip PAPAstefanou</li>
 <li>Tatiana Reichert</li>
-<li>Thiago S. F. Silva</li>
 </ul>
 <h1 data-number="2" id="system-configuration"><span class="header-section-number">2</span> System Configuration</h1>
 <p><a href="./README.md">⇦ Back</a></p>
-<p>Before building the CAETÊ source code, ensure that your system is
-properly configured. Read the <a href="./build_instructions.md">build_instructions</a> file for more
-information about setting up the development environment on different
-operating systems. This document provides an overview of the system
-requirements and configuration steps.</p>
-<h2 data-number="2.1" id="table-of-contents"><span class="header-section-number">2.1</span> Table of Contents</h2>
-<ul>
-<li><a href="#windows-setup">Windows Setup</a></li>
-<li><a href="#linuxmacos-setup">Linux/macOS Setup</a></li>
-</ul>
+<p>Before building the CAETE source code, ensure your system is properly
+configured. read the <a href="./build_instructions.md">build_instructions</a> file for more
+information about setting up the development environment in different
+operating systems.</p>
+<p>#Table of Contents - <a href="#windows-setup">Windows setup</a> - <a href="#linuxmacos-setup">Linux/MacOS setup</a></p>
 <hr />
-<h2 data-number="2.2" id="windows-setup"><span class="header-section-number">2.2</span> Windows Setup</h2>
-<p>PowerShell 7 must be installed to run script utilities on Windows,
-including Makefiles. You can install it with winget:</p>
+<h2 data-number="2.1" id="windows-setup"><span class="header-section-number">2.1</span> Windows setup</h2>
+<p>PowerShell 7 can be used to run script utilities and makefiles in
+windows. You can install it with winget:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>winget install <span class="op">--</span>id<span class="op">=</span>Microsoft<span class="op">.</span><span class="fu">PowerShell</span></span></code></pre></div>
-<h3 data-number="2.2.1" id="system-encoding"><span class="header-section-number">2.2.1</span> System Encoding</h3>
-<p>On Windows, you will likely need to change the system encoding to
-UTF-8. This can be done in: <strong>Control Panel &gt; Region &gt;
-Administrative &gt; Change system locale</strong>. Check the box for
-<strong>“Beta: Use Unicode UTF-8 for worldwide language
-support”</strong> and then restart your computer. This step is required
-to run the model on Windows.</p>
-<p><strong>Why is this necessary?</strong> Default Windows terminals use
-legacy code pages (e.g., cp1252) that cannot handle Unicode characters
-in Fortran files. However, f2py expects UTF-8 by default.</p>
-<p>Check the current system encoding in PowerShell (“PS&gt;” is the
-PowerShell prompt):</p>
+<h3 data-number="2.1.1" id="system-encoding"><span class="header-section-number">2.1.1</span> System Encoding</h3>
+<p>In windows you will probably need to modify the System encoding to
+UTF-8. This can be done in the</p>
+<p>Control Panel -&gt; Region -&gt; Administrative -&gt; Change system
+locale -&gt; check the box “Beta: Use Unicode UTF-8 for worldwide
+language support”. After that, restart the computer. This is needed to
+run the model in windows.</p>
+<p>Why? Default windows terminals use legacy code pages (e.g., cp1252)
+that can’t handle Unicode characters in Fortran files. However f2py
+expects UTF-8 by default</p>
+<p>Check the current system encoding in powershell (“PS&gt;” is the
+powershell prompt):</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">PS</span><span class="op">&gt;</span> <span class="op">[</span>System<span class="op">.</span><span class="fu">Text</span><span class="op">.</span><span class="fu">Encoding</span><span class="op">]::</span>Default</span></code></pre></div>
-<p>This will return something like:</p>
+<p>It will return something like:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Preamble          <span class="op">:</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>BodyName          <span class="op">:</span> utf-8</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>EncodingName      <span class="op">:</span> Unicode <span class="op">(</span>UTF-8<span class="op">)</span></span>
@@ -462,76 +447,41 @@ PowerShell prompt):</p>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>DecoderFallback   <span class="op">:</span> System<span class="op">.</span><span class="fu">Text</span><span class="op">.</span><span class="fu">DecoderReplacementFallback</span></span>
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>IsReadOnly        <span class="op">:</span> True</span>
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>CodePage          <span class="op">:</span> <span class="dv">65001</span></span></code></pre></div>
-<p>If the <code>EncodingName</code> is not <code>Unicode (UTF-8)</code>,
-you must change it as described above.</p>
-<h3 data-number="2.2.2" id="c-compiler-and-build-tools"><span class="header-section-number">2.2.2</span> C Compiler and Build
-Tools</h3>
-<p><code>cl.exe</code>, <code>link.exe</code>, and
-<code>nmake.exe</code> are required to build the model on Windows. These
-tools are included with the C/C++ workload in the Microsoft Build Tools.
-Optionally, you can install the full Visual Studio IDE, but it is not
+<p>If the encoding name is not Unicode (UTF-8), you will need to change
+it as described above.</p>
+<h3 data-number="2.1.2" id="c-compiler-and-build-tools"><span class="header-section-number">2.1.2</span> C compiler and build
+tools</h3>
+<p>cl.exe, link.exe, nmake.exe - Microsoft build with C/C++ workload.
+Optionally, you can install the full visual studio IDE, but it is not
 necessary to run the model. The C/C++ workload is required to compile
-the C code generated by the NumPy <code>f2py</code> module. You can <a href="https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022">download
-the Visual Studio Build Tools installer here</a>.</p>
-<h3 data-number="2.2.3" id="fortran-compiler"><span class="header-section-number">2.2.3</span> Fortran Compiler</h3>
-<p>There are two options for a Fortran compiler on Windows: -
-<code>ifx.exe</code> - Intel Fortran Compiler -
-<code>gfortran.exe</code> - GNU Fortran Compiler (part of mingw-w64)</p>
+the C code generated by the numpy f2py module. You can download the
+Visual Studio/build <a href="https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022">tools
+Installer from here</a>.</p>
+<h3 data-number="2.1.3" id="fortran-compiler"><span class="header-section-number">2.1.3</span> Fortran compiler</h3>
+<p>ifx.exe - Intel fortran compiler:</p>
 <p><a href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit-download.html?packages=fortran-essentials&amp;fortran-essentials-os=windows&amp;fortran-essentials-win=offline">Download
-the oneAPI HPC Toolkit Essentials</a>.</p>
-<p>If you want to use gfortran, <a href="https://winlibs.com/#download-release">download mingw-w64 from
-WinLibs</a>. Download GCC 14.2.0 (with MCF threads) + MinGW-w64 12.0.0
-(UCRT) - release 1 and add the <code>bin</code> folder to your PATH
-environment variable.</p>
-<h3 data-number="2.2.4" id="python-and-dependencies"><span class="header-section-number">2.2.4</span> Python and Dependencies</h3>
-<ul>
-<li><a href="https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe">Python
-3.11</a></li>
-<li><a href="./src/requirements_3xx_last.txt">Python requirements</a>
-for Windows.</li>
-</ul>
-<p>See the <a href="./src/Makefile_win">Windows Makefile</a> for
-instructions on how to build the Python extension module.</p>
-<p>The Windows Makefile calls the <code>ifx.exe</code> compiler. The
-Makefile must be executed in a [shell with the proper environment In the
-windows Makefile the ifx.exe compiler is called. The Makefile must be
-executed in a <a href="https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2023-0/use-the-setvars-script-with-windows.html#GUID-D22D6A5C-25BC-46EE-B8D9-3530184ADCD6">shell
+the fortran essentials</a>.</p>
+<h3 data-number="2.1.4" id="python-and-python-dependencies"><span class="header-section-number">2.1.4</span> Python and Python
+dependencies</h3>
+<p><a href="https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe">Python
+3.11</a> and <a href="./src/requirements_3xx_last.txt">python
+requirements</a> for windows.</p>
+<p>See the <a href="./src/Makefile_win">windows Makefile</a> for
+instructions on how to build the python extension module.</p>
+<p>In the windows Makefile the ifx.exe compiler is called. The Makefile
+must be executed in a <a href="https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2023-0/use-the-setvars-script-with-windows.html#GUID-D22D6A5C-25BC-46EE-B8D9-3530184ADCD6">shell
 with the proper environment</a></p>
 <p>To build in windows:</p>
 <p>Assuming that the Intel OneAPI setvars.bat script is in C:Files
 (x86).bat.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cmd<span class="op">.</span><span class="fu">exe</span> <span class="st">&quot;/K&quot;</span> <span class="st">&#39;&quot;C:\Program Files (x86)\Intel\oneAPI\setvars.bat&quot; &amp;&amp; pwsh.exe&#39;</span></span></code></pre></div>
-<p>You can easily create a shortcut or a script to open a powershell
-terminal with the proper environment.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>cmd<span class="op">.</span><span class="fu">exe</span> <span class="st">&quot;/K&quot;</span> <span class="st">&#39;&quot;C:\Program Files (x86)\Intel\oneAPI\setvars.bat&quot; &amp;&amp; powershell&#39;</span></span></code></pre></div>
 <p>After that, navigate to the src folder and run the following to
 install python deps and build the extension module with python 3.11 in
 windows:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nmake <span class="op">-</span>f Makefile_win setup</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>nmake <span class="op">-</span>f Makefile_win</span></code></pre></div>
 <hr />
-<h2 data-number="2.3" id="alternative-using-gfortran-in-windows"><span class="header-section-number">2.3</span> Alternative: Using gfortran in
-windows</h2>
-<ul>
-<li><p>The recommended option is the Intel fortran compiler (ifx.exe)
-included in the Intel OneAPI fortran essentials toolkit</p></li>
-<li><p>If you want to use gfortran, you can download a standalone
-version from <a href="https://winlibs.com/#download-release">WinLibs</a>.</p></li>
-<li><p>Tested with: GCC 14.2.0 (with MCF threads) + MinGW-w64 12.0.0
-(UCRT) - release 1</p></li>
-<li><p>Make sure that gfortran.exe and the other build tools are in your
-PATH environment variable.</p></li>
-<li><p>Use the script build_caete.bat to build the model with gfortran
-in windows. This script just applies the numpy.f2py script to build the
-fortran/python extension module searching for the gfortran and c
-compilers in the PATH. This combination is pretty raw. I recommend using
-the Intel fortran compiler if possible. Be aware that using gfortran in
-windows may lead to unexpected issues, specially issues related to
-linking the fortran runtime libraries. I tested this in one machine
-only, with windows 11 pro and mingw64 from winlibs. I used a python
-3.11.13 installation built localy from source with the MS Visual
-compiler.</p></li>
-</ul>
-<h2 data-number="2.4" id="linuxmacos-setup"><span class="header-section-number">2.4</span> Linux/MacOS setup</h2>
+<h2 data-number="2.2" id="linuxmacos-setup"><span class="header-section-number">2.2</span> Linux/MacOS setup</h2>
 <ul>
 <li><p>gnu-make</p></li>
 <li><p>gcc</p></li>
@@ -559,50 +509,6 @@ Makefile</a> to match the python that you will use to run the model.</p>
 and run:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> setup</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span></code></pre></div>
-<h2 data-number="2.5" id="running-the-model"><span class="header-section-number">2.5</span> Running the model</h2>
-<h3 data-number="2.5.1" id="generating-the-pls-table"><span class="header-section-number">2.5.1</span> Generating the PLS table</h3>
-<p>The PLS (Plant Life Strategy) table is required for running the CAETÊ
-model. You can generate the PLS table using the <code>plsgen.py</code>
-script located in the <code>src</code> folder. This script creates a PLS
-table based on the specified parameters and saves it as a CSV file.</p>
-<p>Navigate to the <code>src</code> folder and run the following command
-to see the available options for the <code>plsgen.py</code> script:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> plsgen.py <span class="at">-h</span></span></code></pre></div>
-<p>This will display the help message with the available options. To
-generate a PLS table with 10,000 entries and save it to a file named
-pls_attrs-10000.csv inside the <code>PLS_MAIN</code> folder in the src
-directory, run the following command:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> plsgen.py <span class="at">-n</span> 10000 <span class="at">-f</span> PLS_MAIN</span></code></pre></div>
-<p>After generating the PLS table, you can use it to run the CAETÊ model
-by specifying the path to the generated CSV file in the model driver
-script.</p>
-<h3 data-number="2.5.2" id="model-configuration"><span class="header-section-number">2.5.2</span> Model configuration</h3>
-<p>Model configuration parameters are set in the <code>caete.toml</code>
-file located in the src folder. You can edit this file to change model
-parameters before running the model. The config.py script has a class
-that reads the <code>caete.toml</code> file and makes the parameters
-available to the model after a validation step. To include new
-parameters in the <code>caete.toml</code> file, you will need to edit
-the config.py script to include the new parameters in the validation
-step.</p>
-<p>After building the extension module, you can run the model from the
-src folder using the same python executable that is used in your
-Makefile.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> python caete_driver.py</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># or</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> python caete_driver_CMIP6.py</span></code></pre></div>
-<p>The idea is that when you want to do a experiment with the model, you
-create a script that mimics the caete_driver.py script but with your own
-configuration (e.g., different input files, different output files,
-different spinup configurations).</p>
-<p><code>caete_driver.py</code> runs the model with a subset (n=16) of
-the gridcells in the input files.</p>
-<p><code>caete_driver_CMIP6.py</code> runs the model with CMIP6 forcing
-data for 4 gridcells . You need to edit the paths to the input data
-files in the <code>caete_driver_CMIP6.py</code> and
-<code>caete_driver.py</code> scripts before running them.</p>
 <p><a href="./README.md">⇦ Back</a></p>
 <h1 data-number="3" id="building-the-caete-source-code"><span class="header-section-number">3</span> Building the CAETE Source
 Code</h1>
@@ -646,32 +552,32 @@ compile CAETE’s Python C/API extension and run the model locally.</p>
 management</h3>
 <p>There are several options to install and manage multiple Python
 versions in all platforms. For our purposes, we need a python
-installation that meets the requirements above. Additionally, the python
-installation must be reachable from the terminal/shell where you will
-run the Makefile to build the Fortran/Python extension module. This
-means that the python executable must be in the PATH environment
+installation that meets the platform requirements above. Additionally,
+the python installation must be reachable from the terminal/shell where
+you will run the Makefile to build the Fortran/Python extension module.
+This means that the python executable must be in the PATH environment
 variable or can be launched via an environment manager like pyenv, uv,
 PIM, and et cetera. Below are some suggestions for managing python
-versions in different platforms.</p>
+versions in different platforms. Another very important aspect is that
+this python installation must be compatible with the C compiler
+installed in your system. More specifically, the python installation
+must be compiled with the same C runtime library as the C compiler used
+to build the Fortran/Python extension module. In windows, this usually
+means that you should use the official python installer from python.org,
+since it is compiled with MSVC. Other python distributions like Anaconda
+may use different C runtimes and may lead to issues when building the
+extension module with MSVC.</p>
 <h4 data-number="3.0.2.1" id="windows"><span class="header-section-number">3.0.2.1</span> Windows</h4>
 <p>To run CAETE, it is important that you have a python version that
-meets the requirements (see above). The Python install Manager <a href="https://www.python.org/downloads/release/pymanager-250/">PIM</a>
+meets the platform requirements (see above). The Python install Manager
+<a href="https://www.python.org/downloads/release/pymanager-250/">PIM</a>
 is a windows tool to help install and manage multiple Python versions
-easily. The current python manager (for python &lt;=3.13) is also an
-option for windows users.</p>
+easily. The current windows python manager (for python &lt;=3.13) is
+also an option for windows users.</p>
 <h4 data-number="3.0.2.2" id="linuxmacos"><span class="header-section-number">3.0.2.2</span> Linux/MacOS</h4>
 <p>In linux/macOS, <code>pyenv</code> is a popular python version
 manager. You can find installation instructions in the <a href="https://github.com/pyenv/pyenv">pyenv github repository</a></p>
 <h3 data-number="3.0.3" id="caveats"><span class="header-section-number">3.0.3</span> Caveats</h3>
-<p>Another very important aspect is that this python installation must
-be compatible with the C compiler installed in your system. More
-specifically, the python installation must be compiled with the same C
-runtime library as the C compiler used to build the Fortran/Python
-extension module. In windows, this usually means that you should use the
-official python installer from python.org, since it is compiled with
-MSVC. Other python distributions like Anaconda may use different C
-runtimes and may lead to issues when building the extension module with
-MSVC.</p>
 <ul>
 <li>On Windows, install MSVC first, then OneAPI.</li>
 <li>Ensure <code>pip</code> is available to install additional Python
@@ -711,6 +617,19 @@ security, and reproducibility.</p>
 <li>Code may behave differently across systems.</li>
 <li>Pre-installed packages vary by distribution.</li>
 </ul></li>
+<li><strong>Shell Injection Risks</strong>
+<ul>
+<li>Avoid <code>subprocess.call(..., shell=True)</code> with user
+input.</li>
+<li>Example: <code>call(&quot;cat &quot; + filename, shell=True)</code> is
+dangerous.</li>
+</ul></li>
+</ul>
+<h3 data-number="4.0.2" id="safer-alternatives"><span class="header-section-number">4.0.2</span> Safer Alternatives</h3>
+<ul>
+<li>Use <strong><code>pyenv</code></strong>,
+<strong><code>conda</code></strong>, or <strong><code>uv</code></strong>
+to manage Python versions in linux/mac.</li>
 </ul>
 <hr />
 <h1 data-number="5" id="double-check-your-python-version"><span class="header-section-number">5</span> Double-Check Your Python
@@ -726,39 +645,40 @@ Make</li>
 (adapted for MSVC and OneAPI)</li>
 </ul>
 <hr />
-<h1 data-number="7" id="running-the-model-1"><span class="header-section-number">7</span> Running the Model</h1>
+<h1 data-number="7" id="running-the-model"><span class="header-section-number">7</span> Running the Model</h1>
 <p>Once compiled and configured, you can proceed to run CAETE using the
 prepared input files and gridlists.</p>
 <p><a href="./README.md">⇦ Back</a></p>
 <h1 data-number="8" id="input-data"><span class="header-section-number">8</span> Input Data</h1>
 <p><a href="./README.md">⇦ Back</a></p>
-<p>Input data is sourced from the <strong>ISIMIP
+<p>Input data were downloaded from the <strong>ISIMIP
 repository</strong>.</p>
 <p>More information about the input data structure and preprocessing
 scripts can be found <a href="./input/README.md">here</a>.</p>
-<p>This repository contains a folder named <code>input</code> which
-includes:</p>
+<p>In this repository there is a folder called <code>input</code>
+containing:</p>
 <ul>
-<li><code>preprocess_caete.py</code>: Reads ISIMIP netCDF files and
-creates netCDF input files for CAETÊ.</li>
-<li><code>preprocess_caete_pbz2.py</code>: Converts ISIMIP netCDF files
-into legacy <code>.pbz2</code> input files.</li>
-<li>The new input handler supports both formats, configurable via
-<code>caete.toml</code>.</li>
+<li><code>preprocess_caete.py</code>: Reads ISIMIP netCDFs and creates
+netCDF input files for CAETE.</li>
+<li><code>preprocess_caete_pbz2.py</code>: Converts ISIMIP netCDFs into
+legacy <code>.pbz2</code> input files.</li>
+<li>The new input handler supports both formats (configured via
+<code>caete.toml</code>).</li>
 </ul>
-<p>The model executes simulations based on a <strong>gridlist</strong>
-table. Preprocessing scripts are designed to save these gridlists
-alongside the input files.</p>
-<p>In <code>input_handler.py</code>, the <code>input_handler</code>
-class includes a static method that can generate a gridlist from a
-properly formatted netCDF file. This functionality is also integrated
+<p>The execution of gridcells depends on a <strong>gridlist</strong>
+table. Preprocessing scripts should save gridlists alongside input
+files.</p>
+<p>In <code>input_handler.py</code>, the class
+<code>input_handler</code> includes a static method that can generate a
+gridlist from a properly formatted netCDF file (but not necessarily from
+a folder of <code>.pbz2</code> files). This feature was also integrated
 into the <code>bz2_handler</code> module, although it has not been used
 recently.</p>
 <h3 data-number="8.0.1" id="input-sources"><span class="header-section-number">8.0.1</span> Input Sources</h3>
 <ul>
 <li><strong>Protocols</strong>: ISIMIP3a and ISIMIP3b</li>
-<li><strong>Bias-corrected data</strong>: Stored in folders with a
-<code>_raw</code> suffix (downloaded from ISIMIP).</li>
+<li><strong>Bias-corrected data</strong>: Stored in folders with
+<code>_raw</code> suffix (downloaded from ISIMIP)</li>
 <li><strong>Input folders</strong>: <code>spinclim</code>,
 <code>obsclim</code>, <code>historical</code>, etc.</li>
 </ul>
@@ -768,12 +688,12 @@ recently.</p>
 <code>obsclim</code>): <a href="https://1drv.ms/f/c/16d3a2cfff38aeca/EsquOP_PotMggBaPxwMAAAABjdx1IH1OuwQ8THwZcD8izw?e=lDgnH4">Download</a></li>
 <li><strong>MPI-ESM1-2-HR</strong> (<code>piControl</code>,
 <code>historical</code>, <code>ssp370</code>, <code>ssp585</code>): <a href="https://1drv.ms/f/c/16d3a2cfff38aeca/EsquOP_PotMggBaOHwQAAAABcpwkuYUk34IHwz9sxJIWnw?e=AGnyYC">Download</a></li>
-<li><strong>Gridlists</strong>: <a href="./grd/"><code>CAETE-DVM/grd</code></a></li>
+<li><strong>Grid lists</strong>: <a href="./grd/"><code>CAETE-DVM/grd</code></a></li>
 </ul>
 <hr />
 <p><a href="./README.md">⇦ Back</a></p>
-<h1 data-number="9" id="caete-dvm-model-codebase-overview-under-development.-needs-update"><span class="header-section-number">9</span> CAETE-DVM Model Codebase Overview
-(Under development. Needs update)</h1>
+<h1 data-number="9" id="caete-dvm-model-codebase-overview-needs-update"><span class="header-section-number">9</span> CAETE-DVM Model Codebase Overview
+(Needs update)</h1>
 <p><a href="./README.md">⇦ Back</a></p>
 <h2 data-number="9.1" id="model-architecture-and-core-functionality"><span class="header-section-number">9.1</span> Model Architecture and Core
 Functionality</h2>

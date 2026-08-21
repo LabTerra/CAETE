@@ -1,6 +1,6 @@
 # CAETE-DVM Model Codebase Overview (Under development. Needs update)
 
-[⇦ Back](../README.md)
+[⇦ Back](./README.md)
 
 ## Model Architecture and Core Functionality
 
@@ -472,4 +472,4 @@ The CAETE-DVM (Carbon and Ecosystem Trait-based Evaluation - Dynamic Vegetation 
 - **Memory Management**: Efficient array operations and compressed storage
 - **Parallel Processing**: Gridcell-level parallelization with OpenMP threads
 
-[⇦ Back](../README.md)
+[⇦ Back](./README.md)

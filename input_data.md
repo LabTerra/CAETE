@@ -1,10 +1,10 @@
 # Input Data
 
-[⇦ Back](../README.md)
+[⇦ Back](./README.md)
 
 Input data is sourced from the **ISIMIP repository**.
 
-More information about the input data structure and preprocessing scripts can be found [here](../input/README.md).
+More information about the input data structure and preprocessing scripts can be found [here](./input/README.md).
 
 This repository contains a folder named `input` which includes:
 
@@ -26,7 +26,7 @@ In `input_handler.py`, the `input_handler` class includes a static method that c
 
 - **20CRv3-ERA5** (`spinclim` & `obsclim`): [Download](https://1drv.ms/f/c/16d3a2cfff38aeca/EsquOP_PotMggBaPxwMAAAABjdx1IH1OuwQ8THwZcD8izw?e=lDgnH4)
 - **MPI-ESM1-2-HR** (`piControl`, `historical`, `ssp370`, `ssp585`): [Download](https://1drv.ms/f/c/16d3a2cfff38aeca/EsquOP_PotMggBaOHwQAAAABcpwkuYUk34IHwz9sxJIWnw?e=AGnyYC)
-- **Gridlists**: [`CAETE-DVM/grd`](../grd/)
+- **Gridlists**: [`CAETE-DVM/grd`](./grd/)
 
 ---
-[⇦ Back](../README.md)
+[⇦ Back](./README.md)

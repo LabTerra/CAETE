@@ -1,0 +1,8 @@
+Check mypy and mypyc options for the python modules (community.py, metacommunity.py, outputs.py hydro_caete.py)
+Add unit tests to all python modules
+Add unit tests to all fortran modules
+
+Move parameters to the config.py
+
+28.09.2025: Check the calculation of passive uptake when no nutrients are available.
+          : Test the fraction of available nutruients for uptake.
