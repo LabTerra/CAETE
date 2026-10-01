@@ -71,7 +71,7 @@ from netCDF4 import Dataset
 import numpy as np
 
 import caete
-from caete import grd, mask, npls, print_progress, rbrk, allom
+from caete import grd, mask, npls, print_progress, rbrk, allom, allom_nutri
 import plsgen as pls
 
 __author__ = "João Paulo Darela Filho"
@@ -391,8 +391,10 @@ def apply_fun(grid:grd, allometry = allom)->grd:
  
 def apply_fun0(grid:grd, allometry = allom)->grd:
     if allom:
+        # nutrient cycle on from this spinup onwards when allom_nutri (option 3),
+        # as in the classic version: the first spinup (apply_fun) has no limitation
         grid.run_caete_allom('19790101', '19891231', spinup=35,
-                   fix_co2='1980', save=True, nutri_cycle=False) # COM competição no spin-up 1
+                   fix_co2='1980', save=True, nutri_cycle=allom_nutri) # COM competição no spin-up 1
     else:
         grid.run_caete('19790101', '19891231', spinup=35,
                    fix_co2='1980', save=False)
@@ -408,7 +410,7 @@ def zip_gridtime(grd_pool, interval):
 
 def apply_funX(grid:grd, brk:list, allometry = allom)->grd:
     if allom:
-        grid.run_caete_allom(brk[0], brk[1], save = True, nutri_cycle=False)
+        grid.run_caete_allom(brk[0], brk[1], save = True, nutri_cycle=allom_nutri)
     else:
         grid.run_caete(brk[0], brk[1])
     return grid

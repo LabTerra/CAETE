@@ -87,7 +87,7 @@ module global_par
    real(r_8), parameter, public :: r_turnover = 1./4. !Sitch et al 2003
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
-   real(r_8), parameter, public :: h_turnover = 1./150.!1/50. !Sitch et al 2003
+   real(r_8), parameter, public :: h_turnover = 1./50. !Sitch et al 2003
 
    !gradual allocation parameters (woody allometric allocation with labile storage)
    real(r_8), parameter, public :: year_days = 365.242D0                     ! days per year (same convention as alloc/allocation.f90: 1000/365.242 = 2.73791075D0)
@@ -96,6 +96,10 @@ module global_par
    real(r_8), parameter, public :: leaf_background_timescale_years = 3.0D0    ! background leaf demand timescale (years)
    real(r_8), parameter, public :: root_background_timescale_years = 3.0D0    ! background root demand timescale (years)
    real(r_8), parameter, public :: sapwood_background_timescale_years = 15.0D0! background sapwood demand timescale (years)
+
+   !nutrient cycle parameters (same values used in allocation.f90)
+   real(r_8), parameter, public :: mult_factor_n = 0.025D0   ! fraction of mineral_n accessible to plants per day
+   real(r_8), parameter, public :: mult_factor_p = 0.0035D0  ! fraction of labile_p accessible to plants per day
 
 end module global_par
 

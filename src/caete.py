@@ -63,7 +63,11 @@ while True:
         break
 
 while True:
-    version_allom = input('Which version? (1: allom/2: nutri_cycle) ')
+    version_allom = input('Which version? (1: allom/2: nutri_cycle/3: allom + nutri_cycle) ')
+
+    # allom: allometric version (run_caete_allom)
+    # allom_nutri: allometric version with the nutrient cycle on
+    allom_nutri = False
 
     if version_allom == '1':
         allom = True
@@ -75,6 +79,13 @@ while True:
         allom = False
         print('')
         print('You are using the version with fix proportion to allocation and considering nutrient cycle')
+        print('')
+        break
+    if version_allom == '3':
+        allom = True
+        allom_nutri = True
+        print('')
+        print('You are using the version considering allometry constraints and nutrient cycle')
         print('')
         break
 
@@ -213,6 +224,10 @@ rbrk = [run_breaks_hist, run_breaks_CMIP5_hist, run_breaks_CMIP5_proj]
 
 warnings.simplefilter("default")
 
+# N and P pools (g m-2) passed to daily_budget_allom when the nutrient cycle is
+# off (run_caete_allom, nutri_cycle=False): large enough to never limit growth
+NO_NUTRIENT_LIMITATION = 1.0e6
+
 
 # AUX FUNCS
 
@@ -272,12 +287,18 @@ def catch_out_budget_allom (out):
     #dly_c{compartment}: this is the carbon that will be the carbon's next day for each PLS
     #dly_d{compartment}: delta carbon (Ct - Ct-1)
 
+    #dly_nsto/dly_psto: N/P reserve (g m-2) that will be the next day's reserve for each PLS
+
     lst = ["dly_cleaf", "dly_cwood", "dly_croot","dly_csap","dly_cheart","dly_csto",
+           "dly_nsto", "dly_psto",
            "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
            "evavg", "epavg", "phavg", "aravg", "nppavg", 
            "laiavg","rcavg","f5avg","rmavg","rgavg",
-           "wueavg", "cueavg","vcmax","specific_la", "ocpavg"]
+           "wueavg", "cueavg","vcmax","specific_la", "ocpavg",
+           "nupt", "pupt", "lnc", "limitation_status",
+           "litter_l", "cwd", "litter_fr", "npp2pay", "uptk_strat", "c_cost_cwm",
+           "ctonfix"]
     
     return dict(zip(lst, out))
 
@@ -626,6 +647,30 @@ class grd:
         
         self.area_allom = np.zeros(shape=(npls, n), order='F')
 
+        #nutrient cycle (only filled when nutri_cycle is True)
+        self.nupt = np.zeros(shape=(2, n), order='F')
+        self.pupt = np.zeros(shape=(3, n), order='F')
+        self.litter_l = np.zeros(shape=(n,), order='F')
+        self.cwd = np.zeros(shape=(n,), order='F')
+        self.litter_fr = np.zeros(shape=(n,), order='F')
+        self.lnc = np.zeros(shape=(6, n), order='F')
+        self.nsto_allom = np.zeros(shape=(n,), order='F')
+        self.psto_allom = np.zeros(shape=(n,), order='F')
+        self.carbon_costs = np.zeros(shape=(n,), order='F')
+        self.hresp = np.zeros(shape=(n,), order='F')
+        self.csoil = np.zeros(shape=(4, n), order='F')
+        self.snc = np.zeros(shape=(8, n), order='F')
+        self.inorg_n = np.zeros(shape=(n,), order='F')
+        self.inorg_p = np.zeros(shape=(n,), order='F')
+        self.sorbed_n = np.zeros(shape=(n,), order='F')
+        self.sorbed_p = np.zeros(shape=(n,), order='F')
+        self.nmin = np.zeros(shape=(n,), order='F')
+        self.pmin = np.zeros(shape=(n,), order='F')
+        self.lim_status_allom = np.zeros(
+            shape=(3, npls, n), dtype=np.dtype('int16'), order='F')
+        self.uptake_strategy = np.zeros(
+            shape=(2, npls, n), dtype=np.dtype('int32'), order='F')
+
 
     def _flush_output(self, run_descr, index):
         """1 - Clean variables that receive outputs from the fortran subroutines
@@ -779,6 +824,26 @@ class grd:
                      'wue'   : self.wue,
                      'area'  : self.area_allom,
                      'ls'    : self.ls,  
+                     'nupt': self.nupt,
+                     'pupt': self.pupt,
+                     'litter_l': self.litter_l,
+                     'cwd': self.cwd,
+                     'litter_fr': self.litter_fr,
+                     'lnc': self.lnc,
+                     'nsto': self.nsto_allom,
+                     'psto': self.psto_allom,
+                     'c_cost': self.carbon_costs,
+                     'hresp': self.hresp,
+                     'csoil': self.csoil,
+                     'snc': self.snc,
+                     'inorg_n': self.inorg_n,
+                     'inorg_p': self.inorg_p,
+                     'sorbed_n': self.sorbed_n,
+                     'sorbed_p': self.sorbed_p,
+                     'nmin': self.nmin,
+                     'pmin': self.pmin,
+                     'lim_status': self.lim_status_allom,
+                     'u_strat': self.uptake_strategy,
                      'calendar': self.calendar,
                      'time_unit': self.time_unit,   # Time unit
                      'sind': index[0],
@@ -809,6 +874,26 @@ class grd:
         self.wue          = None
         self.area_allom   = None
         self.ls           = None 
+        self.nupt         = None
+        self.pupt         = None
+        self.litter_l     = None
+        self.cwd          = None
+        self.litter_fr    = None
+        self.lnc          = None
+        self.nsto_allom   = None
+        self.psto_allom   = None
+        self.carbon_costs = None
+        self.hresp        = None
+        self.csoil        = None
+        self.snc          = None
+        self.inorg_n      = None
+        self.inorg_p      = None
+        self.sorbed_n     = None
+        self.sorbed_p     = None
+        self.nmin         = None
+        self.pmin         = None
+        self.lim_status_allom = None
+        self.uptake_strategy  = None
        
         return to_pickle
 
@@ -968,7 +1053,10 @@ class grd:
         self.vp_dcst_allom = np.zeros(shape=(npls,), order='F')
         self.vp_ocp_allom = np.zeros(shape=(npls,), order='F')
 
-
+        #N/P reserve (g m-2) and C costs of nutrient uptake (g m-2) for alloc_allom
+        self.vp_nsto_allom = np.zeros(shape=(npls,), order='F')
+        self.vp_psto_allom = np.zeros(shape=(npls,), order='F')
+        self.sp_uptk_costs_allom = np.zeros(shape=(npls,), order='F')
 
         self.outputs = dict()
         self.filled = True
@@ -1563,7 +1651,14 @@ class grd:
             is the proper CAETÊ-DVM execution in the start_date - end_date period
 
             This function is analogous to run_caete but this one considers allocation
-            constrained by allometry relationships and do not consider nutri cycle
+            constrained by allometry relationships.
+
+            nutri_cycle [bool] False: carbon only. N and P are passed to the fortran
+                               code as non-limiting pools, plant N/P reserves are not
+                               tracked and the soil pools are left untouched.
+                               True: growth is limited by the soil N and P pools;
+                               plant uptake and litter (C, N, P) are exchanged with
+                               the soil pools (soil_dec) every day.
         """
         #verify if the gridcell has input data
         assert self.filled, "The gridcell has no input data"
@@ -1645,8 +1740,15 @@ class grd:
             co2 = find_co2(int(fix_co2))
             fix_co2_p = True
 
-            # Set light competition flag in Fortran module
-            gp.light_comp = 1 if light_competition else 0
+        # Set light competition flag in Fortran module (for any fix_co2 option)
+        gp.light_comp = 1 if light_competition else 0
+
+        # Carbon only: no N fixation (trait pdia = 0), so that the plants do
+        # not pay the N fixers when N is not limiting
+        pls_table_run = self.pls_table
+        if not nutri_cycle:
+            pls_table_run = np.asfortranarray(self.pls_table.copy())
+            pls_table_run[16, :] = 0.0
 
         for s in range(spin):
             
@@ -1705,7 +1807,9 @@ class grd:
                 dcs_allom    = np.zeros(npls, order='F')
                 dch_allom    = np.zeros(npls, order='F')
                 dcst_allom   = np.zeros(npls, order='F')
-                
+                nsto_allom   = np.zeros(npls, order='F')
+                psto_allom   = np.zeros(npls, order='F')
+                uptk_costs_allom = np.zeros(npls, order='F')
 
                 # Check the integrity of the data
                 assert self.vp_lsid.size == self.vp_cleaf_allom.size, 'different array sizes'
@@ -1732,10 +1836,29 @@ class grd:
 
                     c += 1
 
+                # Nutrient pools (g m-2) seen by the plants
+                if nutri_cycle:
+                    assert self.vp_lsid.size == self.vp_nsto_allom.size, 'different array sizes'
+                    nsto_allom[self.vp_lsid] = self.vp_nsto_allom
+                    psto_allom[self.vp_lsid] = self.vp_psto_allom
+                    uptk_costs_allom[self.vp_lsid] = self.sp_uptk_costs_allom
+                    mineral_n = self.sp_available_n
+                    labile_p  = self.sp_available_p
+                    org_n     = self.sp_snc[:4].sum()
+                    sorbed_p  = self.sp_so_p
+                    org_p     = self.sp_snc[4:].sum()
+                else:
+                    # Carbon only: non-limiting N and P
+                    mineral_n = NO_NUTRIENT_LIMITATION
+                    labile_p  = NO_NUTRIENT_LIMITATION
+                    org_n     = 0.0
+                    sorbed_p  = 0.0
+                    org_p     = 0.0
+
                 #call budget
                 out_allom = model_allom.daily_budget_allom(
                     step, 
-                    self.pls_table,
+                    pls_table_run,
                     self.wp_water_upper_mm,
                     self.wp_water_lower_mm,
                     self.wmax_mm,
@@ -1744,6 +1867,14 @@ class grd:
                     p_atm[step],
                     ipar[step],
                     ru[step],
+                    mineral_n,
+                    labile_p,
+                    org_n,
+                    sorbed_p,
+                    org_p,
+                    nsto_allom,
+                    psto_allom,
+                    uptk_costs_allom,
                     co2,
                     cleaf_allom,
                     cwood_allom,
@@ -1805,6 +1936,10 @@ class grd:
                     self.vp_dch_allom = np.zeros(shape=(self.vp_lsid.size,))
                     self.vp_dcst_allom = np.zeros(shape=(self.vp_lsid.size,))
 
+                    self.vp_nsto_allom = np.zeros(shape=(self.vp_lsid.size,))
+                    self.vp_psto_allom = np.zeros(shape=(self.vp_lsid.size,))
+                    self.sp_uptk_costs_allom = np.zeros(shape=(self.vp_lsid.size,))
+
                     self.vp_ocp_allom = np.zeros(shape=(self.vp_lsid.size,))
                     del awood
                     self.ls[step] = self.vp_lsid.size
@@ -1833,6 +1968,16 @@ class grd:
                     self.vp_dch_allom    = daily_output_allom['dly_dheart'][self.vp_lsid]
                     self.vp_dcst_allom   = daily_output_allom['dly_dsto'][self.vp_lsid]
 
+                    if nutri_cycle:
+                        self.vp_nsto_allom = daily_output_allom['dly_nsto'][self.vp_lsid]
+                        self.vp_psto_allom = daily_output_allom['dly_psto'][self.vp_lsid]
+                        self.sp_uptk_costs_allom = daily_output_allom['npp2pay'][self.vp_lsid]
+                    else:
+                        # reserves are not tracked - keep the arrays aligned with vp_lsid
+                        self.vp_nsto_allom = np.zeros(shape=(self.vp_lsid.size,))
+                        self.vp_psto_allom = np.zeros(shape=(self.vp_lsid.size,))
+                        self.sp_uptk_costs_allom = np.zeros(shape=(self.vp_lsid.size,))
+
                 # UPDATE STATE VARIABLES
                 # WATER CWM
                 self.runom[step] = self.swp._update_pool(prec[step], daily_output_allom['evavg'])
@@ -1842,6 +1987,95 @@ class grd:
                     0.0) if self.swp.w2 < 0.0 else self.swp.w2
                 self.wp_water_upper_mm = self.swp.w1
                 self.wp_water_lower_mm = self.swp.w2
+
+                # SOIL: litter (C, N, P) inputs, decomposition and plant uptake.
+                # Same sequence used in run_caete
+                if nutri_cycle:
+                    # Plant uptake and Carbon costs of nutrient uptake
+                    self.nupt[:, step] = daily_output_allom['nupt']
+                    self.pupt[:, step] = daily_output_allom['pupt']
+
+                    # OUTPUTS for SOIL CWM
+                    # carbon sent to the N fixers joins the leaf litter (as in run_caete)
+                    self.litter_l[step] = daily_output_allom['litter_l'] + \
+                        daily_output_allom['ctonfix']
+                    self.cwd[step] = daily_output_allom['cwd']
+                    self.litter_fr[step] = daily_output_allom['litter_fr']
+                    self.lnc[:, step] = daily_output_allom['lnc']
+                    wtot = self.wp_water_upper_mm + self.wp_water_lower_mm
+                    s_out = soil_dec.carbon3(self.soil_temp, wtot / self.wmax_mm, self.litter_l[step],
+                                             self.cwd[step], self.litter_fr[step], self.lnc[:, step],
+                                             self.sp_csoil, self.sp_snc)
+
+                    soil_out = catch_out_carbon3(s_out)
+
+                    # Organic C N & P
+                    self.sp_csoil = soil_out['cs']
+                    self.sp_snc = soil_out['snc']
+                    self.sp_snc[self.sp_snc < 0.0] = 0.0
+
+                    # UPDATE ORGANIC POOLS
+                    self.sp_organic_n = self.sp_snc[:2].sum()
+                    self.sp_sorganic_n = self.sp_snc[2:4].sum()
+                    self.sp_organic_p = self.sp_snc[4:6].sum()
+                    self.sp_sorganic_p = self.sp_snc[6:].sum()
+                    self.sp_available_p += soil_out['pmin']
+                    self.sp_available_n += soil_out['nmin']
+
+                    # NUTRIENT DINAMICS
+                    # Inorganic N
+                    self.sp_in_n += self.sp_available_n + self.sp_so_n
+                    self.sp_so_n = soil_dec.sorbed_n_equil(self.sp_in_n)
+                    self.sp_available_n = soil_dec.solution_n_equil(
+                        self.sp_in_n)
+                    self.sp_in_n -= self.sp_so_n + self.sp_available_n
+
+                    # Inorganic P
+                    self.sp_in_p += self.sp_available_p + self.sp_so_p
+                    self.sp_so_p = soil_dec.sorbed_p_equil(self.sp_in_p)
+                    self.sp_available_p = soil_dec.solution_p_equil(
+                        self.sp_in_p)
+                    self.sp_in_p -= self.sp_so_p + self.sp_available_p
+
+                    # Sorbed P uptake
+                    self.sp_so_p = max(0.0, self.sp_so_p - self.pupt[1, step])
+
+                    # ORGANIC nutrients uptake
+                    total_on = self.sp_snc[:4].sum()
+                    if total_on > 0.0:
+                        self.sp_snc[:4] -= self.nupt[1, step] * (self.sp_snc[:4] / total_on)
+                    total_op = self.sp_snc[4:].sum()
+                    if total_op > 0.0:
+                        self.sp_snc[4:] -= self.pupt[2, step] * (self.sp_snc[4:] / total_op)
+                    self.sp_snc[self.sp_snc < 0.0] = 0.0
+
+                    self.sp_organic_n = self.sp_snc[:2].sum()
+                    self.sp_sorganic_n = self.sp_snc[2:4].sum()
+                    self.sp_organic_p = self.sp_snc[4:6].sum()
+                    self.sp_sorganic_p = self.sp_snc[6:].sum()
+
+                    # Soluble inorganic pools
+                    self.sp_available_p = max(0.0, self.sp_available_p - self.pupt[0, step])
+                    self.sp_available_n = max(0.0, self.sp_available_n - self.nupt[0, step])
+                # END SOIL NUTRIENT DYNAMICS
+
+                if save and nutri_cycle:
+                    self.nsto_allom[step] = np.sum(self.vp_ocp_allom * self.vp_nsto_allom)
+                    self.psto_allom[step] = np.sum(self.vp_ocp_allom * self.vp_psto_allom)
+                    self.carbon_costs[step] = daily_output_allom['c_cost_cwm']
+                    self.hresp[step] = soil_out['hr']
+                    self.csoil[:, step] = soil_out['cs']
+                    self.snc[:, step] = soil_out['snc']
+                    self.inorg_n[step] = self.sp_in_n
+                    self.inorg_p[step] = self.sp_in_p
+                    self.sorbed_n[step] = self.sp_so_n
+                    self.sorbed_p[step] = self.sp_so_p
+                    self.nmin[step] = self.sp_available_n
+                    self.pmin[step] = self.sp_available_p
+                    self.lim_status_allom[:, self.vp_lsid,
+                                          step] = daily_output_allom['limitation_status'][:, self.vp_lsid]
+                    self.uptake_strategy[:, self.vp_lsid,
+                                         step] = daily_output_allom['uptk_strat'][:, self.vp_lsid]
 
                 if save:
                     assert self.save == True

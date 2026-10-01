@@ -17,8 +17,8 @@
 ! Author: Bianca Rius and JP Darela
 ! This program is based on the work of those that gave us the INPE-CPTEC-PVM2 model
 
-! This program is a modified version of budget1. It is being developed to desconsider
-! nutri cycle for allocation and to implement allocation following allometric restrictions
+! Daily budget of the allometric version of CAETE (allocation in alloc3.f90),
+! with light competition and, optionally, the nutrient cycle (N, P).
 
 module budget_allom
    implicit none
@@ -28,18 +28,22 @@ module budget_allom
  
    contains
  
-   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh, catm&
+   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh&
+      &, mineral_n, labile_p, on, sop, op, n_sto_in, p_sto_in, uptk_costs_in, catm&
       &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
       &, dleaf_in, dwood_in, droot_in, dsap_in, dheart_in, dsto_in&
       &, cleaf_out, cwood_out, croot_out, csap_out, cheart_out, csto_out& !outputs
+      &, n_sto_out, p_sto_out&
       &, dleaf_out, dwood_out, droot_out, dsap_out, dheart_out, dsto_out&
       &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd&
       &, evavg, epavg, phavg, aravg, nppavg, laiavg, rcavg&
       &, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
-      &, specific_la_1, ocpavg)
+      &, specific_la_1, ocpavg&
+      &, nupt_1, pupt_1, lit_nut_content_1, limiting_nutrient_out&
+      &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
 
       use types
-      use global_par, only: ntraits, npls, light_comp, sapwood
+      use global_par, only: ntraits, npls, light_comp, sapwood, year_days
       use alloc
       use productivity
       use omp_lib
@@ -66,6 +70,20 @@ module budget_allom
       real(r_8),intent(in) :: rh      ! Relative humidity 
       real(r_8),intent(in) :: catm    ! ATM CO2 concentration ppm
       real(r_8),intent(in) :: ts      ! Soil temperature (oC)
+
+      !Nutrient pools (gridcell soil state, g m-2) - same convention as budget.f90
+      real(r_8),intent(in) :: mineral_n            ! Solution N NOx/NaOH gm-2
+      real(r_8),intent(in) :: labile_p             ! solution P O4P  gm-2
+      real(r_8),intent(in) :: on, sop, op          ! Organic N, sorbed inorganic P, Organic P g m-2
+
+      !PLS N/P reserve (previous day), g m-2 - analogous to csto_in for carbon
+      real(r_8),dimension(npls),intent(in) :: n_sto_in
+      real(r_8),dimension(npls),intent(in) :: p_sto_in
+
+      !Previous-day carbon cost of nutrient uptake per PLS, g m-2 - same
+      !convention as budget.f90 (feed back the previous day's npp2pay_1).
+      !It is paid from today's carbon in allocation3/grass_allocation3.
+      real(r_8),dimension(npls),intent(in) :: uptk_costs_in
 
       !Soil
       real(r_8),intent(in) :: wmax_in ! Saturation point
@@ -99,6 +117,10 @@ module budget_allom
       real(r_8),dimension(npls),intent(out) :: csap_out
       real(r_8),dimension(npls),intent(out) :: cheart_out
       real(r_8),dimension(npls),intent(out) :: csto_out
+
+      !PLS N/P reserve (updated), g m-2 - analogous to csto_out for carbon
+      real(r_8),dimension(npls),intent(out) :: n_sto_out
+      real(r_8),dimension(npls),intent(out) :: p_sto_out
 
       !Delta vegetation pools
       real(r_8),dimension(npls),intent(out) :: dleaf_out
@@ -134,6 +156,26 @@ module budget_allom
       real(r_8), intent(out) :: cheart_grd
       real(r_8), intent(out) :: csto_grd
 
+      !Gridcell (CWM) nutrient diagnostics
+      real(r_8), dimension(2), intent(out) :: nupt_1              !g m-2 (1) from mineral_n, (2) from on
+      real(r_8), dimension(3), intent(out) :: pupt_1              !g m-2 (1) from labile_p, (2) from sop, (3) from op
+      real(r_8), dimension(6), intent(out) :: lit_nut_content_1   !g(Nutrient)m-2 [leaf-N,root-N,cwd-N,leaf-P,root-P,cwd-P]
+      !Limiting nutrient per PLS: dim1 = leaf wood root, same codes as budget.f90 (limitation_status_1)
+      integer(i_2), dimension(3,npls), intent(out) :: limiting_nutrient_out
+
+      !Litter carbon (CWM), g(C) m-2 day-1 - same convention as budget.f90
+      real(r_8), intent(out) :: litter_l_1
+      real(r_8), intent(out) :: cwd_1
+      real(r_8), intent(out) :: litter_fr_1
+
+      !Carbon costs of nutrient uptake and resorption (same names/shapes as budget.f90)
+      real(r_8), dimension(npls), intent(out) :: npp2pay_1          !g(C) m-2, per PLS
+      integer(i_4), dimension(2,npls), intent(out) :: uptk_strat_1  !(1) N, (2) P strategy, per PLS
+      real(r_8), intent(out) :: c_cost_cwm                          !g(C) m-2, CWM
+
+      !Carbon sent to the N fixers (CWM), g(C) m-2 day-1 - cp(4) in budget.f90
+      real(r_8), intent(out) :: ctonfix_cwm
+
       !==========================================================================
 
       !==========================================================================
@@ -160,6 +202,10 @@ module budget_allom
       real(r_8),dimension(npls) :: cheart_pls
       real(r_8),dimension(npls) :: csto_pls
 
+      !PLS N/P reserve, g m-2 - analogous to csto_pls for carbon
+      real(r_8),dimension(npls) :: n_sto_pls
+      real(r_8),dimension(npls) :: p_sto_pls
+
       !Carbon vegetation pools after allocation routine
       real(r_8),dimension(:), allocatable :: cleaf_pls2
       real(r_8),dimension(:), allocatable :: cwood_pls2
@@ -167,6 +213,19 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: csap_pls2
       real(r_8),dimension(:), allocatable :: cheart_pls2
       real(r_8),dimension(:), allocatable :: csto_pls2
+
+      !PLS N/P reserve after allocation routine - analogous to csto_pls2
+      real(r_8),dimension(:), allocatable :: n_sto_pls2
+      real(r_8),dimension(:), allocatable :: p_sto_pls2
+
+      !Nutrient fluxes and diagnostics from allocation3/grass_allocation3 per PLS
+      real(r_8),dimension(:,:), allocatable :: nitrogen_uptake_pls   !d0=2
+      real(r_8),dimension(:,:), allocatable :: phosphorus_uptake_pls !d0=3
+      real(r_8),dimension(:,:), allocatable :: litter_nutrient_pls   !d0=6
+      integer(i_2),dimension(:,:), allocatable :: limiting_nutrient_pls !d0=3
+      real(r_8),dimension(:), allocatable :: npp2pay                 !g(C) m-2 - C cost of uptake and resorption
+      integer(i_4),dimension(:,:), allocatable :: uptk_strat         !d0=2
+      real(r_8),dimension(:), allocatable :: ctonfix_pls             !g(C) m-2 - C sent to N fixers
 
       !carbon vegetation pools discounting c deficit
       real(r_8),dimension(:), allocatable :: cleaf_int
@@ -221,6 +280,15 @@ module budget_allom
       real(r_8),dimension(:),allocatable :: cwd          ! coarse wood debris (to litter)
       real(r_8),dimension(:),allocatable :: litter_fr    ! fine roots litter
 
+      !Respiration of the stored carbon (same names as budget.f90)
+      real(r_8) :: mr_sto                !maintenance respiration of storage, g(C) m-2 day-1
+      real(r_8) :: sr                    !growth respiration of storage, g(C) m-2 day-1
+      real(r_8) :: growth_stoc           !daily growth of the storage pool, g(C) m-2
+      real(r_8) :: csto_aux              !storage after maintenance respiration, kg(C) m-2
+      real(r_8), dimension(3) :: sto_aux !PLS storage (C, N, P), g m-2
+      real(r_8), parameter :: csto_max = 0.5D2 !ceiling of the C storage, g(C) m-2 (same value as budget.f90)
+      real(r_8) :: sto_excess            !storage above the ceiling, respired, g(C) m-2 day-1
+
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
       !Water cycle
@@ -272,6 +340,8 @@ module budget_allom
          csap_pls(i)   = csap_in(i)
          cheart_pls(i) = cheart_in(i)
          csto_pls(i)   = csto_in(i)
+         n_sto_pls(i)  = n_sto_in(i)
+         p_sto_pls(i)  = p_sto_in(i)
 
          dleaf(i)  = dleaf_in(i)
          dwood(i)  = dwood_in(i)
@@ -358,6 +428,16 @@ module budget_allom
       allocate(csap_pls2(nlen))
       allocate(cheart_pls2(nlen))
       allocate(csto_pls2(nlen))
+
+      allocate(n_sto_pls2(nlen))
+      allocate(p_sto_pls2(nlen))
+      allocate(nitrogen_uptake_pls(2,nlen))
+      allocate(phosphorus_uptake_pls(3,nlen))
+      allocate(litter_nutrient_pls(6,nlen))
+      allocate(limiting_nutrient_pls(3,nlen))
+      allocate(npp2pay(nlen))
+      allocate(uptk_strat(2,nlen))
+      allocate(ctonfix_pls(nlen))
 
       allocate(leaf_req(nlen))
       allocate(leaf_inc_min(nlen))
@@ -494,7 +574,7 @@ module budget_allom
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
-      !$OMP PRIVATE(p, ri, dt1)
+      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess)
 
       do p = 1,nlen
          
@@ -509,47 +589,77 @@ module budget_allom
          ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
          ! agregado de todas as PLS (pre-loop acima).
 
-         ! m_resp() (called inside prod -> productivity.f90) derives sapwood
-         ! carbon internally as `sapwood * ca1_prod`, assuming ca1_prod is the
-         ! TOTAL wood pool (sap+heart), as it is in the classic (non-allom)
-         ! scheme where sap/heart aren't tracked separately. Here csap_pls(ri)
-         ! is already sapwood-only, so passing it unscaled would apply the
-         ! `sapwood` fraction twice, underestimating sapwood maintenance
-         ! respiration by ~20x. Dividing by `sapwood` here cancels the
-         ! internal multiplication so m_resp receives the correct sapwood
-         ! mass, without changing the shared prod/m_resp code used by budget.f90.
+         ! m_resp (productivity.f90) multiplies the wood carbon it receives by
+         ! the sapwood fraction. csap_pls is already sapwood only, so it is
+         ! divided by that fraction here.
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cleaf_pls(ri), csap_pls(ri)/sapwood, croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
-         !call prod(dt1, ocp_wood(ri), catm, temp, soil_temp, p0, w, ipar&
-         !   &, rh, emax, cleaf_pls(ri), csap_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
-         !   &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p)&
-         !   &, rm(p), rg(p), rc2(p), wue(p), c_def(p), vcmax(p), specific_la(p), tra(p))
          
          evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
          
-         ! alloc3 substitui integralmente o allocation2 antigo (alloc2): alocação
-         ! alométrica gradual com storage lábil para lenhosas (allocation3), e
-         ! alocação proporcional a NPP via aleaf/aroot para gramíneas
-         ! (grass_allocation3). height_pls(p) já foi calculado no pré-loop
-         ! (height_from_stem_carbon) e é reutilizado aqui sem recálculo, para
-         ! garantir consistência com a competição por luz no mesmo timestep.
+         ! Maintenance respiration of the stored carbon, paid from the storage
+         ! before allocation (as in budget.f90). sto_resp (funcs.f90) uses the
+         ! same Ryan (1991) equation of m_resp, proportional to the N reserve:
+         ! it is an annual rate (g(C) m-2 yr-1), converted here to a daily loss.
+         sto_aux(1) = csto_pls(ri) * 1.0D3
+         sto_aux(2) = n_sto_pls(ri)
+         sto_aux(3) = p_sto_pls(ri)
+         mr_sto = sto_resp(temp, sto_aux) / year_days
+         if (ieee_is_nan(mr_sto)) mr_sto = 0.0D0
+         mr_sto = max(0.0D0, min(mr_sto, sto_aux(1)))
+         csto_aux = csto_pls(ri) - (mr_sto * 1.0D-3)
+
+         ! Alocação (alloc3.f90): allocation3 para lenhosas e grass_allocation3
+         ! para gramíneas. height_pls(p) vem do pré-loop e é reutilizado aqui,
+         ! para ser o mesmo valor usado na competição por luz.
 
          if (dt1(7) .gt. 0.0D0) then
-            call allocation3(step, ri, p, dt1, nppa(p)&
-               &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_pls(ri), height_pls(p)&
+            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+               &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
+               &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
                &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
+               &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
+               &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
+               &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
                &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
          else
-            call grass_allocation3(p, dt1, nppa(p), cleaf_pls(ri), croot_pls(ri), csto_pls(ri)&
-               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p))
+            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+               &,cleaf_pls(ri), croot_pls(ri), csto_aux&
+               &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
+               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
+               &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
+               &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
+               &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p))
             leaf_req(p) = 0.0D0
             leaf_inc_min(p) = 0.0D0
             root_inc_min(p) = 0.0D0
          end if
+
+         ! Growth respiration of the storage pool: 5% of its daily growth
+         ! (as in budget.f90). Both storage respiration terms are added to ar.
+         growth_stoc = max(0.0D0, (csto_pls2(p) - csto_aux) * 1.0D3)
+         if (ieee_is_nan(growth_stoc)) growth_stoc = 0.0D0
+         sr = 0.05D0 * growth_stoc
+         csto_pls2(p) = csto_pls2(p) - (sr * 1.0D-3)
+
+         ! Ceiling of the storage pool: budget.f90 zeroes the storage above
+         ! 50 g m-2; here only the excess is removed and it is respired (added
+         ! to ar), so the carbon does not leave the balance.
+         sto_excess = max(0.0D0, (csto_pls2(p) * 1.0D3) - csto_max)
+         csto_pls2(p) = csto_pls2(p) - (sto_excess * 1.0D-3)
+         ar(p) = ar(p) + ((sr + mr_sto + sto_excess) * 0.365242D0) ! g m-2 day-1 to kg m-2 year-1
+         ! the same respiration is discounted from the NPP, so that the output
+         ! keeps NPP = photosynthesis - ar (budget.f90 does not discount it)
+         nppa(p) = nppa(p) - ((sr + mr_sto + sto_excess) * 0.365242D0)
+
+         if (n_sto_pls2(p) .lt. 0.0D0) n_sto_pls2(p) = 0.0D0
+         if (p_sto_pls2(p) .lt. 0.0D0) p_sto_pls2(p) = 0.0D0
 
          !Carbon use efficiency & Delta C
          if(ph(p) < 1.0D-15 .or. nppa(p) < 1.0D-15) then
@@ -558,21 +668,9 @@ module budget_allom
             cue(p) = nppa(p)/ph(p)
          endif
 
-         ! NOTE ON CARBON DEFICIT (ar > ph): previously this block re-applied
-         ! c_def here as a second, independent discount on top of
-         ! cleaf_pls2/csap_pls2/csto_pls2/etc, using fixed fractions and no
-         ! floor at zero. That double-counted the deficit already computed in
-         ! productivity.f90 and bypassed storage entirely, since nppa arrived
-         ! here pre-zeroed. The deficit is now paid exactly once, upstream,
-         ! inside allocation3/grass_allocation3 (alloc3.f90): negative nppa is
-         ! consumed from labile storage first, and only the unmet remainder
-         ! triggers structural starvation (leaf/root/sapwood->heartwood).
-         ! c_def(p)/c_defcit remains available purely as a diagnostic of the
-         ! raw (ar-ph) shortfall; it must not be subtracted from pools again
-         ! here. cleaf_pls2/csap_pls2/cheart_pls2/csto_pls2 already reflect
-         ! that outcome for both the woody and grass paths (grass_allocation3
-         ! itself returns zero sap/heart/wood), so they are passed through
-         ! directly.
+         ! Carbon deficit (ar > ph): paid inside allocation3/grass_allocation3,
+         ! first by the storage and then by leaf, root and sapwood. c_def is
+         ! only a diagnostic here and is not discounted from the pools again.
          cleaf_int(p)  = cleaf_pls2(p)
          croot_int(p)  = croot_pls2(p)
          csap_int(p)   = csap_pls2(p)
@@ -587,13 +685,6 @@ module budget_allom
          if (csto_int(p).lt.0.0D0)   csto_int(p) = 0.0D0
          if (cwood_int(p).lt.0.0D0)  cwood_int(p) = 0.0D0
       
-         !estimate growth of storage pool (acho que isso vai ser dentro da alloc)
-         !calculate storage growth respi(onde isso?)
-
-         ! growth_stoc = 0.0D0
-         ! mr_sto = 0.0D0
-         ! sr = 0.0D0
-
          !calculating deltas
          if (dt1(7) .gt. 0.0D0)then
             dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
@@ -644,6 +735,8 @@ module budget_allom
       csap_out(:)   = 0.0D0
       cheart_out(:) = 0.0D0
       csto_out(:)   = 0.0D0
+      n_sto_out(:)  = 0.0D0
+      p_sto_out(:)  = 0.0D0
 
       dleaf_out(:)  = 0.0D0
       dwood_out(:)  = 0.0D0
@@ -658,6 +751,18 @@ module budget_allom
       csap_grd   = 0.0D0
       cheart_grd = 0.0D0
       csto_grd   = 0.0D0
+
+      nupt_1(:)              = 0.0D0
+      pupt_1(:)              = 0.0D0
+      lit_nut_content_1(:)   = 0.0D0
+      limiting_nutrient_out(:,:) = 0_i_2
+      litter_l_1             = 0.0D0
+      cwd_1                  = 0.0D0
+      litter_fr_1            = 0.0D0
+      npp2pay_1(:)           = 0.0D0
+      uptk_strat_1(:,:)      = 0
+      c_cost_cwm             = 0.0D0
+      ctonfix_cwm            = 0.0D0
 
       ! Calculate CWM for ecosystem processes
  
@@ -687,6 +792,31 @@ module budget_allom
       cheart_grd = sum(cheart_int * ocp_coeffs, mask = .not. ieee_is_nan(cheart_int))
       csto_grd   = sum(csto_int   * ocp_coeffs, mask = .not. ieee_is_nan(csto_int  ))
 
+      ! Nutrient diagnostics, aggregated as in budget.f90
+      do i = 1, 6
+         do p = 1, nlen
+            if(ieee_is_nan(litter_nutrient_pls(i, p))) litter_nutrient_pls(i, p) = 0.0D0
+            if (litter_nutrient_pls(i, p) .gt. 1.0D2) litter_nutrient_pls(i, p) = 0.0D0
+            if (litter_nutrient_pls(i, p) .lt. 0.0D0) litter_nutrient_pls(i, p) = 0.0D0
+         enddo
+      enddo
+
+      do i = 1, 2
+         nupt_1(i) = sum(nitrogen_uptake_pls(i,:) * ocp_coeffs)
+      enddo
+      do i = 1, 3
+         pupt_1(i) = sum(phosphorus_uptake_pls(i,:) * ocp_coeffs)
+      enddo
+      do i = 1, 6
+         lit_nut_content_1(i) = sum(litter_nutrient_pls(i,:) * ocp_coeffs)
+      enddo
+
+      litter_l_1  = sum(litter_l * ocp_coeffs, mask= .not. ieee_is_nan(litter_l))
+      cwd_1       = sum(cwd * ocp_coeffs, mask= .not. ieee_is_nan(cwd))
+      litter_fr_1 = sum(litter_fr * ocp_coeffs, mask= .not. ieee_is_nan(litter_fr))
+      c_cost_cwm  = sum(npp2pay * ocp_coeffs, mask= .not. ieee_is_nan(npp2pay))
+      ctonfix_cwm = sum(ctonfix_pls * ocp_coeffs, mask= .not. ieee_is_nan(ctonfix_pls))
+
       !daily output to carbon pools (not CWM)
       do p = 1, nlen
          ri = lp(p)
@@ -697,6 +827,12 @@ module budget_allom
          csap_out(ri)   =  csap_int(p)
          csto_out(ri)   =  csto_int(p)
          cwood_out(ri)  =  cheart_out(ri) + csap_out(ri)
+
+         n_sto_out(ri)  =  n_sto_pls2(p)
+         p_sto_out(ri)  =  p_sto_pls2(p)
+         limiting_nutrient_out(:,ri) = limiting_nutrient_pls(:,p)
+         npp2pay_1(ri) = npp2pay(p)
+         uptk_strat_1(:,ri) = uptk_strat(:,p)
       
          !deltas
          dleaf_out(ri)  =  dleaf_pls_aux(p)
@@ -736,6 +872,16 @@ module budget_allom
       deallocate(csap_pls2)
       deallocate(cheart_pls2)
       deallocate(csto_pls2)
+
+      deallocate(n_sto_pls2)
+      deallocate(p_sto_pls2)
+      deallocate(nitrogen_uptake_pls)
+      deallocate(phosphorus_uptake_pls)
+      deallocate(litter_nutrient_pls)
+      deallocate(limiting_nutrient_pls)
+      deallocate(npp2pay)
+      deallocate(uptk_strat)
+      deallocate(ctonfix_pls)
 
       deallocate(leaf_req)
       deallocate(leaf_inc_min)

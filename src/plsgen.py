@@ -134,6 +134,29 @@ def turnover_combinations(verbose=False):
     return a1, a2
 
 
+def sample_np_ratios(NPLS, N0, NM, P0, PM, np_min, np_max):
+    """Sample NPLS combinations of N:C and P:C (g g-1) inside the ranges
+       [N0, NM] and [P0, PM], keeping only the ones with np_min <= N:P <= np_max.
+       Same result as sampling from the table of all valid combinations of
+       np.linspace(N0, NM, 5000) x np.linspace(P0, PM, 5000), without building it
+    """
+
+    pool_n2c = np.linspace(N0, NM, 5000)
+    pool_p2c = np.linspace(P0, PM, 5000)
+
+    sampleNP = np.zeros(shape=(NPLS, 2), dtype=np.float64)
+    index = 0
+    while index < NPLS:
+        a = pool_n2c[np.random.randint(0, 5000, size=NPLS)]
+        b = pool_p2c[np.random.randint(0, 5000, size=NPLS)]
+        valid = ((a / b) >= np_min) & ((a / b) <= np_max)
+        n = min(int(valid.sum()), NPLS - index)
+        sampleNP[index: index + n, 0] = a[valid][:n]
+        sampleNP[index: index + n, 1] = b[valid][:n]
+        index += n
+    return sampleNP
+
+
 def calc_ratios1(NPLS):
     # LEAF POOL
     # Reich, P. B., & Oleksyn, J. (2004). 
@@ -141,59 +164,12 @@ def calc_ratios1(NPLS):
     # Proceedings of the National Academy of Sciences, 101(30), 11001–11006. 
     # https://doi.org/10.1073/pnas.0403588101
 
-    #using when nutrients influence in allocation is on
-    # N0 = 0.001
-    # NM = 0.05
-    # P0 = 0.0002
-    # PM = 0.0095
+    N0 = 0.001
+    NM = 0.05
+    P0 = 0.0002
+    PM = 0.0095
 
-    #using when nutrients influence in allocation is off (mean value)
-    N0 = 0.0255
-    NM = 0.0255
-    P0 = 0.0048
-    PM = 0.0048
-
-    if os.path.exists(Path("./NP1.npy")):
-        x1 = np.load("./NP1.npy")
-    else:
-        print('NP1...')
-    
-    #ATTENTION: here it follows 2 codes, one for constant value for n2c and p2c and the other varies these variables    
-    
-    #===========================
-    #         CONSTANT
-    #===========================
-
-    #code for constant value of n2c and p2c
-    pool_n2c = np.full(5000, N0)
-    pool_p2c = np.full(5000, P0)
-
-    # Creates the x1 array with the arrays of pool_n2c and pool_p2c
-    x1 = np.array([pool_n2c, pool_p2c])
-
-    #Transpose the array x1 so that each array is in a separate column
-    x1 = x1.T
-    print(x1)
-
-    # Save the array x1 in one file
-    np.save("./NP1.npy", x1)
-    
-    #===========================
-    #         VARIANT
-    #===========================
-    # original code for variant n2c and p2c
-    # pool_n2c = np.linspace(N0, NM, 5000)
-    # pool_p2c = np.linspace(P0, PM, 5000)
-    # x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-    #     (a / b) >= 1.5) and ((a / b) <= 70.0)]
-    # assert len(x) > 0, "zero len"
-    # x1 = np.array(x)
-    # np.save("./NP1.npy", x1)
-    #===========================
-
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 1.5, 70.0)
 
 
 def calc_ratios2(NPLS):
@@ -201,59 +177,14 @@ def calc_ratios2(NPLS):
     # Heineman, K. D., Turner, B. L., & Dalling, J. W. (2016). 
     # Variation in wood nutrients along a tropical soil fertility gradient. 
     # New Phytologist, 211(2), 440?454. https://doi.org/10.1111/nph.13904
-   
-    #using when nutrients influence in allocation is on
-    # N0 = 0.001
-    # NM = 0.01
-    # P0 = 3.12e-5
-    # PM = 0.0035
 
-    #using when nutrients influence in allocation is off (mean value)
-    N0 = 0.0055
-    NM = 0.0055
-    P0 = 0.0017656
-    PM = 0.0017656
+    N0 = 0.001
+    NM = 0.01
+    P0 = 3.12e-5
+    PM = 0.0035
 
-    if os.path.exists(Path("./NP2.npy")):
-        x1 = np.load("./NP2.npy")
-    else:
-        print('NP2...')
-    
-    #ATTENTION: here it follows 2 codes, one for constant value for n2c and p2c and the other varies these variables    
-    
-    #===========================
-    #       CONSTANT
-    #===========================
-    
-    #code for constant value of n2c and p2c
-    pool_n2c = np.full(5000, N0)
-    pool_p2c = np.full(5000, P0)
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 4.0, 180.0)
 
-    # Creates the x1 array with the arrays of pool_n2c and pool_p2c
-    x1 = np.array([pool_n2c, pool_p2c])
-
-    #Transpose the array x1 so that each array is in a separate column
-    x1 = x1.T
-
-    # Save the array x1 in one file
-    np.save("./NP2.npy", x1)
-    
-    #===========================
-
-    # pool_n2c = np.linspace(N0, NM, 5000)
-    # pool_p2c = np.linspace(P0, PM, 5000)
-
-    # x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-    #     (a / b) >= 4) and ((a / b) <= 180.0)]
-    # assert len(x) > 0, "zero len"
-    # x1 = np.array(x)
-    # np.save("./NP2.npy", x1)
-
-    #===========================  
-
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
 
 def calc_ratios3(NPLS):
     # FINE ROOT POOL
@@ -266,61 +197,13 @@ def calc_ratios3(NPLS):
     # U.S. Department of Energy, Oak Ridge, Tennessee, U.S.A. 
     # https://doi.org/https://doi.org/10.25581/ornlsfa.014/1459186
     # AND some references therein
-    
-    #using when nutrients influence in allocation is on
-    # N0 = 0.001
-    # NM = 0.06
-    # P0 = 0.0003
-    # PM = 0.005
 
-    #using when nutrients influence in allocation is off (mean value)
-    N0 = 0.0305
-    NM = 0.0305
-    P0 = 0.00265
-    PM = 0.00265
+    N0 = 0.001
+    NM = 0.06
+    P0 = 0.0003
+    PM = 0.005
 
-    if os.path.exists(Path("./NP3.npy")):
-        x1 = np.load("./NP3.npy")
-    else:
-        print('NP3...')
-    
-    #ATTENTION: here it follows 2 codes, one for constant value for n2c and p2c and the other varies these variables    
-    
-    #===========================  
-    #        CONSTANT
-    #===========================
-        
-    #code for constant value of n2c and p2c
-    pool_n2c = np.full(5000, N0)
-    pool_p2c = np.full(5000, P0)
-
-    # Creates the x1 array with the arrays of pool_n2c and pool_p2c
-    x1 = np.array([pool_n2c, pool_p2c])
-
-    #Transpose the array x1 so that each array is in a separate column
-    x1 = x1.T
-
-    # Save the array x1 in one file
-    np.save("./NP3.npy", x1)
-    
-    #===========================
-    #         VARIANT
-    #===========================
-
-    # pool_n2c = np.linspace(N0, NM, 5000)
-    # pool_p2c = np.linspace(P0, PM, 5000)
-
-    # x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-    #     (a / b) >= 2) and ((a / b) <= 80)]
-    # assert len(x) > 0, "zero len"
-    # x1 = np.array(x)
-    # np.save("./NP3.npy", x1)
-    
-    #===========================
-
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 2.0, 80.0)
 
 
 def table_gen(NPLS, fpath=None):
