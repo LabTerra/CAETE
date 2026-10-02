@@ -37,8 +37,8 @@ início do histórico. Todos os valores são médias ou somas anuais da célula.
 | LAI (m² m⁻²) | 5,6 | 5,8 | 6,4 | 6,5 |
 | Folha (kgC m⁻²) | 1,27 | 1,25 | 1,35 | 1,38 |
 | Raiz fina (kgC m⁻²) | 3,08 | 3,10 | 3,10 | 2,98 |
-| Alburno (kgC m⁻²) | 4,05 | 4,64 | 4,80 | 4,70 |
-| Cerne (kgC m⁻²) | 7,07 | 10,6 | 13,3 | 13,5 |
+| Sapwood (kgC m⁻²) | 4,05 | 4,64 | 4,80 | 4,70 |
+| Heartwood (kgC m⁻²) | 7,07 | 10,6 | 13,3 | 13,5 |
 | PLSs vivos | 2606 | 2062 | 1785 | 1780 |
 | N mineral do solo (g m⁻²) | 96 | 107 | 186 | 192 |
 | P lábil do solo (g m⁻²) | 2,72 | 2,74 | 2,73 | 2,73 |
@@ -52,7 +52,7 @@ início do histórico. Todos os valores são médias ou somas anuais da célula.
 - O ciclo de P fecha: a absorção iguala o retorno pela serapilheira e o P lábil
   do solo fica constante.
 - Em média 55% da área é limitada por P (pela folha, e em parte pela raiz
-  fina). Não há limitação por N, e o alburno nunca é limitado.
+  fina). Não há limitação por N, e o sapwood nunca é limitado.
 
 **Pontos de atenção (ainda não resolvidos)**
 
@@ -70,6 +70,16 @@ início do histórico. Todos os valores são médias ou somas anuais da célula.
 
 ## Figuras
 
+Cada figura existe em duas versões:
+
+- **série completa** (`figN_….png`): os 385 anos do segundo spinup seguidos dos
+  38 anos do histórico. O histórico ocupa só a ponta direita do eixo;
+- **só a rodada histórica** (`figN_…_historico.png`): os mesmos painéis de 1979
+  a 2016, com o ano civil no eixo.
+
+As figuras abaixo são as da série completa; as da rodada histórica estão
+ligadas em cada seção.
+
 ### 1. Fluxos de carbono
 
 GPP, respiração autotrófica e NPP no mesmo eixo; a NPP sozinha; a eficiência de
@@ -77,17 +87,21 @@ uso do carbono (NPP/GPP); e o LAI.
 
 ![Fluxos de carbono](fig1_fluxos_carbono.png)
 
+Só a rodada histórica: [fig1_fluxos_carbono_historico.png](fig1_fluxos_carbono_historico.png)
+
 ### 2. Biomassa
 
-Biomassa total; por tecido (folha, raiz fina, alburno, cerne); folha e raiz
+Biomassa total; por tecido (folha, raiz fina, sapwood, heartwood); folha e raiz
 fina em escala própria; e o estoque de carbono não estrutural (`csto`), que
 tem um teto de 50 gC m⁻² por PLS.
 
 ![Biomassa](fig2_biomassa.png)
 
+Só a rodada histórica: [fig2_biomassa_historico.png](fig2_biomassa_historico.png)
+
 ### 3. N e P nos tecidos
 
-Em cima, as razões N:C e P:C de folha, raiz fina e alburno, como média da
+Em cima, as razões N:C e P:C de folha, raiz fina e sapwood, como média da
 comunidade ponderada pela área de cada PLS. Embaixo, o N e o P contidos em cada
 tecido.
 
@@ -98,6 +112,8 @@ aproximação, porque a saída guarda apenas os pools somados da célula.
 
 ![N e P nos tecidos](fig3_N_P_tecidos.png)
 
+Só a rodada histórica: [fig3_N_P_tecidos_historico.png](fig3_N_P_tecidos_historico.png)
+
 ### 4. Sobrevivência e limitação
 
 Número de PLSs vivos; fração da área ocupada por lenhosas; fração da área por
@@ -107,6 +123,8 @@ diários.
 
 ![Sobrevivência e limitação](fig4_comunidade_limitacao.png)
 
+Só a rodada histórica: [fig4_comunidade_limitacao_historico.png](fig4_comunidade_limitacao_historico.png)
+
 ### 5. Ciclo de N e P
 
 Linha de cima, nitrogênio: absorção pelas plantas e retorno pela serapilheira;
@@ -114,6 +132,8 @@ N mineral do solo; reserva de N das plantas. Linha de baixo, o mesmo para o
 fósforo, com a absorção separada por origem (P lábil, orgânico e sorvido).
 
 ![Ciclo de N e P](fig5_ciclo_nutrientes.png)
+
+Só a rodada histórica: [fig5_ciclo_nutrientes_historico.png](fig5_ciclo_nutrientes_historico.png)
 
 ### 6. Respiração e solo
 
@@ -123,11 +143,14 @@ serapilheira de carbono por origem; e carbono no solo.
 
 ![Respiração e solo](fig6_respiracao_solo.png)
 
+Só a rodada histórica: [fig6_respiracao_solo_historico.png](fig6_respiracao_solo_historico.png)
+
 ## Arquivos desta pasta
 
 | Arquivo | Conteúdo |
 |---|---|
-| `fig1_…png` a `fig6_…png` | As seis figuras |
+| `fig1_…png` a `fig6_…png` | As seis figuras da série completa |
+| `fig1_…_historico.png` a `fig6_…_historico.png` | As mesmas figuras só para 1979–2016 |
 | `anual.csv` | Tabela com uma linha por ano de simulação e todas as variáveis das figuras |
 | `agrega.py` | Lê as saídas diárias da rodada (`spinNN.pkz`) e gera a `anual.csv` |
 | `plota.py` | Gera as figuras a partir da `anual.csv` |
