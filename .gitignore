@@ -30,7 +30,6 @@ outputs/
 
 
 
-Essas regras dizem para ignorar todos os arquivos dentro do diretório `outputs`, mas fazer exceções para os arquivos com extensão `.py` e `.csv`. Certifique-se de que este arquivo `.gitignore` esteja na raiz do seu repositório Git.
 outputs_server/*
 nc_outputs/*
 h5/*
