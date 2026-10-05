@@ -1,4 +1,7 @@
-"""Figuras da rodada ALLOM_NUTRI (celula 186-239) a partir de anual.csv"""
+"""Figuras de uma rodada a partir de <pasta>/anual.csv.
+Uso: python plota.py <pasta> ["titulo da rodada"]   (as figuras sao gravadas em <pasta>)"""
+import os, sys
+os.chdir(sys.argv[1])
 import numpy as np, pandas as pd, matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -41,7 +44,7 @@ def finish(fig, name, sup):
         if getattr(ax, '_hist', False) and H0: _mark_hist(ax)
     fig.tight_layout(rect=(0, 0, 1, 0.95)); fig.savefig(name.replace('.png', SUFFIX + '.png'), dpi=140); plt.close(fig)
 
-SUB = 'CAETÊ alométrico + nutrientes · célula 186-239 (Amazônia central) · 3000 PLSs'
+SUB = (sys.argv[2] if len(sys.argv) > 2 else 'CAETÊ alométrico + nutrientes') + ' · célula 186-239 · 3000 PLSs'
 
 def make():
     # 1 - fluxos de carbono

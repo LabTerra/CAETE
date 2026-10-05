@@ -338,8 +338,8 @@ contains
          ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
-         ! SLA via Reich et al. (1997), derived from leaf longevity (tau_leaf, dt(3)).
-         idx_pre = leaf_area_index(cl1_pft(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
+         ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
+         idx_pre = leaf_area_index(cl1_pft(ri), sla_trait(dt(18,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
          do n_pre = 1, nl_shared

@@ -75,7 +75,7 @@ module global_par
 
    !turnover parameters - see parameters in Bucley & Roberts  2006 - Tree physiology
    !provisory
-   real(r_8), parameter, public :: l_turnover = 1./4. !Sitch et al 2003
+   real(r_8), parameter, public :: l_turnover = 1./4. !not used: leaf turnover comes from the SLA trait (leaf_long, funcs.f90)
    real(r_8), parameter, public :: r_turnover = 1./4. !Sitch et al 2003
    real(r_8), parameter, public :: s_turnover = 1./20. !0.05 !Sitch et al 2003
    real(r_8), parameter, public :: sto_turnover = 1./20. !Dietze et al 2014
@@ -122,6 +122,7 @@ module photo_par
         p25 = 9.1D-5         ,&          !Maximum gross photosynthesis rate (molCO2/m2/s)
         p26 = 0.50D0         ,&          !light extinction coefficient for IPAR/sun (0.5/sen90)
         p27 = 0.80D0         ,&          !diffuse light extinction coefficient (De Pury & Farquhar 1997)
+        daylength_h = 12.0D0 ,&          !hours of daylight used to spread the daily PAR (tropics)
         alphap = 0.0913D0    ,&          ! 0.0913 parameter for v4m. Hard to explain. See Chen et al. 1994
         vpm25 =  85.0D0      ,&          ! µmol m-2 s-1 PEPcarboxylase CO2 saturated rate of carboxilation at 25°C
         h_vpm = 185075.0D0   ,&          ! Arrhenius eq. constant

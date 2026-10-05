@@ -80,7 +80,6 @@ contains
     !     --------
 
         real(r_8) :: awood                  !wood allocation fraction (to identify grasses)
-        real(r_8) :: tleaf                  !leaf residence time (yr) - dt(3), drives SLA via Reich et al. 1997
         real(r_8) :: g1
         real(r_8) :: c4
 
@@ -102,7 +101,6 @@ contains
     !getting pls parameters
 
         g1  = dt(1)
-        tleaf = dt(3)
         awood = dt(7)
         c4  = dt(9)
         n2cl = dt(10)
@@ -121,8 +119,8 @@ contains
     !     ==============
     ! rate (molCO2/m2/s)
     
-        ! SLA via Reich et al. (1997), derived from leaf longevity (tleaf, dt(3)).
-        sla = spec_leaf_area(tleaf)  ! m2/gC
+        ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
+        sla = sla_trait(dt(18))  ! m2/gC
     
         ! [LIGHT COMP] Repassa linc_layer, nl_shared e lsize_shared para
         ! photosynthesis_rate, que usara esses valores em vez de recalcular
@@ -132,7 +130,7 @@ contains
         call photosynthesis_rate(catm,temp,p0,ipar,sla,c4_int,n2cl,&
             & p2cl,cl1_prod,ca1_prod,height1,&
             & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
-            & f1a_sun,f1a_shade)
+            & f1a_sun,f1a_shade,rh)
     
         ! VPD
         !========

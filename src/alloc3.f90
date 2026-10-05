@@ -39,7 +39,7 @@ module alloc3
 
    use types
    use global_par
-   use photo, only: spec_leaf_area, realized_npp
+   use photo, only: sla_trait, leaf_long, realized_npp
    use carbon_costs, only: passive_uptake, retran_nutri_cost, fixed_n,&
                          & active_costn, active_costp,&
                          & select_active_strategy, prep_out_n, prep_out_p
@@ -663,8 +663,8 @@ module alloc3
       root_inc_min               = 0.0D0
 
       !take PLS traits
-      ! SLA via Reich et al. (1997), derived from leaf longevity (tau_leaf, dt(3)).
-      sla_allom  = spec_leaf_area(dt(3))  !m2/gC
+      ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
+      sla_allom  = sla_trait(dt(18))  !m2/gC
       wd_allom   = dt(19)              !g/cm3
 
       dt_years = 1.0D0/year_days
@@ -847,8 +847,10 @@ module alloc3
       !--------------------------------------------------------------------
       ! Continuous compartment turnover (annual rates converted to a daily
       ! loss via dt_years = 1/year_days). Sapwood turnover becomes heartwood.
+      ! Leaf turnover (yr-1) = 12 / leaf longevity (months), from the SLA
+      ! trait (leaf_long, Sakschewsky et al. 2016), as in allocation.f90.
       !--------------------------------------------------------------------
-      leaf_turn  = min(leaf_mass_new,      leaf_mass_new      * l_turnover   * dt_years)
+      leaf_turn  = min(leaf_mass_new,      leaf_mass_new      * (12.0D0/leaf_long(dt(18))) * dt_years)
       root_turn  = min(root_mass_new,      root_mass_new      * r_turnover   * dt_years)
       sap_turn   = min(sapwood_mass_new,   sapwood_mass_new   * s_turnover   * dt_years)
       sto_turn   = min(storage_after_alloc, storage_after_alloc * sto_turnover * dt_years)
@@ -1117,7 +1119,8 @@ module alloc3
       ctonfix = ctonfix - ctonfix_refund
       sto_mass_new = sto_mass_new + ctonfix_refund/1.0D3
 
-      leaf_turn = min(leaf_mass_new, leaf_mass_new*l_turnover*dt_years)
+      !leaf turnover from the leaf longevity of the SLA trait, as in allocation3
+      leaf_turn = min(leaf_mass_new, leaf_mass_new*(12.0D0/leaf_long(dt(18)))*dt_years)
       root_turn = min(root_mass_new, root_mass_new*r_turnover*dt_years)
       sto_turn  = sto_mass_new*sto_turnover*dt_years
 

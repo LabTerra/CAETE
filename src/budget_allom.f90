@@ -502,8 +502,8 @@ module budget_allom
          ! de modo que o dossel compartilhado reflita a contribuicao proporcional
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
 
-         ! SLA via Reich et al. (1997), derived from leaf longevity (tau_leaf, dt(3)).
-         idx_pre = leaf_area_index(cleaf_pls(ri), spec_leaf_area(dt(3,ri))) * ocpavg(ri)
+         ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
+         idx_pre = leaf_area_index(cleaf_pls(ri), sla_trait(dt(18,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
          do n_pre = 1, nl_shared
@@ -589,11 +589,12 @@ module budget_allom
          ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
          ! agregado de todas as PLS (pre-loop acima).
 
-         ! m_resp (productivity.f90) multiplies the wood carbon it receives by
-         ! the sapwood fraction. csap_pls is already sapwood only, so it is
-         ! divided by that fraction here.
+         ! m_resp (funcs.f90) takes the respiring wood as the fraction "sapwood"
+         ! (5%) of the wood carbon it receives (Pavlick et al. 2013), as in the
+         ! classic version: the total wood (sapwood + heartwood) is passed. Only
+         ! a small part of the wood is living tissue.
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cleaf_pls(ri), csap_pls(ri)/sapwood, croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))

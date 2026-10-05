@@ -34,9 +34,11 @@ module photo
         f_four                 ,& ! (f), auxiliar function (calculates f4sun or f4shade or sunlai)
         spec_leaf_area         ,& ! (f), specific leaf area (m2 g-1)
         sla_reich              ,& ! (f), specific leaf area (m2 g-1)
+        sla_trait              ,& ! (f), specific leaf area (m2 gC-1) from the SLA trait (mm2 mg-1)
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
+        leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
         vcmax_a1               ,& ! (f), VCmax from domingues et al. 2010 (eq.2)
         vcmax_b                ,& ! (f), VCmax from domingues et al. 2010 (eq.1 Table SM)
@@ -196,6 +198,22 @@ contains
 
    !=================================================================
    !=================================================================
+   function sla_trait(sla_dm) result(sla)
+      ! SLA of the PLS from its SLA trait (sla_random, plsgen.py).
+      ! mm2 mg-1 of dry mass = m2 kg-1 of dry mass; carbon = 47% of dry mass
+      use types, only : r_8
+
+      real(r_8),intent(in) :: sla_dm  !mm2 mg-1 (dry mass)
+      real(r_8):: sla                 !m2 gC-1
+
+      real(r_8), parameter :: c_frac = 0.47D0 !gC g-1 (dry mass)
+
+      sla = sla_dm * 1.0D-3 / c_frac
+
+   end function sla_trait
+
+   !=================================================================
+   !=================================================================
    function sla_reich(tau_leaf) result(sla)
       ! based on Reich et al. 1997
       use types, only : r_8
@@ -256,18 +274,9 @@ contains
 
       sunlai = (1.0D0-(exp(-p26*lai)))/p26
 
-      ! [SHADELAI FIX] shadelai used to be "lai - sunlai": since sunlai saturates
-      ! (bounded by 1/p26 as LAI->infinity) but raw LAI does not, that definition
-      ! made shadelai grow WITHOUT BOUND as leaf carbon increased, while gross_ph
-      ! multiplies it by a non-vanishing shade-leaf assimilation rate (f1shade) -
-      ! producing unbounded GPP that scales linearly with leaf mass forever
-      ! (confirmed empirically: GPP/cleaf stayed ~constant from cleaf=100 up to
-      ! cleaf=1e35 kgC/m2). Physically, leaves deeper in a closed canopy receive
-      ! exponentially less diffuse light with depth, so the shaded fraction's
-      ! contribution to canopy assimilation must also saturate as LAI grows -
-      ! same Beer-Lambert integral form already used for sunlai above, just with
-      ! the diffuse (shade) extinction coefficient p27 instead of the beam
-      ! (sun) coefficient p26.
+      ! shadelai saturates with LAI (Beer-Lambert with the diffuse extinction
+      ! coefficient p27), so that the GPP of the shaded leaves does not grow
+      ! without bound with the leaf carbon.
       shadelai = (1.0D0-(exp(-p27*lai)))/p27
 
       lai_ss = sunlai
@@ -284,7 +293,7 @@ contains
       !------------------------------------------
       !Sun/Shade approach to canopy scaling - De Pury & Farquhar (1997)
       ! f4sun  = Lsl = (1 - exp(-kb*LAI)) / kb = sunlai   (Eq. A1)
-      ! f4shade = Lsh = (1 - exp(-kd*LAI)) / kd = shadelai (bounded, see above)
+      ! f4shade = Lsh = (1 - exp(-kd*LAI)) / kd = shadelai (bounded)
       ! GPP_canopy = A_sun*f4sun + A_shade*f4shade
       !------------------------------------------------------------------------
       if(fs .eq. 1) then
@@ -708,6 +717,7 @@ contains
    !=================================================================
 
    ! [LIGHT COMPETITION SCHEME] ~ B. Cardeli (2026-03-25)
+   ! contact: <barbara.r.cardeli ( at ) gmail.com>
    ! Logic handled in "budget.f90". "Photosynthesis rate" inputs:
    ! - linc_layer: incident radiation per vertical layer
    ! - nl_shared: layer count (from max_height)
@@ -717,13 +727,12 @@ contains
 
    subroutine photosynthesis_rate(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
         & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
-        & f1ab_sun, f1ab_shade)
+        & f1ab_sun, f1ab_shade, rh)
 
-      ! [SUN/SHADE] Added f1ab_sun and f1ab_shade as additional outputs.
-      ! These carry the leaf-level assimilation rate computed separately for the
-      ! sunlit (I_sun = aux_ipar) and shaded (I_shade = aux_ipar*exp(-p27*sunlai))
-      ! fractions, following De Pury & Farquhar (1997).
-      ! f1ab is kept unchanged for use in canopy resistance / water-stress calculations.
+      ! f1ab_sun and f1ab_shade: 24 h mean gross assimilation of the sunlit and
+      ! shaded leaves (mol CO2 m-2 of leaf s-1), integrated over the day (see
+      ! [SUN/SHADE] and [DIURNAL] below). f1ab = f1ab_sun, used for the canopy
+      ! resistance and the water stress.
 
       ! f1ab SCALAR returns instantaneous photosynthesis rate at leaf level (molCO2/m2/s)
       ! vm SCALAR Returns maximum carboxilation Rate (Vcmax) (molCO2/m2/s)
@@ -737,6 +746,7 @@ contains
       real(r_8),intent(in) :: ipar  ! mol Photons m-2 s-1
       real(r_8),intent(in) :: nbio, c_atm  ! mg g-1, ppm
       real(r_8),intent(in) :: pbio  ! mg g-1
+      real(r_8),intent(in) :: rh    ! relative humidity (0-1)
       ! logical(l_1),intent(in) :: ll ! is light limited?
       integer(i_4),intent(in) :: c4 ! is C4 Photosynthesis pathway?
       ! real(r_8),intent(in) :: leaf_turnover   ! y
@@ -754,7 +764,7 @@ contains
       real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
       real(r_8),intent(out) :: amax ! light saturated PH rate
       ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
-      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar)
+      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
       real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
 
       real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
@@ -788,19 +798,13 @@ contains
       ! [LIGHT COMP]
       integer(i_4) :: n  ! Layer localization counter/index
 
-      ! [SUN/SHADE] Local variables for sun/shade irradiance split
-      real(r_8) :: lai_loc, sunlai_loc ! LAI and sunlit-LAI of this PLS
-      real(r_8) :: I_sun, I_shade      ! irradiance reaching sun and shade leaves
-      ! C3 shade-path intermediates (parallel to b/c/delta/jp and b2/c2/delta2/f1a)
-      real(r_8) :: jl_sh                        ! shade light-limited rate
-      real(r_8) :: jp_sh, jp1_sh, jp2_sh        ! shade jp (min of jc and jl_sh)
-      real(r_8) :: b_s, c_s, d_s               ! first-level hyperbolic coefficients (shade)
-      real(r_8) :: b2_s, c2_s, d2_s            ! second-level hyperbolic coefficients (shade)
-      real(r_8) :: j1_sh, j2_sh                 ! roots for shade f1a
-      ! C4 shade-path intermediates
-      real(r_8) :: ipar1_sh  ! shade µmol m-2 s-1
-      real(r_8) :: v4m_sh    ! shade PEP-limited v4m
-      real(r_8) :: jcl_sh    ! shade light-or-PEP-limited rate
+      ! [SUN/SHADE] and [DIURNAL] local variables
+      real(r_8) :: lai_loc, sunlai_loc     ! LAI and sunlit LAI of this PLS
+      real(r_8) :: i_now                   ! irradiance at the top of the PLS canopy (mol m-2 s-1)
+      real(r_8) :: q_sun, q_sh             ! irradiance of the sunlit and shaded leaves (mol m-2 s-1)
+      real(r_8) :: shape_day               ! diurnal shape factor of the irradiance
+      integer(i_4), parameter :: nsteps = 12 ! points of the diurnal integration
+      integer(i_4) :: k
 
       nbio2 = nbio !nrubisco(leaf_turnover, nbio)
       pbio2 = pbio !nrubisco(leaf_turnover, pbio)
@@ -883,17 +887,13 @@ contains
       ! [LIGHT COMP] +++ END +++
       ! =====================================================================
 
-      ! [SUN/SHADE] Partition aux_ipar into sun and shade fractions.
-      ! Sun leaves are directly exposed to the incident irradiance of their layer.
-      ! Shade leaves receive diffuse/scattered light attenuated through the sunlit
-      ! sub-layer: I_shade = aux_ipar * exp(-p27 * LAI_sun),
-      ! with LAI_sun = (1 - exp(-p26*LAI)) / p26 (De Pury & Farquhar 1997).
-      ! p26 = beam (sun) extinction coefficient; p27 = diffuse (shade) extinction coefficient.
-      lai_loc    = leaf_area_index(cleaf, sla)
-      sunlai_loc = (1.0D0 - exp(-p26 * lai_loc)) / p26
-      I_sun   = aux_ipar
-      I_shade = aux_ipar * exp(-p27 * sunlai_loc)
-
+      ! Leaf biochemistry (independent of irradiance)
+      mgama = 0.0D0
+      ci    = 0.0D0
+      jc    = 0.0D0
+      vpm   = 0.0D0
+      cm    = 0.0D0
+      kp    = 0.0D0
       if(c4 .eq. 0) then
          !====================-C3 PHOTOSYNTHESIS-===============================
          !Photo-respiration compensation point (Pa)
@@ -906,145 +906,108 @@ contains
          es = real(tetens(temp), r_8)
          !Saturated mixing ratio (kg/kg)
          rmax = 0.622*(es/(p0-es))
-         !Moisture deficit at leaf level (kg/kg)
-         r = -0.315*rmax
+         !Humidity deficit (kg/kg): saturated minus actual mixing ratio. It
+         !reduces ci below its maximum ratio p19 (ci/ca = p19 with saturated air)
+         r = max(0.0D0, rmax * (1.0D0 - rh))
          !Internal leaf CO2 partial pressure (Pa)
-         ci = p19* (1.0D0-(r/p20)) * ((c_atm/9.901)-mgama) + mgama
+         ci = p19 * max(0.0D0, 1.0D0 - (r/p20)) * ((c_atm/9.901) - mgama) + mgama
          !Rubisco carboxilation limited photosynthesis rate (molCO2/m2/s)
          jc = vm_in*((ci-mgama)/(ci+(f2*(1.+(p3/f3)))))
-
-         !Light limited photosynthesis rate (molCO2/m2/s)
-         ! if (ll) then
-         !    aux_ipar = ipar
-         ! else
-         !    aux_ipar = ipar - (ipar * 0.20)
-         ! endif
-
-         ! [SUN/SHADE FIX] Sun leaves use I_sun = aux_ipar (unchanged from default logic)
-         jl = p4*(1.0D0-p5)*I_sun*((ci-mgama)/(ci+(p6*mgama)))
-         amax = jl
-
-         ! Transport limited photosynthesis rate (molCO2/m2/s) (RuBP) (re)generation
-         ! ---------------------------------------------------
-         je = p7*vm_in
-
-         !Jp (minimum between jc and jl)
-         !------------------------------
-         b = (-1.0D0)*(jc+jl)
-         c = jc*jl
-         delta = (b**2)-4.0D0*a*c
-         jp1 = (-b-(sqrt(delta)))/(2.0D0*a)
-         jp2 = (-b+(sqrt(delta)))/(2.0D0*a)
-         jp = dmin1(jp1,jp2)
-
-         !Leaf level gross photosynthesis (minimum between jc, jl and je)
-         !---------------------------------------------------------------
-         b2 = (-1.0D0)*(jp+je)
-         c2 = jp*je
-         delta2 = (b2**2)-4.0D0*a2*c2
-         j1 = (-b2-(sqrt(delta2)))/(2.0D0*a2)
-         j2 = (-b2+(sqrt(delta2)))/(2.0D0*a2)
-         f1a = dmin1(j1,j2)
-
-         f1ab = f1a
-         if(f1ab .lt. 0.0D0) f1ab = 0.0D0
-
-         ! [SUN/SHADE] C3 shade-leaf path: same jc and je, but jl driven by I_shade.
-         ! Only the light-limited rate changes; Rubisco (jc) and transport (je) limits are
-         ! independent of irradiance and therefore identical for sun and shade leaves.
-         jl_sh = p4*(1.0D0-p5)*I_shade*((ci-mgama)/(ci+(p6*mgama)))
-         b_s   = (-1.0D0)*(jc + jl_sh)
-         c_s   = jc * jl_sh
-         d_s   = (b_s**2) - 4.0D0*a*c_s
-         jp1_sh = (-b_s - (sqrt(d_s))) / (2.0D0*a)
-         jp2_sh = (-b_s + (sqrt(d_s))) / (2.0D0*a)
-         jp_sh  = dmin1(jp1_sh, jp2_sh)
-         b2_s   = (-1.0D0)*(jp_sh + je)
-         c2_s   = jp_sh * je
-         d2_s   = (b2_s**2) - 4.0D0*a2*c2_s
-         j1_sh  = (-b2_s - (sqrt(d2_s))) / (2.0D0*a2)
-         j2_sh  = (-b2_s + (sqrt(d2_s))) / (2.0D0*a2)
-         f1ab_shade = dmin1(j1_sh, j2_sh)
-         if(f1ab_shade .lt. 0.0D0) f1ab_shade = 0.0D0
-
-         ! [SUN/SHADE] Sun assimilation rate is f1a (computed with I_sun above)
-         f1ab_sun = f1a
-         if(f1ab_sun .lt. 0.0D0) f1ab_sun = 0.0D0
-
-         return
       else
          !===========================-C4 PHOTOSYNTHESIS-=============================
-         !  USE PHOTO_PAR
-         ! ! from Chen et al. 1994
+         ! from Chen et al. 1994
          tk = temp + 273.15           ! K
          t25 = 273.15 + 25.0          ! K
          kp = kp25 * (2.1**(0.1*(tk-t25))) ! ppm
-
-         ! if (ll) then
-         !    aux_ipar = ipar
-         ! else
-         !    aux_ipar = ipar - (ipar * 0.20)
-         ! endif
-
-         ! [SUN/SHADE] Sun leaves use I_sun = aux_ipar (unchanged from default)
-         ipar1 = I_sun * 1.0D6  ! µmol m-2 s-1 - 1e6 converts mol to µmol
-
          !maximum PEPcarboxylase rate Arrhenius eq. (Dependence on temperature)
          dummy1 = 1.0 + exp((s_vpm * t25 - h_vpm)/(r_vpm * t25))
          dummy2 = 1.0 + exp((s_vpm * tk - h_vpm)/(r_vpm * tk))
          dummy0 = dummy1 / dummy2
          vpm =  vpm25 * exp((-e_vpm/r_vpm) * (1.0D0/tk - 1.0D0/t25)) * dummy0
-
-         ! ! actual PEPcarboxylase rate under ipar conditions
-         v4m = (alphap * ipar1) / sqrt(1 + alphap**2 * ipar1**2 / vpm**2)
-
          ! [CO2] mesophyl
          cm0 = 1.674D0 - 6.1294D0 * 10.0D0**(-2) * temp
          cm1 = 1.1688D0 * 10.0D0**(-3) * temp ** 2
          cm2 = 8.8741D0 * 10.0D0**(-6) * temp ** 3
          cm = 0.7D0 * c_atm * ((cm0 + cm1 - cm2) / 0.73D0)
-
-         ! ! When light or PEP carboxylase is limiting
-         ! ! FROM CHEN et al. 1994:
-         jcl = ((V4m * cm) / (kp + cm)) * 1.0D-6   ! molCO2 m-2 s-1 / 1e-6 convets µmol 2 mol
-         amax = jcl
-
-         ! When V (RuBP regeneration) is limiting
-         je = p7 * vm_in
-
-         ! !Leaf level gross photosynthesis (minimum between jcl and je)
-         ! !---------------------------------------------------------------
-         b2 = (-1.)*(jcl+je)
-         c2 = jcl*je
-         delta2 = (b2**2)-4.0*a2*c2
-         j1 = (-b2-(sqrt(delta2)))/(2.0*a2)
-         j2 = (-b2+(sqrt(delta2)))/(2.0*a2)
-         f1a = dmin1(j1,j2)
-
-         f1ab = f1a
-         if(f1ab .lt. 0.0D0) f1ab = 0.0D0
-
-         ! [SUN/SHADE] C4 shade-leaf path: v4m re-evaluated at I_shade.
-         ! In C4, the PEP-carboxylase rate (v4m) depends directly on irradiance,
-         ! so both jcl and the resulting f1a differ for shade leaves.
-         ipar1_sh = I_shade * 1e6  ! µmol m-2 s-1
-         v4m_sh   = (alphap * ipar1_sh) / sqrt(1 + alphap**2 * ipar1_sh**2 / vpm**2)
-         jcl_sh   = ((v4m_sh * cm) / (kp + cm)) * 1e-6
-         b2_s     = (-1.)*(jcl_sh + je)
-         c2_s     = jcl_sh * je
-         d2_s     = (b2_s**2) - 4.0*a2*c2_s
-         j1_sh    = (-b2_s - (sqrt(d2_s))) / (2.0*a2)
-         j2_sh    = (-b2_s + (sqrt(d2_s))) / (2.0*a2)
-         f1ab_shade = dmin1(j1_sh, j2_sh)
-         if(f1ab_shade .lt. 0.0D0) f1ab_shade = 0.0D0
-
-         ! [SUN/SHADE FIX] Sun assimilation rate is f1a (computed with I_sun above)
-         f1ab_sun = f1a
-         if(f1ab_sun .lt. 0.0D0) f1ab_sun = 0.0D0
-
-         return
       endif
+      ! Transport limited photosynthesis rate (molCO2/m2/s) (RuBP) (re)generation
+      je = p7*vm_in
+
+      ! [SUN/SHADE] Sunlit and shaded leaves (De Pury & Farquhar 1997).
+      ! Sunlit leaves: irradiance per unit of sunlit leaf area = irradiance of the
+      ! layer x beam extinction coefficient (p26). Shaded leaves: irradiance of the
+      ! layer attenuated through the sunlit leaf area, I*exp(-p27*LAI_sun), with
+      ! LAI_sun = (1 - exp(-p26*LAI))/p26 and kd = p27 (diffuse extinction).
+      lai_loc    = leaf_area_index(cleaf, sla)
+      sunlai_loc = (1.0D0 - exp(-p26 * lai_loc)) / p26
+
+      ! [DIURNAL] aux_ipar is a 24 h mean. It is spread over a sinusoid of
+      ! daylength_h hours (zero at night) and the leaf rates are averaged over
+      ! the 24 h, so that light saturation around noon is accounted for.
+      f1ab_sun   = 0.0D0
+      f1ab_shade = 0.0D0
+      do k = 1, nsteps
+         shape_day = (pi/2.0D0) * (24.0D0/daylength_h) * sin(pi * (real(k, r_8) - 0.5D0) / real(nsteps, r_8))
+         i_now  = aux_ipar * shape_day
+         q_sun = p26 * i_now
+         q_sh  = i_now * exp(-p27 * sunlai_loc)
+         f1ab_sun   = f1ab_sun   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
+         f1ab_shade = f1ab_shade + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
+      enddo
+      f1ab_sun   = f1ab_sun   / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1ab_shade = f1ab_shade / real(nsteps, r_8) * (daylength_h / 24.0D0)
+
+      f1ab = f1ab_sun
+      ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
+      amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
+
    end subroutine photosynthesis_rate
+
+   !=================================================================
+   !=================================================================
+
+   function leaf_gross_rate(c4, q, ci, mgama, jc, je, vpm, cm, kp) result(f1)
+      ! Gross leaf assimilation (mol CO2 m-2 s-1) for the irradiance absorbed
+      ! per unit of leaf area q (mol photons m-2 s-1). C3: co-limitation of
+      ! Rubisco (jc), light (jl) and transport (je). C4: PEP carboxylase/light
+      ! (jcl, Chen et al. 1994) and transport (je).
+      use types
+      use photo_par
+
+      integer(i_4), intent(in) :: c4
+      real(r_8), intent(in) :: q, ci, mgama, jc, je, vpm, cm, kp
+      real(r_8) :: f1
+
+      real(r_8) :: jl, jp, jcl, ipar1, v4m, b, c, delta
+
+      if (c4 .eq. 0) then
+         !Light limited photosynthesis rate (molCO2/m2/s)
+         jl = p4*(1.0D0-p5)*q*((ci-mgama)/(ci+(p6*mgama)))
+         !Jp (minimum between jc and jl)
+         b = (-1.0D0)*(jc+jl)
+         c = jc*jl
+         delta = max(0.0D0, (b**2)-4.0D0*a*c)
+         jp = dmin1((-b-sqrt(delta))/(2.0D0*a), (-b+sqrt(delta))/(2.0D0*a))
+         !Leaf level gross photosynthesis (minimum between jp and je)
+         b = (-1.0D0)*(jp+je)
+         c = jp*je
+         delta = max(0.0D0, (b**2)-4.0D0*a2*c)
+         f1 = dmin1((-b-sqrt(delta))/(2.0D0*a2), (-b+sqrt(delta))/(2.0D0*a2))
+      else
+         ipar1 = q * 1.0D6  ! µmol m-2 s-1
+         ! actual PEPcarboxylase rate under ipar conditions
+         v4m = (alphap * ipar1) / sqrt(1.0D0 + alphap**2 * ipar1**2 / vpm**2)
+         ! When light or PEP carboxylase is limiting (Chen et al. 1994)
+         jcl = ((v4m * cm) / (kp + cm)) * 1.0D-6
+         ! Leaf level gross photosynthesis (minimum between jcl and je)
+         b = (-1.0D0)*(jcl+je)
+         c = jcl*je
+         delta = max(0.0D0, (b**2)-4.0D0*a2*c)
+         f1 = dmin1((-b-sqrt(delta))/(2.0D0*a2), (-b+sqrt(delta))/(2.0D0*a2))
+      endif
+      if (f1 .lt. 0.0D0) f1 = 0.0D0
+
+   end function leaf_gross_rate
 
    !=================================================================
    !=================================================================

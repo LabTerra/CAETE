@@ -275,7 +275,10 @@ def table_gen(NPLS, fpath=None):
     # vcmax = np.random.uniform(3e-5, 100e-5,N) # molCO2 m-2 s-1
     resorption = np.random.uniform(0.2, 0.7, NPLS)
     # sla_random = np.random.uniform(2.25, 27, NPLS) # uniforme linear: concentra ~74% das PLSs com LL < 1 ano
-    sla_random = np.random.uniform(3.50, 27.0, NPLS) # log-uniforme: consistente com a lei de potência LL = 138.35 * SLA^(-1.128) (Sakschewsky et al., 2016)
+    # SLA (mm2 mg-1 de massa seca), sorteio log-uniforme entre 3.5 e 27: mediana ~9.7,
+    # consistente com a lei de potência LL = 138.35 * SLA^(-1.128) (Sakschewsky et al., 2016)
+    sla_random = np.exp(np.random.uniform(np.log(3.50), np.log(27.0), NPLS))
+    # sla_random = np.random.uniform(3.50, 27.0, NPLS) # sorteio uniforme (anterior): mediana ~15, ~40% das PLSs com SLA > 18
 
     wd_random = np.random.uniform(0.3, 0.9, NPLS) # log-uniforme [0.3, 0.9] g/cm3; Zanne et al. 2009, Chave et al. 2009
     
