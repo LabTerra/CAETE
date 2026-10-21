@@ -176,6 +176,25 @@ contains
    !=================================================================
    !=================================================================
 
+   function sla_reich(tau_leaf) result(sla)
+      ! based on Reich et al. 1997
+      use types, only : r_8
+      !implicit none
+
+      real(r_8),intent(in) :: tau_leaf  !years
+      real(r_8):: sla   !cm2 gC-1
+
+      real(r_8) :: tl0
+
+      tl0 = tau_leaf * 12.0D0
+
+      sla = 266.0D0 * (tl0 ** (-0.55D0))
+
+   end function sla_reich
+
+   !=================================================================
+   !=================================================================
+   
    function spec_leaf_area(tau_leaf) result(sla)
       ! based on JeDi DGVM
       use types, only : r_8

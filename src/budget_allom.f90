@@ -28,7 +28,7 @@ module budget_allom
  
    contains
  
-   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh&
+   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, soil_text, p_sat, ts, temp, p0, ipar, rh&
       &, mineral_n, labile_p, on, sop, op, n_sto_in, p_sto_in, uptk_costs_in, catm&
       &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
       &, dleaf_in, dwood_in, droot_in, dsap_in, dheart_in, dsto_in&
@@ -86,7 +86,9 @@ module budget_allom
       real(r_8),dimension(npls),intent(in) :: uptk_costs_in
 
       !Soil
-      real(r_8),intent(in) :: wmax_in ! Saturation point
+      real(r_8),intent(in) :: wmax_in   ! Saturation point
+      real(r_8),intent(in) :: soil_text ! Soil texture (dimensionless)
+      real(r_8),intent(in) :: p_sat     ! Soil saturation water potential (MPa) / maximum soil water
 
       !Vegetation pools
       real(r_8),dimension(npls),intent(in) :: cleaf_in
@@ -301,6 +303,7 @@ module budget_allom
       !soil
       real(r_8) :: soil_temp !soil temperature
       real(r_8) :: soil_sat  !soil water saturation point
+      real(r_8) :: psi_soil  !soil water potential mpa
       
       !area frac occupation
       real(r_8),    dimension(npls) :: awood_aux !define if tree or grass
@@ -354,6 +357,20 @@ module budget_allom
       w = w1 + w2        
       soil_temp = ts     
       soil_sat = wmax_in
+
+      psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
+      !psi_soil = -2
+      print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
+
+      !!GAMBIARRA
+      !!I put a if here just to make the adjustments in other variables, after that I solve the psisoil problem
+      !!Maybe I can put an if for W, it makes more sense but I have to study the diferences in each Amazon region
+      !if (psi_soil .lt. -5.0) then
+      !   psi_soil = -4.0
+      !else
+      !   psi_soil = psi_soil
+      !end if 
+      !print*,'w',w,'w1',w1,'w2',w2,'psisoil',psi_soil
 
       call pft_area_frac(cleaf_pls, croot_pls, cwood_pls, awood_aux,&
       &                 ocpavg, ocp_wood, run, ocp_mm)
