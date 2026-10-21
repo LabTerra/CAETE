@@ -35,9 +35,9 @@ module budget_allom
       &, cleaf_out, cwood_out, croot_out, csap_out, cheart_out, csto_out& !outputs
       &, n_sto_out, p_sto_out&
       &, dleaf_out, dwood_out, droot_out, dsap_out, dheart_out, dsto_out&
-      &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd&
-      &, evavg, epavg, phavg, aravg, nppavg, laiavg, rcavg&
-      &, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
+      &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd, evavg, epavg&
+      &, p50avg, klmavg& 
+      &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
       &, specific_la_1, ocpavg&
       &, nupt_1, pupt_1, lit_nut_content_1, limiting_nutrient_out&
       &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
@@ -136,6 +136,8 @@ module budget_allom
       !CWM OUTPUTS
       real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
       real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
+      real(r_8),intent(out) :: p50avg         !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+      real(r_8),intent(out) :: klmavg         !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
       real(r_8),intent(out) :: nppavg         !Daily NPP (average between PFTs)(Kg m-2 y-1)
@@ -295,6 +297,8 @@ module budget_allom
       real(r_8) :: w  !Daily soil moisture storage (mm)
       !Water cycle
       real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
+      real(r_8),dimension(:),allocatable :: p50    !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+      real(r_8),dimension(:),allocatable :: klm    !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),dimension(:),allocatable :: wue    !Water use efficiency
       real(r_8),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
       real(r_8),dimension(:),allocatable :: tra    !Transpiration (mm/s)
@@ -421,6 +425,8 @@ module budget_allom
       !dimensioning according to alive PLSs
       allocate(evap(nlen))
       allocate(nppa(nlen))
+      allocate(p50(nlen))
+      allocate(klm(nlen))
       allocate(ph(nlen))
       allocate(ar(nlen))
       allocate(laia(nlen))
@@ -613,7 +619,8 @@ module budget_allom
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
-               &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
+               &, soil_sat, p50(p), klm(p)&
+               &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
          
@@ -734,6 +741,8 @@ module budget_allom
 
       !Fill output data
       evavg  = 0.0D0
+      p50avg = 0.0D0
+      klmavg = 0.0D0
       phavg  = 0.0D0
       aravg  = 0.0D0
       nppavg = 0.0D0
@@ -790,6 +799,8 @@ module budget_allom
       enddo
 
       evavg         = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      p50avg        = sum(real(p50, kind=r_8) * ocp_coeffs, mask= .not. isnan(p50))
+      klmavg        = sum(real(klm, kind=r_8) * ocp_coeffs, mask= .not. isnan(klm))
       phavg         = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
       aravg         = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
       nppavg        = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
@@ -865,6 +876,8 @@ module budget_allom
       deallocate(lp)
       deallocate(evap)
       deallocate(nppa)
+      deallocate(p50)
+      deallocate(klm)
       deallocate(ph)
       deallocate(ar)
       deallocate(laia)

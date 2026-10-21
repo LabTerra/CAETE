@@ -36,6 +36,8 @@ module photo
         sla_reich              ,& ! (f), specific leaf area (m2 g-1)
         sla_trait              ,& ! (f), specific leaf area (m2 gC-1) from the SLA trait (mm2 mg-1)
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
+        psi_fifty              ,& ! (f), Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+        conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
@@ -246,6 +248,50 @@ contains
       ll = 138.35D0 * (sla ** (-1.128D0))
 
    end function leaf_long
+
+   !=================================================================
+   !=================================================================
+
+   function psi_fifty(dwood,cawood1) result(psi_50)
+
+      ! Returns xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+      ! Based in Christoffersen et al. 2016 TFS v.1-Hydro
+      use types
+
+      real(r_8),intent(in) :: dwood             !variant trait g/cm3
+      real(r_8),intent(in) :: cawood1
+      real(r_8) :: psi_50                       !MPa
+
+      if(cawood1 .gt. 0.0D0) then
+         psi_50 = -((3.57*dwood)**1.73)-1.09
+      else 
+         psi_50 = 0.0D0
+      endif
+
+   end function psi_fifty
+
+   !=================================================================
+   !=================================================================
+
+   function conductivity_xylemleaf(dwood,amax,cawood1) result(kl_max)
+
+      !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
+      !Based in Christoffersen et al. 2016 TFS v.1-Hydro
+      use types
+
+      real(r_8),intent(in) :: dwood        !g/cm3 - wood sendity
+      real(r_8),intent(in) :: amax         !µmolm-2s-1 - light saturated photo rate PRECISO CONVERTER de mol pra µmol
+      real(r_8),intent(in) :: cawood1
+      real(r_8) :: kl_max                  !kgm-1s-1MPa-1   
+
+      if(cawood1 .gt. 0.0D0) then
+         kl_max = 0.0021 * exp((-26.6 * dwood)/amax)  ! µmol m-2 s-1 - 1e6 converts mol to µmol  
+         print*,'amax in umol',amax
+      else 
+         kl_max = 0.0D0
+      endif
+
+   end function conductivity_xylemleaf
 
    !=================================================================
    !=================================================================
