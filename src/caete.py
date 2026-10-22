@@ -274,7 +274,7 @@ def neighbours_index(pos, matrix):
 
 # WARNING keep the lists of budget/carbon3 outputs updated with fortran code
 def catch_out_budget(out):
-    lst = ["evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg",
+    lst = ["evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "kxylemavg",
            "phavg", "aravg", "nppavg", "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
            "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
@@ -293,7 +293,7 @@ def catch_out_budget_allom (out):
            "dly_nsto", "dly_psto",
            "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
-           "evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg",
+           "evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "kxylemavg",
            "phavg", "aravg", "nppavg", "laiavg","rcavg","f5avg","rmavg","rgavg",
            "wueavg", "cueavg","vcmax","specific_la", "ocpavg",
            "nupt", "pupt", "lnc", "limitation_status",
@@ -416,6 +416,7 @@ class grd:
         self.kl_max = None
         self.krc_max = None
         self.psi_xylem = None
+        self.k_xylem = None
         self.photo = None
         self.aresp = None
         self.npp = None
@@ -566,6 +567,7 @@ class grd:
         self.kl_max = np.zeros(shape=(n,), order='F')
         self.krc_max = np.zeros(shape=(n,), order='F')
         self.psi_xylem = np.zeros(shape=(n,), order='F')
+        self.k_xylem = np.zeros(shape=(n,), order='F')
         self.photo = np.zeros(shape=(n,), order='F')
         self.aresp = np.zeros(shape=(n,), order='F')
         self.npp = np.zeros(shape=(n,), order='F')
@@ -624,6 +626,7 @@ class grd:
         self.kl_max       = np.zeros(shape=(n,), order='F')
         self.krc_max      = np.zeros(shape=(n,), order='F')
         self.psi_xylem    = np.zeros(shape=(n,), order='F')
+        self.k_xylem      = np.zeros(shape=(n,), order='F')
 
         self.ph_allom     = np.zeros(shape=(n,), order='F')
         self.ar_allom     = np.zeros(shape=(n,), order='F')
@@ -711,6 +714,7 @@ class grd:
                     "kl_max": self.kl_max,
                     "krc_max": self.krc_max,
                     "psi_xylem": self.psi_xylem,
+                    "k_xylem": self.k_xylem,
                     "photo": self.photo,
                     "aresp": self.aresp,
                     'npp': self.npp,
@@ -766,6 +770,7 @@ class grd:
         self.kl_max = None
         self.krc_max = None
         self.psi_xylem = None
+        self.k_xylem = None
         self.photo = None
         self.aresp = None
         self.npp = None
@@ -834,6 +839,7 @@ class grd:
                      "kl_max": self.kl_max,
                      "krc_max": self.krc_max,
                      "psi_xylem": self.psi_xylem,
+                     "k_xylem": self.k_xylem,
                      'photo' : self.ph_allom,
                      'ar'    : self.ar_allom,
                      'npp'   : self.npp_allom,
@@ -889,6 +895,7 @@ class grd:
         self.kl_max       = None
         self.krc_max      = None
         self.psi_xylem    = None
+        self.k_xylem      = None
         self.ph_allom     = None
         self.ar_allom     = None
         self.npp_allom    = None
@@ -1611,6 +1618,7 @@ class grd:
                     self.kl_max[step]=daily_output['klmavg']
                     self.krc_max[step]=daily_output['krcmavg']
                     self.psi_xylem[step]=daily_output['pxylemavg']
+                    self.k_xylem[step]=daily_output['kxylemavg']
                     self.photo[step] = daily_output['phavg']
                     self.aresp[step] = daily_output['aravg']
                     self.npp[step] = daily_output['nppavg']
@@ -2130,6 +2138,7 @@ class grd:
                     self.kl_max[step]        = daily_output_allom['klmavg']
                     self.krc_max[step]       = daily_output_allom['krcmavg']
                     self.psi_xylem[step]     = daily_output_allom['pxylemavg']
+                    self.k_xylem[step]       = daily_output_allom['kxylemavg']
                     self.ph_allom[step]      = daily_output_allom['phavg']
                     self.ar_allom[step]      = daily_output_allom['aravg']
                     self.npp_allom[step]     = daily_output_allom['nppavg']

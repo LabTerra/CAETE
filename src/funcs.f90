@@ -40,6 +40,7 @@ module photo
         conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
         conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
         xylem_waterpotential   ,& ! (f), Xylem water potential (MPa)
+        xylem_conductance      ,& ! (f), Hydraulic conductance of xylem (mol m-2 s-1 Mpa-1)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
@@ -176,6 +177,67 @@ contains
       ! alloc3.f90), not because this function caps the arithmetic.
 
    end function leaf_area_index
+
+   !=================================================================
+   !=================================================================
+
+   function f_four(fs,cleaf,sla) result(lai_ss)
+      ! Function used to scale LAI from leaf to canopy level (2 layers)
+      use types, only: i_4, r_8
+      use photo_par, only: p26, p27
+      !implicit none
+
+      integer(i_4),intent(in) :: fs !function mode:
+      ! 1  == f4sun   --->  to gross assimilation
+      ! 2  == f4shade --->  too
+      ! 90 == sun LAI
+      ! 20 == shade LAI
+      ! Any other number returns sunlai (not scaled to canopy)
+
+      real(r_8),intent(in) :: cleaf ! carbon in leaf (kg m-2)
+      real(r_8),intent(in) :: sla   ! specific leaf area (m2 gC-1)
+      real(r_8) :: lai_ss           ! leaf area index (m2 m-2)
+
+      real(r_8) :: lai
+      real(r_8) :: sunlai
+      real(r_8) :: shadelai
+
+      lai = leaf_area_index(cleaf, sla)
+
+      sunlai = (1.0D0-(exp(-p26*lai)))/p26
+
+      ! shadelai saturates with LAI (Beer-Lambert with the diffuse extinction
+      ! coefficient p27), so that the GPP of the shaded leaves does not grow
+      ! without bound with the leaf carbon.
+      shadelai = (1.0D0-(exp(-p27*lai)))/p27
+
+      lai_ss = sunlai
+
+      if (fs .eq. 90) then
+         return
+      endif
+      if (fs .eq. 20) then
+         lai_ss = shadelai
+         return
+      endif
+
+      !Scaling-up to canopy level (dimensionless)
+      !------------------------------------------
+      !Sun/Shade approach to canopy scaling - De Pury & Farquhar (1997)
+      ! f4sun  = Lsl = (1 - exp(-kb*LAI)) / kb = sunlai   (Eq. A1)
+      ! f4shade = Lsh = (1 - exp(-kd*LAI)) / kd = shadelai (bounded)
+      ! GPP_canopy = A_sun*f4sun + A_shade*f4shade
+      !------------------------------------------------------------------------
+      if(fs .eq. 1) then
+         lai_ss = sunlai
+         return
+      endif
+
+      if(fs .eq. 2) then
+         lai_ss = shadelai
+         return
+      endif
+   end function f_four
 
    !=================================================================
    !=================================================================
@@ -338,7 +400,7 @@ contains
       if(cawood .gt. 0.0D0) then
          psi_g = rho * grav * height * 1e-6        !converts Pa to MPa
          psi_xylem = psi_soil - psi_g - (e/krc_max)
-         print*,'psi_gravitational',psi_g,'height',height,'psisoil',psi_soil
+         !print*,'psi_gravitational',psi_g,'height',height,'psisoil',psi_soil
       else
          psi_g = 0.0D0
          psi_xylem = 0.0D0
@@ -349,63 +411,30 @@ contains
    !=================================================================
    !=================================================================
 
-   function f_four(fs,cleaf,sla) result(lai_ss)
-      ! Function used to scale LAI from leaf to canopy level (2 layers)
-      use types, only: i_4, r_8
-      use photo_par, only: p26, p27
-      !implicit none
+   function xylem_conductance(krc_max,psi_xylem,psi_50,cawood) result(k)  
+      !Xylem conductance (molm-2s-1MPa-1)
+      !Based in Manzoni et al., 2013
+      use types
+      !use global_par, only: vuln_curve
 
-      integer(i_4),intent(in) :: fs !function mode:
-      ! 1  == f4sun   --->  to gross assimilation
-      ! 2  == f4shade --->  too
-      ! 90 == sun LAI
-      ! 20 == shade LAI
-      ! Any other number returns sunlai (not scaled to canopy)
+      real(r_8), intent(in) :: krc_max                !molm-2s-1Mpa-1 
+      real(r_8), intent(in) :: psi_xylem              !MPa
+      real(r_8), intent(in) :: psi_50                 !MPa
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: k                                  !molm-2s-1MPa-1
 
-      real(r_8),intent(in) :: cleaf ! carbon in leaf (kg m-2)
-      real(r_8),intent(in) :: sla   ! specific leaf area (m2 gC-1)
-      real(r_8) :: lai_ss           ! leaf area index (m2 m-2)
+      real(r_8) :: stem_slope     !MPa-1 - Slope of the linear portion of the xylem vulnerability function
+      real(r_8) :: a              !vulnerability curve
 
-      real(r_8) :: lai
-      real(r_8) :: sunlai
-      real(r_8) :: shadelai
-
-      lai = leaf_area_index(cleaf, sla)
-
-      sunlai = (1.0D0-(exp(-p26*lai)))/p26
-
-      ! shadelai saturates with LAI (Beer-Lambert with the diffuse extinction
-      ! coefficient p27), so that the GPP of the shaded leaves does not grow
-      ! without bound with the leaf carbon.
-      shadelai = (1.0D0-(exp(-p27*lai)))/p27
-
-      lai_ss = sunlai
-
-      if (fs .eq. 90) then
-         return
-      endif
-      if (fs .eq. 20) then
-         lai_ss = shadelai
-         return
+      if(cawood .gt. 0.0D0) then
+         stem_slope = 65.15*(-psi_50)**(-1.25)
+         a = -4*stem_slope/100*psi_50
+         k = krc_max*(1+(psi_xylem/psi_50)**a)**(-1) 
+      else
+         k = 0.0D0
       endif
 
-      !Scaling-up to canopy level (dimensionless)
-      !------------------------------------------
-      !Sun/Shade approach to canopy scaling - De Pury & Farquhar (1997)
-      ! f4sun  = Lsl = (1 - exp(-kb*LAI)) / kb = sunlai   (Eq. A1)
-      ! f4shade = Lsh = (1 - exp(-kd*LAI)) / kd = shadelai (bounded)
-      ! GPP_canopy = A_sun*f4sun + A_shade*f4shade
-      !------------------------------------------------------------------------
-      if(fs .eq. 1) then
-         lai_ss = sunlai
-         return
-      endif
-
-      if(fs .eq. 2) then
-         lai_ss = shadelai
-         return
-      endif
-   end function f_four
+   end function xylem_conductance
 
    !=================================================================
    !=================================================================
