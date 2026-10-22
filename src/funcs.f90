@@ -32,8 +32,8 @@ module photo
         gross_ph               ,& ! (f), gross photosynthesis (kgC m-2 y-1)
         leaf_area_index        ,& ! (f), leaf area index(m2 m-2)
         f_four                 ,& ! (f), auxiliar function (calculates f4sun or f4shade or sunlai)
-        spec_leaf_area         ,& ! (f), specific leaf area (m2 g-1)
-        sla_reich              ,& ! (f), specific leaf area (m2 g-1)
+      !   spec_leaf_area         ,& ! (f), specific leaf area (m2 g-1)
+      !   sla_reich              ,& ! (f), specific leaf area (m2 g-1)
         sla_trait              ,& ! (f), specific leaf area (m2 gC-1) from the SLA trait (mm2 mg-1)
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
@@ -176,28 +176,48 @@ contains
    !=================================================================
    !=================================================================
 
-   function spec_leaf_area(tau_leaf) result(sla)
-      ! based on JeDi DGVM
-      use types, only : r_8
-      !implicit none
+   ! function sla_reich(tau_leaf) result(sla)
+   !    ! based on Reich et al. 1997
+   !    use types, only : r_8
+   !    !implicit none
 
-      real(r_8),intent(in) :: tau_leaf  !years
-      real(r_8):: sla   !m2 gC-1
+   !    real(r_8),intent(in) :: tau_leaf  !years
+   !    real(r_8):: sla   !cm2 gC-1
 
-      ! real(r_8) :: n_tau_leaf, tl0
+   !    real(r_8) :: tl0
 
-      ! n_tau_leaf = (tau_leaf - 0.08333333)/(8.33333333 - 0.08333333)
+   !    tl0 = tau_leaf * 12.0D0
 
-      ! ! tl0 = (365.242D0 / 12.0D0) * (10.0D0 ** (2.0D0*n_tau_leaf))
-      ! ! Tweak the function to 'convert' Leaf Longevity to C residence time (MRT) 
-      ! tl0 = ((365.242D0 / 12.0D0) - 10.45) * (2.718281828459045D0 ** (2.0D0*n_tau_leaf))
+   !    sla = 266.0D0 * (tl0 ** (-0.55D0))
 
-      sla = sla_reich(tau_leaf) * 0.0001D0 !(3D-2 * (365.2420D0 / tl0) ** (-0.460D0))
-
-   end function spec_leaf_area
+   ! end function sla_reich
 
    !=================================================================
    !=================================================================
+
+   ! function spec_leaf_area(tau_leaf) result(sla)
+   !    ! based on JeDi DGVM
+   !    use types, only : r_8
+   !    !implicit none
+
+   !    real(r_8),intent(in) :: tau_leaf  !years
+   !    real(r_8):: sla   !m2 gC-1
+
+   !    ! real(r_8) :: n_tau_leaf, tl0
+
+   !    ! n_tau_leaf = (tau_leaf - 0.08333333)/(8.33333333 - 0.08333333)
+
+   !    ! ! tl0 = (365.242D0 / 12.0D0) * (10.0D0 ** (2.0D0*n_tau_leaf))
+   !    ! ! Tweak the function to 'convert' Leaf Longevity to C residence time (MRT) 
+   !    ! tl0 = ((365.242D0 / 12.0D0) - 10.45) * (2.718281828459045D0 ** (2.0D0*n_tau_leaf))
+
+   !    sla = sla_reich(tau_leaf) * 0.0001D0 !(3D-2 * (365.2420D0 / tl0) ** (-0.460D0))
+
+   ! end function spec_leaf_area
+
+   !=================================================================
+   !=================================================================
+
    function sla_trait(sla_dm) result(sla)
       ! SLA of the PLS from its SLA trait (sla_random, plsgen.py).
       ! mm2 mg-1 of dry mass = m2 kg-1 of dry mass; carbon = 47% of dry mass
