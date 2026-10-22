@@ -274,7 +274,7 @@ def neighbours_index(pos, matrix):
 
 # WARNING keep the lists of budget/carbon3 outputs updated with fortran code
 def catch_out_budget(out):
-    lst = ["evavg", "epavg", "p50avg", "klmavg", "krcmavg",
+    lst = ["evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg",
            "phavg", "aravg", "nppavg", "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
            "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax",
            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
@@ -293,7 +293,7 @@ def catch_out_budget_allom (out):
            "dly_nsto", "dly_psto",
            "dly_dleaf", "dly_dwood", "dly_droot","dly_dsap","dly_dheart","dly_dsto",
            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
-           "evavg", "epavg", "p50avg", "klmavg", "krcmavg", 
+           "evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg",
            "phavg", "aravg", "nppavg", "laiavg","rcavg","f5avg","rmavg","rgavg",
            "wueavg", "cueavg","vcmax","specific_la", "ocpavg",
            "nupt", "pupt", "lnc", "limitation_status",
@@ -411,9 +411,11 @@ class grd:
         self.soil_temp = None
         self.emaxm = None
         self.tsoil = None
+        self.psisoil = None
         self.psi_50 = None
         self.kl_max = None
         self.krc_max = None
+        self.psi_xylem = None
         self.photo = None
         self.aresp = None
         self.npp = None
@@ -559,9 +561,11 @@ class grd:
         n: int NUmber of days being simulated"""
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
         self.psi_50 = np.zeros(shape=(n,), order='F')
         self.kl_max = np.zeros(shape=(n,), order='F')
         self.krc_max = np.zeros(shape=(n,), order='F')
+        self.psi_xylem = np.zeros(shape=(n,), order='F')
         self.photo = np.zeros(shape=(n,), order='F')
         self.aresp = np.zeros(shape=(n,), order='F')
         self.npp = np.zeros(shape=(n,), order='F')
@@ -614,10 +618,12 @@ class grd:
         """
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
 
         self.psi_50       = np.zeros(shape=(n,), order='F')
         self.kl_max       = np.zeros(shape=(n,), order='F')
         self.krc_max      = np.zeros(shape=(n,), order='F')
+        self.psi_xylem    = np.zeros(shape=(n,), order='F')
 
         self.ph_allom     = np.zeros(shape=(n,), order='F')
         self.ar_allom     = np.zeros(shape=(n,), order='F')
@@ -700,9 +706,11 @@ class grd:
 
         to_pickle = {'emaxm': np.array(self.emaxm),
                     "tsoil": np.array(self.tsoil),
+                    "psisoil": np.array(self.psisoil),
                     "psi_50": self.psi_50,
                     "kl_max": self.kl_max,
                     "krc_max": self.krc_max,
+                    "psi_xylem": self.psi_xylem,
                     "photo": self.photo,
                     "aresp": self.aresp,
                     'npp': self.npp,
@@ -753,9 +761,11 @@ class grd:
         # Flush attrs (clear outputs)
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
         self.psi_50 = None
         self.kl_max = None
         self.krc_max = None
+        self.psi_xylem = None
         self.photo = None
         self.aresp = None
         self.npp = None
@@ -819,9 +829,11 @@ class grd:
 
         to_pickle = {'emaxm': np.array(self.emaxm),
                      'tsoil': np.array(self.tsoil),
+                     'psisoil': np.array(self.psisoil),
                      "psi_50": self.psi_50,
                      "kl_max": self.kl_max,
                      "krc_max": self.krc_max,
+                     "psi_xylem": self.psi_xylem,
                      'photo' : self.ph_allom,
                      'ar'    : self.ar_allom,
                      'npp'   : self.npp_allom,
@@ -872,9 +884,11 @@ class grd:
         # Flush attrs (clear outputs)
         self.emaxm = []
         self.tsoil = []
+        self.psisoil = []
         self.psi_50       = None
         self.kl_max       = None
         self.krc_max      = None
+        self.psi_xylem    = None
         self.ph_allom     = None
         self.ar_allom     = None
         self.npp_allom    = None
@@ -1592,9 +1606,11 @@ class grd:
                     self.carbon_costs[step] = daily_output['c_cost_cwm']
                     self.emaxm.append(daily_output['epavg'])
                     self.tsoil.append(self.soil_temp)
+                    self.psisoil.append(daily_output['pot_soil'])
                     self.psi_50[step]=daily_output['p50avg']
                     self.kl_max[step]=daily_output['klmavg']
                     self.krc_max[step]=daily_output['krcmavg']
+                    self.psi_xylem[step]=daily_output['pxylemavg']
                     self.photo[step] = daily_output['phavg']
                     self.aresp[step] = daily_output['aravg']
                     self.npp[step] = daily_output['nppavg']
@@ -2109,9 +2125,11 @@ class grd:
 
                     self.emaxm.append(daily_output_allom['epavg'])
                     self.tsoil.append(self.soil_temp)
+                    self.psisoil.append(daily_output_allom['pot_soil'])
                     self.psi_50[step]        = daily_output_allom['p50avg']
                     self.kl_max[step]        = daily_output_allom['klmavg']
                     self.krc_max[step]       = daily_output_allom['krcmavg']
+                    self.psi_xylem[step]     = daily_output_allom['pxylemavg']
                     self.ph_allom[step]      = daily_output_allom['phavg']
                     self.ar_allom[step]      = daily_output_allom['aravg']
                     self.npp_allom[step]     = daily_output_allom['nppavg']
