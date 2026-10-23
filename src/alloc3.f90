@@ -561,7 +561,7 @@ module alloc3
       &, nitrogen_uptake, phosphorus_uptake&
       &, litter_nutrient_content, limiting_nutrient&
       &, c_costs_of_uptake, uptk_strategy, ctonfix&
-      &, leaf_req, leaf_inc_min, root_inc_min)
+      &, leaf_req, leaf_inc_min, root_inc_min, rg_growth)
 
       !VARIABLE INPUTS
       real(r_8), dimension(ntraits), intent(in) :: dt !PLS attributes
@@ -595,6 +595,10 @@ module alloc3
       real(r_8), intent(out) :: c_costs_of_uptake    !g(C)/m2 - C cost of nutrient uptake and resorption (paid in the next day)
       integer(i_4), dimension(2), intent(out) :: uptk_strategy  !(1) N, (2) P uptake strategy (0 = passive)
       real(r_8), intent(out) :: ctonfix              !g(C)/m2 - C sent to N fixers
+
+      ! Growth respiration
+      real(r_8), intent(out) :: rg_growth            !g(C)/m2 - growth respiration of the day (Ryan 1991)
+      real(r_8), parameter   :: rg_frac = 0.25D0     !construction respiration per unit C incorporated in tissue
 
       !LITTER CARBON OUTPUTS (gC/m2/day) - turnover fluxes leaving the plant
       real(r_8), intent(out) :: leaf_litter, root_litter, cwd
@@ -658,6 +662,7 @@ module alloc3
       c_costs_of_uptake          = 0.0D0
       uptk_strategy(:)           = 0
       ctonfix                    = 0.0D0
+      rg_growth                  = 0.0D0
       leaf_req                   = 0.0D0
       leaf_inc_min               = 0.0D0
       root_inc_min               = 0.0D0
