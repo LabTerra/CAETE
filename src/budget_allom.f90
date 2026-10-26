@@ -36,7 +36,7 @@ module budget_allom
       &, n_sto_out, p_sto_out&
       &, dleaf_out, dwood_out, droot_out, dsap_out, dheart_out, dsto_out&
       &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd, evavg, epavg&
-      &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg, kxylemavg& 
+      &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg, kxylemavg, knormavg& 
       &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
       &, specific_la_1, ocpavg&
       &, nupt_1, pupt_1, lit_nut_content_1, limiting_nutrient_out&
@@ -137,11 +137,12 @@ module budget_allom
       real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
       real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
       real(r_8),intent(out) :: pot_soil       !Soil water potential (MPa)
-      real(r_8),intent(out) :: p50avg         !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+      real(r_8),intent(out) :: p50avg         !Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
       real(r_8),intent(out) :: klmavg         !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),intent(out) :: krcmavg        !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
       real(r_8),intent(out) :: pxylemavg      !Xylem water potential (MPa)
       real(r_8),intent(out) :: kxylemavg      !Xylem conductance (molm-2s-1MPa-1)
+      real(r_8),intent(out) :: knormavg       !Returns normalized xylem conductance (dimensionless)
       real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
       real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
       real(r_8),intent(out) :: nppavg         !Daily NPP (average between PFTs)(Kg m-2 y-1)
@@ -301,11 +302,12 @@ module budget_allom
       real(r_8) :: w  !Daily soil moisture storage (mm)
       !Water cycle
       real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
-      real(r_8),dimension(:),allocatable :: p50    !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+      real(r_8),dimension(:),allocatable :: p50    !Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
       real(r_8),dimension(:),allocatable :: klm    !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       real(r_8),dimension(:),allocatable :: krcm   !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
       real(r_8),dimension(:),allocatable :: pxylem !Xylem water potential (MPa)
-      real(r_8),dimension(:),allocatable :: kxyl   !Xylem conductance (molm-2s-1MPa-1) 
+      real(r_8),dimension(:),allocatable :: kxyl   !Xylem conductance (molm-2s-1MPa-1)
+      real(r_8),dimension(:),allocatable :: knor   !Returns normalized xylem conductance (dimensionless)
       real(r_8),dimension(:),allocatable :: wue    !Water use efficiency
       real(r_8),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
       real(r_8),dimension(:),allocatable :: tra    !Transpiration (mm/s)
@@ -437,6 +439,7 @@ module budget_allom
       allocate(krcm(nlen))
       allocate(pxylem(nlen))
       allocate(kxyl(nlen))
+      allocate(knor(nlen))
       allocate(ph(nlen))
       allocate(ar(nlen))
       allocate(laia(nlen))
@@ -629,7 +632,7 @@ module budget_allom
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
-               &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p)&
+               &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p), knor(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
@@ -757,6 +760,7 @@ module budget_allom
       krcmavg = 0.0D0
       pxylemavg = 0.0D0
       kxylemavg = 0.0D0
+      knormavg = 0.0D0
       phavg  = 0.0D0
       aravg  = 0.0D0
       nppavg = 0.0D0
@@ -818,6 +822,7 @@ module budget_allom
       krcmavg       = sum(real(krcm, kind=r_8) * ocp_coeffs, mask= .not. isnan(krcm))
       pxylemavg     = sum(real(pxylem, kind=r_8) * ocp_coeffs, mask= .not. isnan(pxylem))
       kxylemavg     = sum(real(kxyl, kind=r_8) * ocp_coeffs, mask= .not. isnan(kxyl))
+      knormavg      = sum(real(knor, kind=r_8) * ocp_coeffs, mask= .not. isnan(knor))
       phavg         = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
       aravg         = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
       nppavg        = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
@@ -898,6 +903,7 @@ module budget_allom
       deallocate(krcm)
       deallocate(pxylem)
       deallocate(kxyl)
+      deallocate(knor)
       deallocate(ph)
       deallocate(ar)
       deallocate(laia)

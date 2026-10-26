@@ -31,7 +31,14 @@ G1_1d_allom = {'emaxm',
                'cleaf',
                'cawood',
                'cfroot',
-               'ls'}
+               'ls',
+               #'psisoil',
+               'psi_50'}
+               #'kl_max',
+               #'krc_max',
+               #'psi_xylem',
+               #'k_xylem',
+               #'k_norm'}
 
 # Group 1
 G1_1d = ['emaxm',
@@ -48,7 +55,14 @@ G1_1d = ['emaxm',
          'cdef',
          'vcmax',
          'specific_la',
-         'ls']
+         'ls',
+         #'psisoil',
+         'psi_50']
+         #'kl_max',
+         #'krc_max',
+         #'psi_xylem',
+         #'k_xylem',
+         #'k_norm'
 
 G1_2d = ['nupt', ]
 
@@ -113,6 +127,13 @@ class run_g1_allom(tb.IsDescription):
     cawood = tb.Float64Col(dflt=0.0, pos=9)
     cfroot = tb.Float64Col(dflt=0.0, pos=10)
     ls     = tb.Float64Col(dflt=0.0, pos=11)
+    #psisoil = tb.Float32Col(dflt=0.0, pos=24)
+    psi_50 = tb.Float32Col(dflt=0.0, pos=12)
+    #kl_max = tb.Float32Col(dflt=0.0, pos=26)
+    #krc_max = tb.Float32Col(dflt=0.0, pos=27)
+    #psi_xylem = tb.Float32Col(dflt=0.0, pos=28)
+    #k_xylem = tb.Float32Col(dflt=0.0, pos=29)
+    #k_norm = tb.Float32Col(dflt=0.0, pos=30)
 
 class run_g1(tb.IsDescription):
     """ Row template for CAETÊ output data"""
@@ -142,6 +163,13 @@ class run_g1(tb.IsDescription):
     pupt1 = tb.Float64Col(dflt=0.0, pos=21)
     pupt2 = tb.Float64Col(dflt=0.0, pos=22)
     pupt3 = tb.Float64Col(dflt=0.0, pos=23)
+    #psisoil = tb.Float32Col(dflt=0.0, pos=24)
+    psi_50 = tb.Float32Col(dflt=0.0, pos=24)
+    #kl_max = tb.Float32Col(dflt=0.0, pos=26)
+    #krc_max = tb.Float32Col(dflt=0.0, pos=27)
+    #psi_xylem = tb.Float32Col(dflt=0.0, pos=28)
+    #k_xylem = tb.Float32Col(dflt=0.0, pos=29)
+    #k_norm = tb.Float32Col(dflt=0.0, pos=30)
 
 
 class run_g2(tb.IsDescription):

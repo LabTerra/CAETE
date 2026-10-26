@@ -25,8 +25,6 @@ module photo
    implicit none
    private
 
-
-
    ! functions(f) and subroutines(s) defined here
    public ::                    &
         gross_ph               ,& ! (f), gross photosynthesis (kgC m-2 y-1)
@@ -37,10 +35,11 @@ module photo
         sla_trait              ,& ! (f), specific leaf area (m2 gC-1) from the SLA trait (mm2 mg-1)
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         psi_fifty              ,& ! (f), Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
-        conductivity_xylemleaf ,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
-        conductance_xylemax    ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
+        leaf_xylem_conductivity,& ! (f), Maximum xylem conductivity per unit leaf area (kg m-1 s-1 Mpa-1)
+        max_xylem_conductance  ,& ! (f), Maximum xylem conductance per unit leaf area (mol m-2 s-1 Mpa-1)
         xylem_waterpotential   ,& ! (f), Xylem water potential (MPa)
-        xylem_conductance      ,& ! (f), Hydraulic conductance of xylem (mol m-2 s-1 Mpa-1)
+        xylem_conductance      ,& ! (f), Xylem ydraulic conductance (mol m-2 s-1 Mpa-1)
+        norm_xylem_conductance ,& ! (f), Normalized xylem hydraulic conductance (dimensionless)
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
@@ -299,6 +298,7 @@ contains
 
    !=================================================================
    !=================================================================
+
    function leaf_long(sla) result(ll)
       ! Leaf longevity from SLA - Sakschewsky et al. (2016)
       ! LL (months) = 138.35 * SLA (mm2/mg) ^ (-1.128)
@@ -337,7 +337,7 @@ contains
    !=================================================================
    !=================================================================
 
-   function conductivity_xylemleaf(dwood,amax,cawood1) result(kl_max)
+   function leaf_xylem_conductivity(dwood,amax,cawood1) result(kl_max)
 
       !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
       !Based in Christoffersen et al. 2016 TFS v.1-Hydro
@@ -355,12 +355,12 @@ contains
          kl_max = 0.0D0
       endif
 
-   end function conductivity_xylemleaf
+   end function leaf_xylem_conductivity
 
    !=================================================================
    !=================================================================
 
-   function conductance_xylemax(kl_max, height, cawood) result(krc_max)
+   function max_xylem_conductance(kl_max, height, cawood) result(krc_max)
 
       !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
       !Based in Christoffersen et al. 2016 TFS v.1-Hydro
@@ -377,9 +377,9 @@ contains
          krc_max = 0.0D0
       endif
 
-   end function conductance_xylemax
+   end function max_xylem_conductance
 
-      !=================================================================
+   !=================================================================
    !=================================================================
    
    function xylem_waterpotential(psi_soil,height,e,krc_max,cawood) result(psi_xylem)
@@ -435,6 +435,26 @@ contains
       endif
 
    end function xylem_conductance
+
+   !=================================================================
+   !=================================================================
+
+      function norm_xylem_conductance(krc_max,k, cawood) result(k_norm)
+      !Returns normalized xylem conductance (dimensionless)
+      use types
+
+      real(r_8),intent(in) :: krc_max         !molm-2s-1Mpa-1
+      real(r_8),intent(in) :: k               !molm-2s-1Mpa-1
+      real(r_8),intent(in) :: cawood
+      real(r_8) :: k_norm                     !dimensionless   
+
+      if(cawood .gt. 0.0D0) then
+         k_norm = k/krc_max
+      else 
+         k_norm = 0.0D0
+      endif
+
+   end function norm_xylem_conductance
 
    !=================================================================
    !=================================================================

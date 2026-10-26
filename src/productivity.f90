@@ -31,7 +31,7 @@ contains
     subroutine prod(dt,catm,temp,ts,p0,w,ipar,rh,emax,cl1_prod,&
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
         & linc_layer,nl_shared,lsize_shared,wmax,&
-        & psisoil,psi50,klmax,krcmax,psixylem,kxylem,&
+        & psisoil,psi50,klmax,krcmax,psixylem,kxylem,knorm,&
         & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
 
         use types
@@ -64,11 +64,12 @@ contains
 
     !     Output
     !     ------
-        real(r_8), intent(out) :: psi50                !xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
+        real(r_8), intent(out) :: psi50                !Xylem water potential when the plant loses 50% of their maximum xylem conductance (MPa)
         real(r_8), intent(out) :: klmax                !Maximum xylem conductivity per unit leaf area (kgm-1s-1MPa-1)
         real(r_8), intent(out) :: krcmax               !Maximum xylem conductance per unit leaf area (molm-2s-1Mpa-1)
         real(r_8), intent(out) :: psixylem             !Xylem water potential (MPa)
         real(r_8), intent(out) :: kxylem               !Xylem conductance (molm-2s-1MPa-1)
+        real(r_8), intent(out) :: knorm                !Returns normalized xylem conductance (dimensionless)
         real(r_8), intent(out) :: ph                   !Canopy gross photosynthesis (kgC/m2/yr)
         real(r_8), intent(out) :: rc                   !Stomatal resistence (not scaled to canopy!) (s/m)
         real(r_8), intent(out) :: laia                 !Leaf area index (m2 leaf/m2 area) 
@@ -155,25 +156,25 @@ contains
         !Stomatal resistence
         !===================
         e_pot = transpiration(rc_aux, p0, vpd, 2,temp)
-        print*, 'e_pot:',e_pot
+        !print*, 'e_pot:',e_pot
 
-        !==========================
-        !Hydraulic without stress
-        !==========================
+        !===========================
+        ! Plant hydraulic structure
+        !===========================
 
-        !   P50
+        ! Psi50
         !=========
         psi50 = psi_fifty(wd_allom,ca1_prod)
         !print*,'P50',psi50, 'wd',wd_allom
 
         ! Klmax
         !=========
-        klmax = conductivity_xylemleaf(wd_allom,jl_out* 1e6,ca1_prod)
+        klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,ca1_prod)
         !print*,'klmax',klmax
 
         ! Krcmax
         !=========
-        krcmax = conductance_xylemax(klmax,height1,ca1_prod)   
+        krcmax = max_xylem_conductance(klmax,height1,ca1_prod)   
         !print*,'krcmax',krcmax,'klmax',klmax
 
         ! Psixylem
@@ -184,7 +185,12 @@ contains
         ! k xylem
         !=========
         kxylem = xylem_conductance(krcmax,psixylem,psi50,ca1_prod)
-        print*,'KXYLEM:',kxylem, 'P50:',psi50, 'KRCMAX:',krcmax
+        !print*,'KXYLEM:',kxylem, 'P50:',psi50, 'KRCMAX:',krcmax
+
+        ! Normalized k xylem
+        !=========
+        knorm = norm_xylem_conductance(krcmax,kxylem,ca1_prod)
+        print*,'knorm:',knorm,'krcmax:',krcmax,'kxylem:',kxylem
 
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
@@ -218,7 +224,7 @@ contains
     
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
-        print*, 'e_real:',e
+        !print*, 'e_real:',e
     
         ! Leaf area index (m2/m2)
         ! recalcula rc e escalona para dossel
