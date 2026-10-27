@@ -237,7 +237,7 @@ contains
 
       psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
       !psi_soil = -2
-      print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
+      !print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
 
       !!GAMBIARRA
       !!I put a if here just to make the adjustments in other variables, after that I solve the psisoil problem
