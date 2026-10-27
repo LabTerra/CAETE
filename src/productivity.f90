@@ -191,7 +191,7 @@ contains
 
         !Stomatal resistence
         !===================
-        rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
+        rc_pot = canopy_resistence(vpd, f1a(:), g1, catm,temp) ! Potential RCM leaf level - s m-1
 
         !Stomatal resistence
         !===================
