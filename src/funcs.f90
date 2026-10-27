@@ -1412,7 +1412,7 @@ contains
       !implicit none
 
       real(r_8), intent(in) :: temp, ts
-      real(r_8), intent(in) :: cl1_mr
+      real(r_8), dimension(3), intent(in) :: cl1_mr
       real(r_8), intent(in) :: cf1_mr
       real(r_8), intent(in) :: ca1_mr
       real(r_8), intent(in) :: n2cl
@@ -1421,6 +1421,7 @@ contains
       real(r_8), intent(in) :: aawood_mr
       real(r_8) :: rm
 
+      real(r_8) :: cl_total
       real(r_8) :: csa, rm64, rml64
       real(r_8) :: rmf64, rms64
       real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0
@@ -1438,7 +1439,9 @@ contains
          rms64 = 0.0
       endif
 
-      rml64 = ((n2cl * (cl1_mr * 1.0D3)) * a1 * dexp(a2 * temp))
+      cl_total = sum(cl1_mr(:))
+
+      rml64 = ((n2cl * (cl_total * 1.0D3)) * a1 * dexp(a2 * temp))
 
       rmf64 = ((n2cf * (cf1_mr * 1.0D3)) * a1 * dexp(a2 * ts))
 
