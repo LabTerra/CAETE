@@ -15,8 +15,12 @@ plt.rcParams.update({'font.size': 10, 'axes.edgecolor': GRID, 'axes.labelcolor':
                      'figure.facecolor': SURF, 'axes.facecolor': SURF, 'savefig.facecolor': SURF,
                      'axes.titlesize': 11, 'axes.titleweight': 'bold', 'axes.titlelocation': 'left',
                      'legend.frameon': False, 'lines.linewidth': 2})
-V1 = pd.read_csv('../v1_inicial/anual.csv', index_col=0)
-V2 = pd.read_csv('../v2_atual/anual.csv', index_col=0)
+#V1 = pd.read_csv('../v1_inicial/anual.csv', index_col=0)
+#V2 = pd.read_csv('../v2_atual/anual.csv', index_col=0)
+
+V1 = pd.read_csv('../run_rgrowth/anual.csv', index_col=0)
+V2 = pd.read_csv('../testing_model_bia/anual.csv', index_col=0)
+
 for d in (V1, V2):
     d['lenho'] = d.csap + d.cheart
     d['total'] = d.cleaf + d.cfroot + d.lenho + d.csto
@@ -89,6 +93,6 @@ tab = pd.DataFrame({'variavel': [r[0] for r in rows],
                     'v1_385': [V1.loc[385, r[1]] for r in rows], 'v2_385': [V2.loc[385, r[1]] for r in rows],
                     'v1_2016': [V1.loc[423, r[1]] for r in rows], 'v2_2016': [V2.loc[423, r[1]] for r in rows]})
 tab['dif_385_pct'] = 100 * (tab.v2_385 / tab.v1_385 - 1)
-tab.to_csv('../comparacao_v1_v2_tabela.csv', index=False)
+tab.to_csv('../comparacao_rgrowth_tabela.csv', index=False)
 pd.set_option('display.width', 200); pd.set_option('display.float_format', '{:.3g}'.format)
 print(tab.to_string(index=False))
