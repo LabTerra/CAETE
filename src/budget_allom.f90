@@ -1,0 +1,934 @@
+! Copyright 2023- LabTerra
+
+!     This program is free software: you can redistribute it and/or modify
+!     it under the terms of the GNU General Public License as published by
+!     the Free Software Foundation, either version 3 of the License, or
+!     (at your option) any later version.
+
+!     This program is distributed in the hope that it will be useful,
+!     but WITHOUT ANY WARRANTY; without even the implied warranty of
+!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!     GNU General Public License for more details.
+
+!     You should have received a copy of the GNU General Public License
+!     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! contacts :: David Montenegro Lapola <lapoladm ( at ) gmail.com>
+! Author: Bianca Rius and JP Darela
+! This program is based on the work of those that gave us the INPE-CPTEC-PVM2 model
+
+! Daily budget of the allometric version of CAETE (allocation in alloc3.f90),
+! with light competition and, optionally, the nutrient cycle (N, P).
+
+module budget_allom
+   implicit none
+   private
+ 
+   public :: daily_budget_allom
+ 
+   contains
+ 
+   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh&
+      &, mineral_n, labile_p, on, sop, op, n_sto_in, p_sto_in, uptk_costs_in, catm&
+      &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
+      &, dleaf_in, dwood_in, droot_in, dsap_in, dheart_in, dsto_in&
+      &, cleaf_out, cwood_out, croot_out, csap_out, cheart_out, csto_out& !outputs
+      &, n_sto_out, p_sto_out&
+      &, dleaf_out, dwood_out, droot_out, dsap_out, dheart_out, dsto_out&
+      &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd&
+      &, evavg, epavg, phavg, aravg, nppavg, laiavg, rcavg&
+      &, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
+      &, specific_la_1, ocpavg&
+      &, nupt_1, pupt_1, lit_nut_content_1, limiting_nutrient_out&
+      &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
+
+      use types
+      use global_par, only: ntraits, npls, light_comp, sapwood, year_days
+      use alloc
+      use productivity
+      use omp_lib
+
+      use, intrinsic :: ieee_arithmetic
+
+      use photo
+      use water, only: evpot2, penman, available_energy, runoff
+      use alloc3
+
+      !==========================================================================
+      !     ----------------------------INPUTS-------------------------------
+
+      !PLS traits (traits)
+      real(r_8),dimension(ntraits,npls),intent(in) :: dt
+            !Water
+      real(r_8),intent(in) :: w1  !Initial (previous month last day) soil moisture storage (mm) - upper layer
+      real(r_8),intent(in) :: w2  !Initial (previous month last day) soil moisture storage (mm) - lower layer
+
+      !Climatic data
+      real(r_8),intent(in) :: temp    ! Surface air temperature (oC)
+      real(r_8),intent(in) :: p0      ! Surface pressure (mb)
+      real(r_8),intent(in) :: ipar    ! Incident photosynthetic active radiation mol Photons m-2 s-1
+      real(r_8),intent(in) :: rh      ! Relative humidity 
+      real(r_8),intent(in) :: catm    ! ATM CO2 concentration ppm
+      real(r_8),intent(in) :: ts      ! Soil temperature (oC)
+
+      !Nutrient pools (gridcell soil state, g m-2) - same convention as budget.f90
+      real(r_8),intent(in) :: mineral_n            ! Solution N NOx/NaOH gm-2
+      real(r_8),intent(in) :: labile_p             ! solution P O4P  gm-2
+      real(r_8),intent(in) :: on, sop, op          ! Organic N, sorbed inorganic P, Organic P g m-2
+
+      !PLS N/P reserve (previous day), g m-2 - analogous to csto_in for carbon
+      real(r_8),dimension(npls),intent(in) :: n_sto_in
+      real(r_8),dimension(npls),intent(in) :: p_sto_in
+
+      !Previous-day carbon cost of nutrient uptake per PLS, g m-2 - same
+      !convention as budget.f90 (feed back the previous day's npp2pay_1).
+      !It is paid from today's carbon in allocation3/grass_allocation3.
+      real(r_8),dimension(npls),intent(in) :: uptk_costs_in
+
+      !Soil
+      real(r_8),intent(in) :: wmax_in ! Saturation point
+
+      !Vegetation pools
+      real(r_8),dimension(npls),intent(in) :: cleaf_in
+      real(r_8),dimension(npls),intent(in) :: cwood_in
+      real(r_8),dimension(npls),intent(in) :: croot_in
+      real(r_8),dimension(npls),intent(in) :: csap_in
+      real(r_8),dimension(npls),intent(in) :: cheart_in
+      real(r_8),dimension(npls),intent(in) :: csto_in
+
+      !Delta vegetation pools
+      real(r_8),dimension(npls),intent(in) :: dleaf_in
+      real(r_8),dimension(npls),intent(in) :: dwood_in
+      real(r_8),dimension(npls),intent(in) :: droot_in
+      real(r_8),dimension(npls),intent(in) :: dsap_in
+      real(r_8),dimension(npls),intent(in) :: dheart_in
+      real(r_8),dimension(npls),intent(in) :: dsto_in
+
+      !==========================================================================
+
+      !==========================================================================
+      !     ----------------------------OUTPUTS-------------------------------
+
+      !DAILY OUTPUTS
+      !Vegetation pools
+      real(r_8),dimension(npls),intent(out) :: cleaf_out
+      real(r_8),dimension(npls),intent(out) :: cwood_out
+      real(r_8),dimension(npls),intent(out) :: croot_out
+      real(r_8),dimension(npls),intent(out) :: csap_out
+      real(r_8),dimension(npls),intent(out) :: cheart_out
+      real(r_8),dimension(npls),intent(out) :: csto_out
+
+      !PLS N/P reserve (updated), g m-2 - analogous to csto_out for carbon
+      real(r_8),dimension(npls),intent(out) :: n_sto_out
+      real(r_8),dimension(npls),intent(out) :: p_sto_out
+
+      !Delta vegetation pools
+      real(r_8),dimension(npls),intent(out) :: dleaf_out
+      real(r_8),dimension(npls),intent(out) :: dwood_out
+      real(r_8),dimension(npls),intent(out) :: droot_out
+      real(r_8),dimension(npls),intent(out) :: dsap_out
+      real(r_8),dimension(npls),intent(out) :: dheart_out
+      real(r_8),dimension(npls),intent(out) :: dsto_out
+      real(r_8),dimension(npls),intent(out) :: ocpavg    ! [0-1] Gridcell occupation
+
+      !CWM OUTPUTS
+      real(r_8),intent(out) :: epavg          !Maximum evapotranspiration (mm/day)
+      real(r_8),intent(out) :: evavg          !Actual evapotranspiration Daily average (mm/day)
+      real(r_8),intent(out) :: phavg          !Daily photosynthesis (Kg m-2 y-1)
+      real(r_8),intent(out) :: aravg          !Daily autotrophic respiration (Kg m-2 y-1)
+      real(r_8),intent(out) :: nppavg         !Daily NPP (average between PFTs)(Kg m-2 y-1)
+      real(r_8),intent(out) :: laiavg         !Daily leaf19010101', '19551231 area Index m2m-2
+      real(r_8),intent(out) :: rcavg          !Daily canopy resistence s/m
+      real(r_8),intent(out) :: f5avg          !Daily canopy resistence s/m
+      real(r_8),intent(out) :: rmavg          !maintenance/growth respiration (Kg m-2 y-1)
+      real(r_8),intent(out) :: rgavg          !maintenance/growth respiration (Kg m-2 y-1)
+      real(r_8),intent(out) :: wueavg         ! Water use efficiency
+      real(r_8),intent(out) :: cueavg         ! [0-1]
+      real(r_8),intent(out) :: vcmax_1          ! µmol m-2 s-1
+      real(r_8),intent(out) :: specific_la_1    ! m2 g(C)-1
+
+      !carbon veg. pools for the gridcell (grd)
+      !Values considering all the PLSs weighted by their relative C contribution
+      real(r_8), intent(out) :: cleaf_grd
+      real(r_8), intent(out) :: cwood_grd
+      real(r_8), intent(out) :: croot_grd
+      real(r_8), intent(out) :: csap_grd
+      real(r_8), intent(out) :: cheart_grd
+      real(r_8), intent(out) :: csto_grd
+
+      !Gridcell (CWM) nutrient diagnostics
+      real(r_8), dimension(2), intent(out) :: nupt_1              !g m-2 (1) from mineral_n, (2) from on
+      real(r_8), dimension(3), intent(out) :: pupt_1              !g m-2 (1) from labile_p, (2) from sop, (3) from op
+      real(r_8), dimension(6), intent(out) :: lit_nut_content_1   !g(Nutrient)m-2 [leaf-N,root-N,cwd-N,leaf-P,root-P,cwd-P]
+      !Limiting nutrient per PLS: dim1 = leaf wood root, same codes as budget.f90 (limitation_status_1)
+      integer(i_2), dimension(3,npls), intent(out) :: limiting_nutrient_out
+
+      !Litter carbon (CWM), g(C) m-2 day-1 - same convention as budget.f90
+      real(r_8), intent(out) :: litter_l_1
+      real(r_8), intent(out) :: cwd_1
+      real(r_8), intent(out) :: litter_fr_1
+
+      !Carbon costs of nutrient uptake and resorption (same names/shapes as budget.f90)
+      real(r_8), dimension(npls), intent(out) :: npp2pay_1          !g(C) m-2, per PLS
+      integer(i_4), dimension(2,npls), intent(out) :: uptk_strat_1  !(1) N, (2) P strategy, per PLS
+      real(r_8), intent(out) :: c_cost_cwm                          !g(C) m-2, CWM
+
+      !Carbon sent to the N fixers (CWM), g(C) m-2 day-1 - cp(4) in budget.f90
+      real(r_8), intent(out) :: ctonfix_cwm
+
+      !==========================================================================
+
+      !==========================================================================
+      !     ---------------------INTERNAL VARIABLES-------------------------------
+
+      !index for PLS loops
+      integer(i_4) :: i
+      integer(i_4) :: p
+      integer(i_4) :: counter
+      integer(i_4) :: ri
+      integer(i_4) :: step
+
+      !PLSs
+      real(r_8),dimension(ntraits) :: dt1 ! Store one PLS attributes array (1D)
+      integer(i_4) :: nlen !number of alive PLSs
+      integer(i_4), dimension(:), allocatable :: lp ! index of living PLSs/living grasses
+      real(r_8), dimension(:), allocatable :: idx_grasses !grass identifier
+
+      !Carbon vegetation pools
+      real(r_8),dimension(npls) :: cleaf_pls
+      real(r_8),dimension(npls) :: cwood_pls
+      real(r_8),dimension(npls) :: croot_pls
+      real(r_8),dimension(npls) :: csap_pls
+      real(r_8),dimension(npls) :: cheart_pls
+      real(r_8),dimension(npls) :: csto_pls
+
+      !PLS N/P reserve, g m-2 - analogous to csto_pls for carbon
+      real(r_8),dimension(npls) :: n_sto_pls
+      real(r_8),dimension(npls) :: p_sto_pls
+
+      !Carbon vegetation pools after allocation routine
+      real(r_8),dimension(:), allocatable :: cleaf_pls2
+      real(r_8),dimension(:), allocatable :: cwood_pls2
+      real(r_8),dimension(:), allocatable :: croot_pls2
+      real(r_8),dimension(:), allocatable :: csap_pls2
+      real(r_8),dimension(:), allocatable :: cheart_pls2
+      real(r_8),dimension(:), allocatable :: csto_pls2
+
+      !PLS N/P reserve after allocation routine - analogous to csto_pls2
+      real(r_8),dimension(:), allocatable :: n_sto_pls2
+      real(r_8),dimension(:), allocatable :: p_sto_pls2
+
+      !Nutrient fluxes and diagnostics from allocation3/grass_allocation3 per PLS
+      real(r_8),dimension(:,:), allocatable :: nitrogen_uptake_pls   !d0=2
+      real(r_8),dimension(:,:), allocatable :: phosphorus_uptake_pls !d0=3
+      real(r_8),dimension(:,:), allocatable :: litter_nutrient_pls   !d0=6
+      integer(i_2),dimension(:,:), allocatable :: limiting_nutrient_pls !d0=3
+      real(r_8),dimension(:), allocatable :: npp2pay                 !g(C) m-2 - C cost of uptake and resorption
+      integer(i_4),dimension(:,:), allocatable :: uptk_strat         !d0=2
+      real(r_8),dimension(:), allocatable :: ctonfix_pls             !g(C) m-2 - C sent to N fixers
+
+      !carbon vegetation pools discounting c deficit
+      real(r_8),dimension(:), allocatable :: cleaf_int
+      real(r_8),dimension(:), allocatable :: cwood_int
+      real(r_8),dimension(:), allocatable :: croot_int
+      real(r_8),dimension(:), allocatable :: csap_int
+      real(r_8),dimension(:), allocatable :: cheart_int
+      real(r_8),dimension(:), allocatable :: csto_int
+
+      real(r_8),dimension(:), allocatable :: leaf_req
+      real(r_8),dimension(:), allocatable :: leaf_inc_min
+      real(r_8),dimension(:), allocatable :: root_inc_min
+
+      !Carbon vegetation pools (auxiliar for internal convertions)
+      real(r_8),dimension(:), allocatable :: cleaf_pls_aux
+      real(r_8),dimension(:), allocatable :: cwood_pls_aux
+      real(r_8),dimension(:), allocatable :: croot_pls_aux
+      real(r_8),dimension(:), allocatable :: csap_pls_aux
+      real(r_8),dimension(:), allocatable :: cheart_pls_aux
+      real(r_8),dimension(:), allocatable :: csto_pls_aux
+
+      !Delta veg pools
+      real(r_8),dimension(npls) :: dleaf
+      real(r_8),dimension(npls) :: dwood
+      real(r_8),dimension(npls) :: droot
+      real(r_8),dimension(npls) :: dsap
+      real(r_8),dimension(npls) :: dheart
+      real(r_8),dimension(npls) :: dsto
+
+      !Carbon vegetation pools (auxiliar for internal convertions)
+      real(r_8),dimension(:), allocatable :: dleaf_pls_aux
+      real(r_8),dimension(:), allocatable :: dwood_pls_aux
+      real(r_8),dimension(:), allocatable :: droot_pls_aux
+      real(r_8),dimension(:), allocatable :: dsap_pls_aux
+      real(r_8),dimension(:), allocatable :: dheart_pls_aux
+      real(r_8),dimension(:), allocatable :: dsto_pls_aux
+
+      !Carbon Cycle
+      real(r_8),dimension(:),allocatable :: ph           !Canopy gross photosynthesis (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: ar           !Autotrophic respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: nppa         !Net primary productivity / auxiliar
+      real(r_8),dimension(:),allocatable :: laia         !Leaf area index (m2 leaf/m2 area)
+      real(r_8),dimension(:),allocatable :: f5           !Foliar Photosynthesis (mol/m2/s)
+      real(r_8),dimension(:),allocatable :: vpd          !Vapor Pressure deficit
+      real(r_8),dimension(:),allocatable :: rm           !Maintenance respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: rg           !Growth respiration (kgC/m2/yr)
+      real(r_8),dimension(:),allocatable :: cue          !Carbon use efficiency
+      real(r_8),dimension(:),allocatable :: c_def        !Carbon deficit due to negative NPP (kgC/m2/yr) - i.e. ph < ar
+      real(r_8),dimension(:),allocatable :: vcmax        !Rubisco maximum velocity of carboxilation (µmol/m2/s)
+      real(r_8),dimension(:),allocatable :: specific_la  !Specific leaf area (m2/kg)
+      real(r_8),dimension(:),allocatable :: litter_l     ! leaf litter
+      real(r_8),dimension(:),allocatable :: cwd          ! coarse wood debris (to litter)
+      real(r_8),dimension(:),allocatable :: litter_fr    ! fine roots litter
+
+      !Respiration of the stored carbon (same names as budget.f90)
+      real(r_8) :: mr_sto                !maintenance respiration of storage, g(C) m-2 day-1
+      real(r_8) :: sr                    !growth respiration of storage, g(C) m-2 day-1
+      real(r_8) :: growth_stoc           !daily growth of the storage pool, g(C) m-2
+      real(r_8) :: csto_aux              !storage after maintenance respiration, kg(C) m-2
+      real(r_8), dimension(3) :: sto_aux !PLS storage (C, N, P), g m-2
+      real(r_8), parameter :: csto_max = 0.5D2 !ceiling of the C storage, g(C) m-2 (same value as budget.f90)
+      real(r_8) :: sto_excess            !storage above the ceiling, respired, g(C) m-2 day-1
+      real(r_8) :: rg_growth             !growth respiration of the day (allocation3), g(C) m-2 day-1
+
+      !water pools
+      real(r_8) :: w  !Daily soil moisture storage (mm)
+      !Water cycle
+      real(r_8),dimension(:),allocatable :: evap   !Actual evapotranspiration (mm/day)
+      real(r_8),dimension(:),allocatable :: wue    !Water use efficiency
+      real(r_8),dimension(:),allocatable :: rc2    !Canopy resistence (s/m)
+      real(r_8),dimension(:),allocatable :: tra    !Transpiration (mm/s)
+      real(r_8) :: emax                            !Maximum evapotranspiration (mm/day)
+
+      !soil
+      real(r_8) :: soil_temp !soil temperature
+      real(r_8) :: soil_sat  !soil water saturation point
+      
+      !area frac occupation
+      real(r_8),    dimension(npls) :: awood_aux !define if tree or grass
+      logical(l_1), dimension(npls) :: ocp_wood  !wood occupation
+      integer(i_4), dimension(npls) :: run       !verifies if the PLS is alive
+      real(r_8),    dimension(npls) :: ocp_mm    ! TODO include cabon of dead plssss in the cicle? (not implemented)
+      real(r_8),dimension(:),allocatable :: ocp_coeffs !occupancy coefficients for each PLS
+
+      ! [LIGHT COMP] Novas variaveis para o pre-loop de competicao por luz.
+      ! O dossel compartilhado e construido antes do loop paralelo,
+      ! garantindo que todas as PLS competem pelo mesmo perfil de extincao.
+
+      real(r_8) :: max_height
+      integer(i_4) :: nl_shared      ! numero de camadas do dossel compartilhado
+      integer(i_4) :: n_pre, p_pre   ! contadores do pre-loop
+      real(r_8)    :: lsize_shared   ! tamanho de cada camada (m)
+      real(r_8)    :: idx_pre        ! LAI de uma PLS no pre-loop
+      real(r_8)    :: lused_pre      ! luz absorvida por camada no pre-loop
+      real(r_8), allocatable :: lai_layer(:)   ! LAI agregado de todas as PLS por camada
+      real(r_8), allocatable :: linc_layer(:)  ! luz incidente em cada camada
+      real(r_8), allocatable :: lavai_layer(:) ! luz disponivel saindo de cada camada
+      real(r_8), dimension(:), allocatable :: height_pls
+      real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
+
+      !===========================================================================
+
+      !Initializing
+
+      !ATENÇÃO, VERIFICAR QUESTÃO DO TOTAL WOOD
+      
+      do i = 1, npls
+         awood_aux(i) = dt(7,i)
+
+         cleaf_pls(i)  = cleaf_in(i)
+         cwood_pls(i)  = cwood_in(i)
+         croot_pls(i)  = croot_in(i)
+         csap_pls(i)   = csap_in(i)
+         cheart_pls(i) = cheart_in(i)
+         csto_pls(i)   = csto_in(i)
+         n_sto_pls(i)  = n_sto_in(i)
+         p_sto_pls(i)  = p_sto_in(i)
+
+         dleaf(i)  = dleaf_in(i)
+         dwood(i)  = dwood_in(i)
+         droot(i)  = droot_in(i)
+         dsap(i)   = dsap_in(i)
+         dheart(i) = dheart_in(i)
+         dsto(i)   = dsto_in(i)
+      enddo
+
+      w = w1 + w2        
+      soil_temp = ts     
+      soil_sat = wmax_in
+
+      call pft_area_frac(cleaf_pls, croot_pls, cwood_pls, awood_aux,&
+      &                 ocpavg, ocp_wood, run, ocp_mm)
+
+      nlen = sum(run)    ! New length for the arrays in the main loop
+                         ! get the total number of alives
+      
+      allocate(lp(nlen))
+      allocate(ocp_coeffs(nlen))
+      allocate(idx_grasses(nlen))
+
+      ! Get only living PLSs
+      counter = 1
+      do p = 1,npls
+         if(run(p).eq. 1) then
+            lp(counter) = p
+            ocp_coeffs(counter) = ocpavg(p)
+            counter = counter + 1
+         endif
+      enddo
+      
+      ! Identify grasses
+      idx_grasses(:) = 1.0D0
+
+      do p = 1, nlen
+         if (awood_aux(lp(p)) .le. 0.0D0) idx_grasses(p) = 0.0D0
+         !This variable multipies ocp_coeffs for the wood tissues. If it is
+         !a grass it turns the ocp_coeffs for wood_tissues = 0
+      enddo
+
+      ! Pre-compute heights from current carbon stocks.
+      ! height_pls must exist before the canopy pre-loop (which uses it for
+      ! layer assignment) and before max_height (which sizes the canopy).
+      ! Uses the same kgC/m2 -> gC conversion (*1.0D3) as alloc3.f90.
+
+      allocate(height_pls(nlen))
+      height_pls(:) = 0.0D0
+      do p_pre = 1, nlen
+         ri = lp(p_pre)
+         if (awood_aux(ri) .gt. 0.0D0) then
+            height_pls(p_pre) = height_from_stem_carbon( &
+               (csap_pls(ri) + cheart_pls(ri)) * 1.0D3, &
+               dt(19,ri))
+         end if
+      end do
+      max_height = maxval(height_pls(:))
+
+      !dimensioning according to alive PLSs
+      allocate(evap(nlen))
+      allocate(nppa(nlen))
+      allocate(ph(nlen))
+      allocate(ar(nlen))
+      allocate(laia(nlen))
+      allocate(f5(nlen))
+      allocate(vpd(nlen))
+      allocate(rc2(nlen))
+      allocate(rm(nlen))
+      allocate(rg(nlen))
+      allocate(wue(nlen))
+      allocate(cue(nlen))
+      allocate(c_def(nlen))
+      allocate(vcmax(nlen))
+      allocate(specific_la(nlen))
+      allocate(litter_l(nlen))
+      allocate(cwd(nlen))
+      allocate(litter_fr(nlen))
+      allocate(tra(nlen))
+
+      allocate(cleaf_pls2(nlen))
+      allocate(cwood_pls2(nlen))
+      allocate(croot_pls2(nlen))
+      allocate(csap_pls2(nlen))
+      allocate(cheart_pls2(nlen))
+      allocate(csto_pls2(nlen))
+
+      allocate(n_sto_pls2(nlen))
+      allocate(p_sto_pls2(nlen))
+      allocate(nitrogen_uptake_pls(2,nlen))
+      allocate(phosphorus_uptake_pls(3,nlen))
+      allocate(litter_nutrient_pls(6,nlen))
+      allocate(limiting_nutrient_pls(3,nlen))
+      allocate(npp2pay(nlen))
+      allocate(uptk_strat(2,nlen))
+      allocate(ctonfix_pls(nlen))
+
+      allocate(leaf_req(nlen))
+      allocate(leaf_inc_min(nlen))
+      allocate(root_inc_min(nlen))
+
+      allocate(cleaf_int(nlen))
+      allocate(cwood_int(nlen))
+      allocate(croot_int(nlen))
+      allocate(csap_int(nlen))
+      allocate(cheart_int(nlen))
+      allocate(csto_int(nlen))
+
+      allocate(dleaf_pls_aux(nlen))
+      allocate(dwood_pls_aux(nlen))
+      allocate(droot_pls_aux(nlen))
+      allocate(dsap_pls_aux(nlen))
+      allocate(dheart_pls_aux(nlen))
+      allocate(dsto_pls_aux(nlen))
+
+      !     Maximum evapotranspiration (emax)
+      !     =================================
+      emax = evpot2(p0,temp,rh,available_energy(temp))
+      soil_temp = ts
+
+      ! ====================================================================
+      ! [LIGHT COMP] PRE-LOOP: construcao do dossel compartilhado (sequencial)
+      ! Agrega o LAI de TODAS as PLS vivas em suas camadas e propaga a luz
+      ! de cima para baixo. O resultado (linc_layer) e passado para
+      ! cada PLS no loop paralelo, garantindo competicao real por luz.
+      ! Referencia logica: Beer-Lambert aplicado ao dossel agregado.
+      ! ====================================================================
+      nl_shared    = max(1, nint(max_height / 5.0D0))
+      lsize_shared = max_height / real(nl_shared, r_8)
+
+      if (max_height .le. 0.0D0) then
+         lsize_shared = 5.0D0  ! valor padrão seguro
+         nl_shared    = 1
+      end if
+ 
+      allocate(lai_layer(nl_shared))
+      allocate(linc_layer(nl_shared))
+      allocate(lavai_layer(nl_shared))
+      lai_layer(:)   = 0.0D0
+      linc_layer(:)  = 0.0D0
+      lavai_layer(:) = 0.0D0
+ 
+      ! Passo 1: acumula LAI de todas as PLS vivas em suas respectivas camadas
+      ! Gramineas (cawood = 0, height = 0) sao excluidas do pre-loop:
+      ! elas recebem ipar total diretamente em photosynthesis_rate e nao
+      ! competem por camadas do dossel. Inclui-las causaria acumulo de LAI
+      ! incorreto na camada 1.
+
+      do p_pre = 1, nlen
+         ri = lp(p_pre)
+ 
+         ! Pula gramineas - sem madeira nao ocupam camadas do dossel
+         if (cwood_pls(ri) .le. 0.0D0) cycle
+ 
+         ! [LIGHT COMP] LAI ponderado pela ocupacao real da PLS na grid.
+         ! leaf_area_index retorna LAI como se a PLS ocupasse 1 m2 inteiro.
+         ! Multiplicar por ocpavg(ri) escala para a fracao real que ela ocupa,
+         ! de modo que o dossel compartilhado reflita a contribuicao proporcional
+         ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
+
+         ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
+         idx_pre = leaf_area_index(cleaf_pls(ri), sla_trait(dt(18,ri))) * ocpavg(ri)
+         if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
+         ! Aloca o LAI na camada correta
+         do n_pre = 1, nl_shared
+            if (n_pre .eq. 1) then
+               if (lsize_shared * real(n_pre, r_8) .ge. height_pls(p_pre)) then
+                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
+                  exit  !Exit após PLS ser alocada na camada correta
+
+               end if
+            else
+               if ((lsize_shared * real(n_pre, r_8) .ge. height_pls(p_pre)) .and. &
+                   (lsize_shared * real(n_pre-1, r_8) .lt. height_pls(p_pre))) then
+                  lai_layer(n_pre) = lai_layer(n_pre) + idx_pre
+                  exit  
+               end if
+            end if
+         end do
+      end do
+ 
+      ! [LIGHT COMP] Teto de LAI por camada - evita extincao total durante spin-up.
+      ! Durante o spin-up todas as PLS tem altura baixa e se concentram nas
+      ! camadas inferiores, causando LAI agregado impossivel (ex: 30-300 m2/m2).
+      ! O teto de 10.0 e conservador: e maior que o LAI total maximo do dossel
+      ! em equilibrio (~8.75 m2/m2 na versão sem competição), portanto nunca
+      ! sera atingido em condicoes normais --- so limita o spin-up.
+
+      do n_pre = 1, nl_shared
+         if (lai_layer(n_pre) .gt. 10.0D0) lai_layer(n_pre) = 10.0D0
+      end do
+
+      ! Passo 2: propaga luz de cima para baixo pelo dossel completo
+      if (light_comp .eq. 1) then
+         ! Competição por luz ATIVA (Beer-Lambert + Gap Dynamics)
+         do n_pre = nl_shared, 1, -1
+            if (n_pre .eq. nl_shared) then
+               linc_layer(n_pre) = real(ipar, r_8)
+            else
+               linc_layer(n_pre) = lavai_layer(n_pre + 1)
+            end if
+            lused_pre = linc_layer(n_pre) * (1.0D0 - gap_fraction) * (1.0D0 - dexp(-0.5D0 * lai_layer(n_pre)))
+            lavai_layer(n_pre)  = linc_layer(n_pre) - lused_pre
+         end do
+      else
+         ! Competição por luz DESLIGADA(spin-up): todas as camadas recebem ipar completo
+         do n_pre = 1, nl_shared
+            linc_layer(n_pre) = real(ipar, r_8)
+            lavai_layer(n_pre) = real(ipar, r_8)
+         end do
+      end if
+      
+      ! ====================================================================
+      ! [LIGHT COMP] FIM DO PRE-LOOP
+      ! ====================================================================
+
+      ! FAZER NUmthreads função de nlen pra otimizar a criação de trheads
+      if (nlen .le. 20) then
+         call OMP_SET_NUM_THREADS(1)
+      else if (nlen .le. 100) then
+         call OMP_SET_NUM_THREADS(1)
+      else if (nlen .le. 300) then
+         call OMP_SET_NUM_THREADS(2)
+      else if (nlen .le. 600) then
+         call OMP_SET_NUM_THREADS(3)
+      else
+         call OMP_SET_NUM_THREADS(3)
+      endif
+
+      !$OMP PARALLEL DO &
+      !$OMP SCHEDULE(AUTO) &
+      !$OMP DEFAULT(SHARED) &
+      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess, rg_growth)
+
+      do p = 1,nlen
+         
+         ri = lp(p) !get the correspondentt value of for that specific pls (don't lose the original PLS index)
+         dt1 = dt(:,ri) ! Pick up the pls functional attributes list
+        
+         !here ri is real index. The outputs use p to save memory, but at the end of the doc
+         !it is transformed in p
+
+         ! [LIGHT COMP] Passa linc_layer (luz incidente por camada do dossel
+         ! compartilhado) e nl_shared (numero de camadas) para prod/photosynthesis_rate.
+         ! Cada PLS recebe a luz correta para sua camada, calculada com o LAI
+         ! agregado de todas as PLS (pre-loop acima).
+
+         ! m_resp (funcs.f90) takes the respiring wood as the fraction "sapwood"
+         ! (5%) of the wood carbon it receives (Pavlick et al. 2013), as in the
+         ! classic version: the total wood (sapwood + heartwood) is passed. Only
+         ! a small part of the wood is living tissue.
+         call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
+               !&, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               !! Growth respiration is now computed in allocation3 (rg_growth), on the
+               ! tissue built today, and added to ar/nppa after the allocation.
+               ! Zero increments are passed here so that g_resp returns zero and
+               ! nppa entering the allocation is photosynthesis - maintenance
+               ! respiration. prod is not changed because budget.f90 also uses it.
+               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
+               &, height_pls(p), linc_layer, nl_shared, lsize_shared&
+               &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
+               &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+
+         
+         evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
+         
+         ! Maintenance respiration of the stored carbon, paid from the storage
+         ! before allocation (as in budget.f90). sto_resp (funcs.f90) uses the
+         ! same Ryan (1991) equation of m_resp, proportional to the N reserve:
+         ! it is an annual rate (g(C) m-2 yr-1), converted here to a daily loss.
+         sto_aux(1) = csto_pls(ri) * 1.0D3
+         sto_aux(2) = n_sto_pls(ri)
+         sto_aux(3) = p_sto_pls(ri)
+         mr_sto = sto_resp(temp, sto_aux) / year_days
+         if (ieee_is_nan(mr_sto)) mr_sto = 0.0D0
+         mr_sto = max(0.0D0, min(mr_sto, sto_aux(1)))
+         csto_aux = csto_pls(ri) - (mr_sto * 1.0D-3)
+
+         ! Alocação (alloc3.f90): allocation3 para lenhosas e grass_allocation3
+         ! para gramíneas. height_pls(p) vem do pré-loop e é reutilizado aqui,
+         ! para ser o mesmo valor usado na competição por luz.
+
+         if (dt1(7) .gt. 0.0D0) then
+            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+               &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
+               &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
+               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
+               &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
+               &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
+               &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
+               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), rg_growth)
+         else
+            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+               &,cleaf_pls(ri), croot_pls(ri), csto_aux&
+               &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
+               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
+               &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
+               &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
+               &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p))
+            leaf_req(p) = 0.0D0
+            leaf_inc_min(p) = 0.0D0
+            root_inc_min(p) = 0.0D0
+         end if
+
+         ! Growth respiration of the storage pool: 5% of its daily growth
+         ! (as in budget.f90). Both storage respiration terms are added to ar.
+         growth_stoc = max(0.0D0, (csto_pls2(p) - csto_aux) * 1.0D3)
+         if (ieee_is_nan(growth_stoc)) growth_stoc = 0.0D0
+         sr = 0.05D0 * growth_stoc
+         csto_pls2(p) = csto_pls2(p) - (sr * 1.0D-3)
+
+         ! Ceiling of the storage pool: budget.f90 zeroes the storage above
+         ! 50 g m-2; here only the excess is removed and it is respired (added
+         ! to ar), so the carbon does not leave the balance.
+         sto_excess = max(0.0D0, (csto_pls2(p) * 1.0D3) - csto_max)
+         csto_pls2(p) = csto_pls2(p) - (sto_excess * 1.0D-3)
+         ar(p) = ar(p) + ((sr + mr_sto + sto_excess) * 0.365242D0) ! g m-2 day-1 to kg m-2 year-1
+         ! the same respiration is discounted from the NPP, so that the output
+         ! keeps NPP = photosynthesis - ar (budget.f90 does not discount it)
+         nppa(p) = nppa(p) - ((sr + mr_sto + sto_excess) * 0.365242D0)
+
+         ! UPDATING THE OUTPUTS AFTER ALLOCATION3/GRASS_ALLOCATION3
+         ! rg_growth is computed in allocation3 on the tissue built today
+         ! (leaf + fine root + sapwood, after the N/P limitation) and is already
+         ! paid by the storage there. prod receives zero increments (see the
+         ! call above), so its rg is zero and the nppa it returns is
+         ! photosynthesis - maintenance respiration. Here rg_growth is converted
+         ! to the output units and added to ar and discounted from nppa, so that
+         ! the output keeps NPP = photosynthesis - ar. These lines only update
+         ! the output fluxes: the storage is not changed here.
+         rg(p)   = rg_growth * 0.365242D0     ! g m-2 day-1 to kg m-2 year-1
+         ar(p)   = ar(p)   + rg(p)
+         nppa(p) = nppa(p) - rg(p)
+
+         if (n_sto_pls2(p) .lt. 0.0D0) n_sto_pls2(p) = 0.0D0
+         if (p_sto_pls2(p) .lt. 0.0D0) p_sto_pls2(p) = 0.0D0
+
+         !Carbon use efficiency & Delta C
+         if(ph(p) < 1.0D-15 .or. nppa(p) < 1.0D-15) then
+            cue(p) = 0.0D0
+         else
+            cue(p) = nppa(p)/ph(p)
+         endif
+
+         ! Carbon deficit (ar > ph): paid inside allocation3/grass_allocation3,
+         ! first by the storage and then by leaf, root and sapwood. c_def is
+         ! only a diagnostic here and is not discounted from the pools again.
+         cleaf_int(p)  = cleaf_pls2(p)
+         croot_int(p)  = croot_pls2(p)
+         csap_int(p)   = csap_pls2(p)
+         cheart_int(p) = cheart_pls2(p)
+         csto_int(p)   = csto_pls2(p)
+         cwood_int(p)  = csap_int(p) + cheart_int(p)
+
+         if (cleaf_int(p).lt.0.0D0)  cleaf_int(p) = 0.0D0
+         if (croot_int(p).lt.0.0D0)  croot_int(p) = 0.0D0
+         if (csap_int(p).lt.0.0D0)   csap_int(p) = 0.0D0
+         if (cheart_int(p).lt.0.0D0) cheart_int(p) = 0.0D0
+         if (csto_int(p).lt.0.0D0)   csto_int(p) = 0.0D0
+         if (cwood_int(p).lt.0.0D0)  cwood_int(p) = 0.0D0
+      
+         !calculating deltas
+         if (dt1(7) .gt. 0.0D0)then
+            dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
+            droot_pls_aux(p)  = croot_pls2(p)  - croot_pls(ri)
+            dsap_pls_aux(p)   = csap_pls2(p)   - csap_pls(ri)
+            dheart_pls_aux(p) = cheart_pls2(p) - cheart_pls(ri)
+            dsto_pls_aux(p)   = csto_pls2(p)   - csto_pls(ri)
+            dwood_pls_aux(p)  = cwood_pls2(p)  - cwood_pls(ri)
+         else
+            dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
+            droot_pls_aux(p)  = croot_pls2(p)  - croot_pls(ri)
+            dsap_pls_aux(p)   = 0.0D0
+            dheart_pls_aux(p) = 0.0D0
+            dsto_pls_aux(p)   = csto_pls2(p)   - csto_pls(ri)
+            dwood_pls_aux(p)  = 0.0D0
+         endif
+
+         if(dleaf_pls_aux(p).lt.0.0D0)  dleaf_pls_aux(p) = 0.0D0
+         if(droot_pls_aux(p).lt.0.0D0)  droot_pls_aux(p) = 0.0D0
+         if(dsap_pls_aux(p).lt.0.0D0)   dsap_pls_aux(p) = 0.0D0
+         if(dheart_pls_aux(p).lt.0.0D0) dheart_pls_aux(p) = 0.0D0
+         if(dsto_pls_aux(p).lt.0.0D0)   dsto_pls_aux(p) = 0.0D0
+         if(dwood_pls_aux(p).lt.0.0D0)  dwood_pls_aux(p) = 0.0D0
+
+      enddo
+      !$OMP END PARALLEL DO
+
+      epavg = emax
+
+      !Fill output data
+      evavg  = 0.0D0
+      phavg  = 0.0D0
+      aravg  = 0.0D0
+      nppavg = 0.0D0
+      laiavg = 0.0D0        
+      rcavg  = 0.0D0        
+      f5avg  = 0.0D0        
+      rmavg  = 0.0D0       
+      rgavg  = 0.0D0       
+      wueavg = 0.0D0       
+      cueavg = 0.0D0       
+      vcmax_1 = 0.0D0       
+      specific_la_1 = 0.0D0
+      
+      cleaf_out(:)  = 0.0D0
+      cwood_out(:)  = 0.0D0
+      croot_out(:)  = 0.0D0
+      csap_out(:)   = 0.0D0
+      cheart_out(:) = 0.0D0
+      csto_out(:)   = 0.0D0
+      n_sto_out(:)  = 0.0D0
+      p_sto_out(:)  = 0.0D0
+
+      dleaf_out(:)  = 0.0D0
+      dwood_out(:)  = 0.0D0
+      droot_out(:)  = 0.0D0
+      dsap_out(:)   = 0.0D0
+      dheart_out(:) = 0.0D0
+      dsto_out(:)   = 0.0D0
+
+      cleaf_grd  = 0.0D0
+      cwood_grd  = 0.0D0
+      croot_grd  = 0.0D0
+      csap_grd   = 0.0D0
+      cheart_grd = 0.0D0
+      csto_grd   = 0.0D0
+
+      nupt_1(:)              = 0.0D0
+      pupt_1(:)              = 0.0D0
+      lit_nut_content_1(:)   = 0.0D0
+      limiting_nutrient_out(:,:) = 0_i_2
+      litter_l_1             = 0.0D0
+      cwd_1                  = 0.0D0
+      litter_fr_1            = 0.0D0
+      npp2pay_1(:)           = 0.0D0
+      uptk_strat_1(:,:)      = 0
+      c_cost_cwm             = 0.0D0
+      ctonfix_cwm            = 0.0D0
+
+      ! Calculate CWM for ecosystem processes
+ 
+      ! Filter NaN in ocupation (abundance) coefficients
+      do p = 1, nlen
+         if(ieee_is_nan(ocp_coeffs(p))) ocp_coeffs(p) = 0.0D0
+      enddo
+
+      evavg         = sum(real(evap, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(evap))
+      phavg         = sum(real(ph, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ph))
+      aravg         = sum(real(ar, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(ar))
+      nppavg        = sum(real(nppa, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(nppa))
+      laiavg        = sum(laia * ocp_coeffs, mask= .not. ieee_is_nan(laia))
+      rcavg         = sum(real(rc2, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rc2))
+      f5avg         = sum(f5 * ocp_coeffs, mask= .not. ieee_is_nan(f5))
+      rmavg         = sum(real(rm, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rm))
+      rgavg         = sum(real(rg, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(rg))
+      wueavg        = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(wue))
+      cueavg        = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(cue))
+      vcmax_1       = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
+      specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
+
+      cleaf_grd  = sum(cleaf_int  * ocp_coeffs, mask = .not. ieee_is_nan(cleaf_int))
+      cwood_grd  = sum(cwood_int * ocp_coeffs, mask = .not. ieee_is_nan(cwood_int ))
+      croot_grd  = sum(croot_int  * ocp_coeffs, mask = .not. ieee_is_nan(croot_int ))
+      csap_grd   = sum(csap_int   * ocp_coeffs, mask = .not. ieee_is_nan(csap_int  ))
+      cheart_grd = sum(cheart_int * ocp_coeffs, mask = .not. ieee_is_nan(cheart_int))
+      csto_grd   = sum(csto_int   * ocp_coeffs, mask = .not. ieee_is_nan(csto_int  ))
+
+      ! Nutrient diagnostics, aggregated as in budget.f90
+      do i = 1, 6
+         do p = 1, nlen
+            if(ieee_is_nan(litter_nutrient_pls(i, p))) litter_nutrient_pls(i, p) = 0.0D0
+            if (litter_nutrient_pls(i, p) .gt. 1.0D2) litter_nutrient_pls(i, p) = 0.0D0
+            if (litter_nutrient_pls(i, p) .lt. 0.0D0) litter_nutrient_pls(i, p) = 0.0D0
+         enddo
+      enddo
+
+      do i = 1, 2
+         nupt_1(i) = sum(nitrogen_uptake_pls(i,:) * ocp_coeffs)
+      enddo
+      do i = 1, 3
+         pupt_1(i) = sum(phosphorus_uptake_pls(i,:) * ocp_coeffs)
+      enddo
+      do i = 1, 6
+         lit_nut_content_1(i) = sum(litter_nutrient_pls(i,:) * ocp_coeffs)
+      enddo
+
+      litter_l_1  = sum(litter_l * ocp_coeffs, mask= .not. ieee_is_nan(litter_l))
+      cwd_1       = sum(cwd * ocp_coeffs, mask= .not. ieee_is_nan(cwd))
+      litter_fr_1 = sum(litter_fr * ocp_coeffs, mask= .not. ieee_is_nan(litter_fr))
+      c_cost_cwm  = sum(npp2pay * ocp_coeffs, mask= .not. ieee_is_nan(npp2pay))
+      ctonfix_cwm = sum(ctonfix_pls * ocp_coeffs, mask= .not. ieee_is_nan(ctonfix_pls))
+
+      !daily output to carbon pools (not CWM)
+      do p = 1, nlen
+         ri = lp(p)
+
+         cleaf_out(ri)  =  cleaf_int(p) 
+         croot_out(ri)  =  croot_int(p)
+         cheart_out(ri) =  cheart_int(p)
+         csap_out(ri)   =  csap_int(p)
+         csto_out(ri)   =  csto_int(p)
+         cwood_out(ri)  =  cheart_out(ri) + csap_out(ri)
+
+         n_sto_out(ri)  =  n_sto_pls2(p)
+         p_sto_out(ri)  =  p_sto_pls2(p)
+         limiting_nutrient_out(:,ri) = limiting_nutrient_pls(:,p)
+         npp2pay_1(ri) = npp2pay(p)
+         uptk_strat_1(:,ri) = uptk_strat(:,p)
+      
+         !deltas
+         dleaf_out(ri)  =  dleaf_pls_aux(p)
+         droot_out(ri)  =  droot_pls_aux(p)
+         dheart_out(ri) =  dheart_pls_aux(p)
+         dsap_out(ri)   =  dsap_pls_aux(p)
+         dsto_out(ri)   =  dsto_pls_aux(p)
+         dwood_out(ri)  =  dheart_out(ri) + dsap_out(ri)
+         
+      enddo
+
+      deallocate(lp)
+      deallocate(evap)
+      deallocate(nppa)
+      deallocate(ph)
+      deallocate(ar)
+      deallocate(laia)
+      deallocate(f5)
+      deallocate(vpd)
+      deallocate(rc2)
+      deallocate(rm)
+      deallocate(rg)
+      deallocate(wue)
+      deallocate(cue)
+      deallocate(c_def)
+      deallocate(vcmax)
+      deallocate(specific_la)
+      deallocate(litter_l)
+      deallocate(cwd)
+      deallocate(litter_fr)
+      deallocate(tra)
+      deallocate(idx_grasses)
+
+      deallocate(cleaf_pls2)
+      deallocate(cwood_pls2)
+      deallocate(croot_pls2)
+      deallocate(csap_pls2)
+      deallocate(cheart_pls2)
+      deallocate(csto_pls2)
+
+      deallocate(n_sto_pls2)
+      deallocate(p_sto_pls2)
+      deallocate(nitrogen_uptake_pls)
+      deallocate(phosphorus_uptake_pls)
+      deallocate(litter_nutrient_pls)
+      deallocate(limiting_nutrient_pls)
+      deallocate(npp2pay)
+      deallocate(uptk_strat)
+      deallocate(ctonfix_pls)
+
+      deallocate(leaf_req)
+      deallocate(leaf_inc_min)
+      deallocate(root_inc_min)
+
+      deallocate(cleaf_int)
+      deallocate(cwood_int)
+      deallocate(croot_int)
+      deallocate(csap_int)
+      deallocate(cheart_int)
+      deallocate(csto_int)
+      deallocate(height_pls)
+
+      deallocate(dleaf_pls_aux)
+      deallocate(dwood_pls_aux)
+      deallocate(droot_pls_aux)
+      deallocate(dsap_pls_aux)
+      deallocate(dheart_pls_aux)
+      deallocate(dsto_pls_aux)
+
+      ! [LIGHT COMP] Desaloca arrays do dossel compartilhado
+      deallocate(lai_layer)
+      deallocate(linc_layer)
+      deallocate(lavai_layer)
+
+   end subroutine daily_budget_allom
+ 
+ end module budget_allom
+ 

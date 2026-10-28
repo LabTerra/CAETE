@@ -77,7 +77,7 @@ def build_strds(strd):
 
 
 def assemble_layer(ny, nx, var):
-    out = np.zeros(shape=(360, 720), dtype=np.float32) - 9999.0
+    out = np.zeros(shape=(360, 720), dtype=np.float64) - 9999.0
 
     for i, val in enumerate(var):
         out[ny[i], nx[i]] = val
@@ -86,7 +86,7 @@ def assemble_layer(ny, nx, var):
 
 
 def assemble_cwm(ny, nx, area, pls_arr):
-    out = np.zeros(shape=(360, 720), dtype=np.float32) - 9999.0
+    out = np.zeros(shape=(360, 720), dtype=np.float64) - 9999.0
 
     for x in range(area.shape[0]):
         out[ny[x], nx[x]] = np.sum(area[x, :] * pls_arr)
@@ -94,7 +94,7 @@ def assemble_cwm(ny, nx, area, pls_arr):
 
 
 def assemble_layer_area(ny, nx, var):
-    out = np.zeros(shape=(gp.npls, 360, 720), dtype=np.float32) - 9999.0
+    out = np.zeros(shape=(gp.npls, 360, 720), dtype=np.float64) - 9999.0
     # var shape = ny*nx , npls
     for x in range(var.shape[0]):
         out[:, ny[x], nx[x]] = var[x, :]
@@ -110,6 +110,24 @@ def time_queries(interval):
     for day in dates:
         query_days.append(build_strd(cf_date2str(day)))
     return query_days
+
+def get_var_metadata_allom(var):
+
+    vunits = {'header': ['long_name', 'unit', 'standart_name'],
+
+              'emaxm':  ['potent. evapotrasnpiration', 'kg m-2 day-1', 'etpot'],
+              'tsoil':  ['soil_temperature', 'celcius', 'soil_temp'],
+              'photo':  ['gross primary productivity', 'kg m-2 year-1', 'gpp'],
+              'evapm':  ['evapotranspiration', 'kg m-2 day-1', 'et'],
+              'cleaf':  ['C in leaves', 'kg m-2', 'cleaf'],
+              'cawood': ['C in woody tissues', 'kg m-2', 'cawood'],
+              'cfroot': ['C in fine roots', 'kg m-2', 'cfroot'],
+              'ls':     ['Living Plant Life Strategies', '1', 'ls']}
+
+    out = {}
+    for v in var:
+        out[v] = vunits[v]
+    return out
 
 
 def get_var_metadata(var):
@@ -228,6 +246,89 @@ def create_lband(res=0.5):
 
     return lat, latbnd, lon, lonbnd
 
+def write_daily_output_allom(arr, var, var_attrs, time_index, nc_out):
+    NO_DATA = [-9999.0, -9999.0]
+
+    time_units = TIME_UNITS
+    calendar = CALENDAR
+    # Prepare lat/lon
+    geo_v = create_lband()
+
+    lat = geo_v[0]
+    lat_bnds = geo_v[1]
+    lon = geo_v[2]
+    lon_bnds = geo_v[3]
+
+    t0 = cf_date2str(cftime.num2date(time_index[0], time_units, calendar))
+    tf = cf_date2str(cftime.num2date(time_index[-1], time_units, calendar))
+
+    print("\nSaving netCDF4 files - allometry version")
+    print_progress(0, len(var), prefix='Progress:', suffix='Complete')
+
+    for i, v in enumerate(var):
+        nc_filename = os.path.join(nc_out, Path(
+            f'{v}_{t0}-{tf}.nc4'))
+        with dt(nc_filename, mode='w', format='NETCDF4') as rootgrp:
+            # dimensions & variables
+            rootgrp.createDimension("latitude", lat.size)
+            rootgrp.createDimension("longitude", lon.size)
+            rootgrp.createDimension("bnds", size=2)
+            rootgrp.createDimension("time", None)
+
+            YB = rootgrp.createVariable(
+                "lat_bnds", lat_bnds.dtype, ("latitude", "bnds"))
+            XB = rootgrp.createVariable(
+                "lon_bnds", lon_bnds.dtype, ("longitude", "bnds"))
+
+            time = rootgrp.createVariable("time", np.float64, ("time",))
+            latitude = rootgrp.createVariable(
+                "latitude", lat.dtype, ("latitude",))
+            longitude = rootgrp.createVariable(
+                "longitude", lon.dtype, ("longitude",))
+            var_ = rootgrp.createVariable(varname=var_attrs[v][2], datatype=np.float64,
+                                          dimensions=(
+                                              "time", "latitude", "longitude",),
+                                          zlib=True, fill_value=NO_DATA[0], fletcher32=True)
+
+            # attributes
+            rootgrp.description = var_attrs[v][0] + " from CAETÊ-ALLOMETRY OUTPUT"
+            rootgrp.source = "CAETE model outputs"
+            rootgrp.experiment = EXPERIMENT
+
+            # time
+            time.units = time_units
+            time.calendar = calendar
+            time.axis = 'T'
+            time[...] = time_index
+
+            # lat
+            latitude.units = u"degrees_north"
+            latitude.long_name = u"latitude"
+            latitude.standart_name = u"latitude"
+            latitude.axis = u'Y'
+            latitude[...] = lat
+            YB[...] = lat_bnds
+
+            # lon
+            longitude.units = "degrees_east"
+            longitude.long_name = "longitude"
+            longitude.standart_name = "longitude"
+            longitude.axis = u'X'
+            longitude[...] = lon
+            XB[...] = lon_bnds
+
+            # var
+            var_.long_name = var_attrs[v][0]
+            var_.units = var_attrs[v][1]
+            var_.standard_name = var_attrs[v][2]
+            var_.missing_value = NO_DATA[0]
+
+            # WRITING DATA
+            out_arr = np.fliplr(arr[i])
+            var_[:, :, :] = np.ma.masked_array(
+                out_arr, mask=out_arr == NO_DATA[0])
+            print_progress(i + 1, len(var), prefix='Progress:',
+                           suffix='Complete')
 
 def write_daily_output(arr, var, flt_attrs, time_index, nc_out):
 
@@ -278,7 +379,7 @@ def write_daily_output(arr, var, flt_attrs, time_index, nc_out):
                 "latitude", lat.dtype, ("latitude",))
             longitude = rootgrp.createVariable(
                 "longitude", lon.dtype, ("longitude",))
-            var_ = rootgrp.createVariable(varname=flt_attrs[v][2], datatype=np.float32,
+            var_ = rootgrp.createVariable(varname=flt_attrs[v][2], datatype=np.float64,
                                           dimensions=(
                                               "time", "latitude", "longitude",),
                                           zlib=True, fill_value=NO_DATA[0], fletcher32=True)
@@ -351,10 +452,10 @@ def write_snap_output(arr, var, flt_attrs, time_index, nc_out):
             time = rootgrp.createVariable(varname="time", datatype=np.int32,
                                           dimensions=("time",))
             latitude = rootgrp.createVariable(
-                varname="latitude", datatype=np.float32, dimensions=("latitude",))
+                varname="latitude", datatype=np.float64, dimensions=("latitude",))
             longitude = rootgrp.createVariable(
-                varname="longitude", datatype=np.float32, dimensions=("longitude",))
-            var_ = rootgrp.createVariable(varname=flt_attrs[v][2], datatype=np.float32,
+                varname="longitude", datatype=np.float64, dimensions=("longitude",))
+            var_ = rootgrp.createVariable(varname=flt_attrs[v][2], datatype=np.float64,
                                           dimensions=(
                                               "time", "latitude", "longitude",),
                                           zlib=True, fill_value=NO_DATA[0], fletcher32=True)
@@ -395,6 +496,81 @@ def write_snap_output(arr, var, flt_attrs, time_index, nc_out):
             print_progress(i + 1, len(var), prefix='Progress:',
                            suffix='Complete')
 
+def write_area_output_allom(arr, time_index, nc_out):
+    NO_DATA = [-9999.0, -9999.0]
+
+    time_units = TIME_UNITS
+    calendar = CALENDAR
+
+    time_dim = time_index
+
+    longitude_0 = np.arange(-179.75, 180, 0.5)[201:272]
+    latitude_0 = np.arange(89.75, -90, -0.5)[160:221]
+
+    nc_filename = os.path.join(nc_out, Path(f'ocp_area.nc4'))
+    with dt(nc_filename, mode='w', format='NETCDF4') as rootgrp:
+        # dimensions  & variables
+
+        rootgrp.createDimension("latitude", latitude_0.size)
+        rootgrp.createDimension("longitude", longitude_0.size)
+        rootgrp.createDimension("pls", arr.shape[1])
+        rootgrp.createDimension("time", None)
+
+        time = rootgrp.createVariable(varname="time", datatype=np.int32,
+                                      dimensions=("time",))
+
+        pls = rootgrp.createVariable(varname="PLS", datatype=np.int16,
+                                     dimensions=("pls",))
+        
+        latitude = rootgrp.createVariable(
+            varname="latitude", datatype=np.float64, dimensions=("latitude",))
+        longitude = rootgrp.createVariable(
+            varname="longitude", datatype=np.float64, dimensions=("longitude",))
+        var_ = rootgrp.createVariable(varname='ocp_area', datatype=np.float64,
+                                      dimensions=(
+                                          "time", "pls", "latitude", "longitude",),
+                                      fill_value=NO_DATA[0])
+        
+        # attributes
+        # rootgrp
+        rootgrp.description = "Ocupation coefficients of Plant Life Strategies" + \
+            " from CAETÊ-ALLOMETRY OUTPUT"
+        rootgrp.source = "CAETE model outputs"
+        rootgrp.experiment = EXPERIMENT
+
+
+        # time
+        time.units = time_units
+        time.calendar = calendar
+        time.axis = u'T'
+
+        # time
+        pls.units = u'unitless'
+        pls.axis = u'P'
+
+        # lat
+        latitude.units = u"degrees_north"
+        latitude.long_name = u"latitude"
+        latitude.standart_name = u"latitude"
+        latitude.axis = u'Y'
+        # lon
+        longitude.units = "degrees_east"
+        longitude.long_name = "longitude"
+        longitude.standart_name = "longitude"
+        longitude.axis = u'X'
+        # var
+        var_.long_name = "Occupation coefficients of Plant Life Strategies (Abundance data)"
+        var_.units = "unitless"
+        var_.standard_name = 'ocp_area'
+        var_.missing_value = NO_DATA[0]
+
+        # WRITING DATA
+        pls[:] = np.arange(gp.npls, dtype=np.int16)
+        longitude[:] = longitude_0
+        latitude[:] = latitude_0
+        time[:] = time_dim
+        var_[:, :, :, :] = np.ma.masked_array(arr, mask=arr == NO_DATA[0])
+
 
 def write_area_output(arr, time_index, nc_out):
     NO_DATA = [-9999.0, -9999.0]
@@ -422,10 +598,10 @@ def write_area_output(arr, time_index, nc_out):
         pls = rootgrp.createVariable(varname="PLS", datatype=np.int16,
                                      dimensions=("pls",))
         latitude = rootgrp.createVariable(
-            varname="latitude", datatype=np.float32, dimensions=("latitude",))
+            varname="latitude", datatype=np.float64, dimensions=("latitude",))
         longitude = rootgrp.createVariable(
-            varname="longitude", datatype=np.float32, dimensions=("longitude",))
-        var_ = rootgrp.createVariable(varname='ocp_area', datatype=np.float32,
+            varname="longitude", datatype=np.float64, dimensions=("longitude",))
+        var_ = rootgrp.createVariable(varname='ocp_area', datatype=np.float64,
                                       dimensions=(
                                           "time", "pls", "latitude", "longitude",),
                                       fill_value=NO_DATA[0])
@@ -469,6 +645,56 @@ def write_area_output(arr, time_index, nc_out):
         time[:] = time_dim
         var_[:, :, :, :] = np.ma.masked_array(arr, mask=arr == NO_DATA[0])
 
+def create_ncG1_allom(table, interval, nc_out):
+    out_data = True if nc_out.exists() else os.mkdir(nc_out)
+    if out_data is None:
+        print(f"\n\nCreating output folder at{nc_out.resolve()}")
+    elif out_data:
+        print(f"\n\nSaving outputs in {nc_out.resolve()}")
+
+    vars = ['photo', 'evapm', 'cleaf', 'cawood', 'cfroot', 'ls']
+
+    dates = time_queries(interval)
+    dm1 = len(dates)
+    time_units = TIME_UNITS
+    calendar = CALENDAR
+
+    sdate = str2cf_date(interval[0])
+    edate = str2cf_date(interval[1])
+    start = cftime.date2num(sdate, time_units, calendar)
+    stop = cftime.date2num(edate, time_units, calendar)
+
+    time_index = np.arange(start, stop + 1, dtype=np.float64)
+    print("dm1 = ", dm1, 'time_axis  = ', time_index.size)
+    print('day0 = ', cftime.num2date(start, time_units, calendar))
+    print('dayf = ', cftime.num2date(stop, time_units, calendar))
+
+    photo  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    evapm  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cleaf  = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cawood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cfroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    ls     = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+
+    print("\nQuerying data from file FOR", end=': ')
+    for v in vars:
+        print(v, end=", ")
+    print("\nInterval: ", interval)
+    print_progress(0, len(dates), prefix='Progress:', suffix='Complete')
+    for i, day in enumerate(dates):
+        out = table.read_where(day)
+        photo[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['photo'])
+        evapm[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['evapm'])
+        cleaf[i,  :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cleaf'])
+        cawood[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cawood'])
+        cfroot[i, :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['cfroot'])
+        ls[i,     :, :] = assemble_layer(out['grid_y'], out['grid_x'], out['ls'])
+
+        print_progress(i + 1, len(dates), prefix='Progress:', suffix='Complete')
+
+    arr = (photo, evapm, cleaf, cawood, cfroot, ls)
+    var_attrs = get_var_metadata_allom(vars)
+    write_daily_output_allom(arr, vars, var_attrs, time_index, nc_out)
 
 def create_ncG1(table, interval, nc_out):
     out_data = True if nc_out.exists() else os.mkdir(nc_out)
@@ -495,20 +721,20 @@ def create_ncG1(table, interval, nc_out):
     print('day0 = ', cftime.num2date(start, time_units, calendar))
     print('dayf = ', cftime.num2date(stop, time_units, calendar))
 
-    photo = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    aresp = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    npp = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lai = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wue = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    cue = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    vcmax = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    specific_la = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    ls = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    nupt1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    nupt2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    pupt1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    pupt2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    pupt3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    photo = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    aresp = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    npp = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lai = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wue = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cue = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    vcmax = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    specific_la = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    ls = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    nupt1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    nupt2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    pupt1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    pupt2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    pupt3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     print("\nQuerying data from file FOR", end=': ')
     for v in vars:
@@ -590,25 +816,25 @@ def create_ncG2(table, interval, nc_out):
     print('day0 = ', cftime.num2date(start, time_units, calendar))
     print('dayf = ', cftime.num2date(stop, time_units, calendar))
 
-    csoil1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    csoil2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    csoil3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    csoil4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncN1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncN2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncN3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncN4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncP1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncP2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncP3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sncP4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    inorg_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    inorg_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sorbed_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sorbed_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    hresp = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    nmin = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    pmin = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    csoil1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    csoil2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    csoil3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    csoil4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncN1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncN2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncN3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncN4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncP1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncP2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncP3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sncP4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    inorg_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    inorg_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sorbed_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sorbed_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    hresp = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    nmin = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    pmin = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     print("\nQuerying data from file FOR", end=': ')
     for v in vars:
@@ -703,27 +929,27 @@ def create_ncG3(table, interval, nc_out):
     print('day0 = ', cftime.num2date(start, time_units, calendar))
     print('dayf = ', cftime.num2date(stop, time_units, calendar))
 
-    rcm = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    runom = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    evapm = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wsoil = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    swsoil = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    cleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    cawood = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    cfroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    litter_l = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    cwd = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    litter_fr = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc5 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    lnc6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sto1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sto2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    sto3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    c_cost = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    rcm = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    runom = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    evapm = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wsoil = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    swsoil = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cawood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cfroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    litter_l = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    cwd = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    litter_fr = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc5 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    lnc6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sto1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sto2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    sto3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    c_cost = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     print("\nQuerying data from file FOR", end=': ')
     for v in vars:
@@ -806,24 +1032,24 @@ def lim_data(table, nc_out):
 
     dm1 = len(run_breaks)
 
-    leaf_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    wood_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    root_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    leaf_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    wood_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_nolim = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_lim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_lim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_colim_n = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_colim_p = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    root_colim_np = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
     time_index = []
 
     for i, interval in enumerate(run_breaks):
@@ -921,21 +1147,21 @@ def ustrat_data(table, nc_out):
 
     dm1 = len(run_breaks) + 1
 
-    upt_stratN0 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratN1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratN2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratN3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratN4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratN6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP0 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP5 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP7 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    upt_stratP8 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    upt_stratN0 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratN1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratN2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratN3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratN4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratN6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP0 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP2 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP3 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP5 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP6 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP7 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    upt_stratP8 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
     time_index = []
 
     for i, interval in enumerate(run_breaks):
@@ -1020,23 +1246,23 @@ def ccc(table, pls_table, nc_out):
         print(f"\n\nSaving outputs in {nc_out.resolve()}")
 
     dm1 = len(run_breaks) + 1
-    g1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    resopfrac = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    tleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    twood = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    troot = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    aleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    awood = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    aroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    c4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    awood_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    froot_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    leaf_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    awood_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    froot_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    amp = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
-    pdia = np.zeros(shape=(dm1, 61, 71), dtype=np.float32) - 9999.0
+    g1 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    resopfrac = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    tleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    twood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    troot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    aleaf = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    awood = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    aroot = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    c4 = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    awood_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    froot_n2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    leaf_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    awood_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    froot_p2c = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    amp = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
+    pdia = np.zeros(shape=(dm1, 61, 71), dtype=np.float64) - 9999.0
 
     time_index = []
     pls_array = pls_table.read_where("PLS_id >= 0")
@@ -1207,7 +1433,7 @@ def create_nc_area(table, nc_out):
 
     dm1 = len(run_breaks) + 1
 
-    area = np.zeros(shape=(dm1, gp.npls, 61, 71), dtype=np.float32) - 9999.0
+    area = np.zeros(shape=(dm1, gp.npls, 61, 71), dtype=np.float64) - 9999.0
 
     time_index = []
 
@@ -1232,6 +1458,29 @@ def create_nc_area(table, nc_out):
                  :] = assemble_layer_area(out['grid_y'], out['grid_x'], out['area_f'])
 
     write_area_output(area, time_index, nc_out)
+
+def h52nc_allom(input_file, dump_nc_folder):
+
+    import time
+
+    drv = "H5FD_CORE" # Change the default load. ->> LOAD the h5 database in primary memory 
+    mod = "a"
+
+    ip = Path(input_file).resolve()
+    print(f"Loading file: {ip}", end='-')
+    h5f = tb.open_file(ip, mode=mod, driver=drv)
+    print('Loaded')
+
+    g1_table = h5f.root.RUN0.Outputs_G1_allom
+    print('Creating Sorted table for g1 allom', time.ctime())
+    index_dt1 = g1_table.cols.date.create_csindex()
+    t1d = g1_table.copy(newname='indexedT1date', sortby=g1_table.cols.date)
+    g1_table.close()
+
+    for interval in run_breaks:
+        create_ncG1_allom(t1d, interval, dump_nc_folder)
+    
+    h5f.close()
 
 
 def h52nc(input_file, dump_nc_folder):

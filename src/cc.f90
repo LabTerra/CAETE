@@ -250,7 +250,7 @@ module carbon_costs
       ccn(am) = cc_active(kan, amp * av_n, kanc, amp * croot)
       ccn(em) = cc_active(ken, ecm * av_n, kenc, ecm * croot)
       ccn(Am0) =  1.0D15 ! cc_active(kan, amp * on, kenc, amp * croot)
-      ccn(em0) = cc_active(ken, ecm * on, kenc, ecm * croot) + 1.0
+      ccn(em0) = cc_active(ken, ecm * on, kenc, ecm * croot) + 1.0D0
    end subroutine active_costn
 
 
@@ -296,12 +296,12 @@ module carbon_costs
 
       ! !Costs of Mycorrhizal AP/exudates
       ccp(AMAP) = cc_active(kap, amp * op , kapc, amp * croot) ! OP
-      ccp(EM0x) = cc_active(kep, ecm * sop, kepc, ecm * croot) + 0.8 ! Artificial increasing of c costs
+      ccp(EM0x) = cc_active(kep, ecm * sop, kepc, ecm * croot) + 0.8D0 ! Artificial increasing of c costs
    end subroutine active_costp
 
 
    function cc_fix(ts) result (c_fix)
-      real(r_4), intent(in) :: ts ! soil temp °C
+      real(r_8), intent(in) :: ts ! soil temp °C
       real(r_8) :: c_fix ! C Cost of Nitrogen M(N) M(C)⁻¹
       c_fix = -6.25D0 * (exp(-3.62D0 + (0.27D0 * ts) &
       &       * (1.0D0 - (0.5D0 * (ts / 25.15D0)))) - 2.0D0)
@@ -311,7 +311,7 @@ module carbon_costs
    function fixed_n(c, ts) result(fn)
       ! Given the C available calculate the fixed N
       real(r_8), intent(in) :: c ! g m-2 day-1 % of NPP destinated to diazotroph partners
-      real(r_4), intent(in) :: ts ! soil tem °C
+      real(r_8), intent(in) :: ts ! soil tem °C
       real(r_8) :: fn
 
       fn = c / cc_fix(ts)
@@ -350,6 +350,8 @@ module carbon_costs
 
    subroutine select_active_strategy(cc_array, cc, strategy)
 
+      use, intrinsic :: ieee_arithmetic
+      
       real(r_8), dimension(:),intent(in) :: cc_array
       real(r_8), intent(out) :: cc
       integer(i_4), intent(out) :: strategy
@@ -366,8 +368,8 @@ module carbon_costs
       cca(:) = cc_array
 
       do j = 1, cc_size
-         if (isnan(cca(j))) cca(j) = 1D17
-         if (cca(j) .le. 0.0D0) cca(j) = 1D17
+         if (ieee_is_nan(cca(j))) cca(j) = 1.0D17
+         if (cca(j) .le. 0.0D0) cca(j) = 1.0D17
       enddo
 
       min_index = minloc(cca)

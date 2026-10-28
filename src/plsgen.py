@@ -48,7 +48,7 @@ def vec_ranging(values, new_min, new_max):
                                        old_min) * (v - old_min) + new_min
         output.append(new_v)
 
-    return np.array(output, dtype=np.float32)
+    return np.array(output, dtype=np.float64)
 
 
 def check_viability(trait_values, wood):
@@ -134,32 +134,42 @@ def turnover_combinations(verbose=False):
     return a1, a2
 
 
+def sample_np_ratios(NPLS, N0, NM, P0, PM, np_min, np_max):
+    """Sample NPLS combinations of N:C and P:C (g g-1) inside the ranges
+       [N0, NM] and [P0, PM], keeping only the ones with np_min <= N:P <= np_max.
+       Same result as sampling from the table of all valid combinations of
+       np.linspace(N0, NM, 5000) x np.linspace(P0, PM, 5000), without building it
+    """
+
+    pool_n2c = np.linspace(N0, NM, 5000)
+    pool_p2c = np.linspace(P0, PM, 5000)
+
+    sampleNP = np.zeros(shape=(NPLS, 2), dtype=np.float64)
+    index = 0
+    while index < NPLS:
+        a = pool_n2c[np.random.randint(0, 5000, size=NPLS)]
+        b = pool_p2c[np.random.randint(0, 5000, size=NPLS)]
+        valid = ((a / b) >= np_min) & ((a / b) <= np_max)
+        n = min(int(valid.sum()), NPLS - index)
+        sampleNP[index: index + n, 0] = a[valid][:n]
+        sampleNP[index: index + n, 1] = b[valid][:n]
+        index += n
+    return sampleNP
+
+
 def calc_ratios1(NPLS):
     # LEAF POOL
     # Reich, P. B., & Oleksyn, J. (2004). 
     # Global patterns of plant leaf N and P in relation to temperature and latitude. 
     # Proceedings of the National Academy of Sciences, 101(30), 11001–11006. 
     # https://doi.org/10.1073/pnas.0403588101
+
     N0 = 0.001
     NM = 0.05
     P0 = 0.0002
     PM = 0.0095
 
-    if os.path.exists(Path("./NP1.npy")):
-        x1 = np.load("./NP1.npy")
-    else:
-        print('NP1...')
-        pool_n2c = np.linspace(N0, NM, 5000)
-        pool_p2c = np.linspace(P0, PM, 5000)
-
-        x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-            (a / b) >= 1.5) and ((a / b) <= 70.0)]
-        assert len(x) > 0, "zero len"
-        x1 = np.array(x)
-        np.save("./NP1.npy", x1)
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 1.5, 70.0)
 
 
 def calc_ratios2(NPLS):
@@ -167,26 +177,14 @@ def calc_ratios2(NPLS):
     # Heineman, K. D., Turner, B. L., & Dalling, J. W. (2016). 
     # Variation in wood nutrients along a tropical soil fertility gradient. 
     # New Phytologist, 211(2), 440?454. https://doi.org/10.1111/nph.13904
+
     N0 = 0.001
     NM = 0.01
     P0 = 3.12e-5
     PM = 0.0035
 
-    if os.path.exists(Path("./NP2.npy")):
-        x1 = np.load("./NP2.npy")
-    else:
-        print('NP2...')
-        pool_n2c = np.linspace(N0, NM, 5000)
-        pool_p2c = np.linspace(P0, PM, 5000)
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 4.0, 180.0)
 
-        x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-            (a / b) >= 4) and ((a / b) <= 180.0)]
-        assert len(x) > 0, "zero len"
-        x1 = np.array(x)
-        np.save("./NP2.npy", x1)
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
 
 def calc_ratios3(NPLS):
     # FINE ROOT POOL
@@ -199,26 +197,13 @@ def calc_ratios3(NPLS):
     # U.S. Department of Energy, Oak Ridge, Tennessee, U.S.A. 
     # https://doi.org/https://doi.org/10.25581/ornlsfa.014/1459186
     # AND some references therein
+
     N0 = 0.001
     NM = 0.06
     P0 = 0.0003
     PM = 0.005
 
-    if os.path.exists(Path("./NP3.npy")):
-        x1 = np.load("./NP3.npy")
-    else:
-        print('NP3...')
-        pool_n2c = np.linspace(N0, NM, 5000)
-        pool_p2c = np.linspace(P0, PM, 5000)
-
-        x = [[a, b] for a in pool_n2c for b in pool_p2c if (
-            (a / b) >= 2) and ((a / b) <= 80)]
-        assert len(x) > 0, "zero len"
-        x1 = np.array(x)
-        np.save("./NP3.npy", x1)
-    idx = np.random.randint(0, x1.shape[0], size=NPLS)
-    sampleNP = x1[idx, :]
-    return sampleNP
+    return sample_np_ratios(NPLS, N0, NM, P0, PM, 2.0, 80.0)
 
 
 def table_gen(NPLS, fpath=None):
@@ -231,13 +216,15 @@ def table_gen(NPLS, fpath=None):
     alloc_g = []
     r_ceil = 10000
 
-# REVER O TEMPO DE RESIDÊNCIA DAS RAÌZES FINAS - VARIAR ENTRE 1 mes e 2 anos
+    # REVER O TEMPO DE RESIDÊNCIA DAS RAÌZES FINAS - VARIAR ENTRE 1 mes e 2 anos
     index0 = 0
+
     # rtime = vec_ranging(np.random.beta(2, 4, r_ceil),
     #                     0.083333, 2)
-    rtime_leaf = np.random.uniform(0.166, 8.3333, r_ceil)
-    rtime_froot = np.random.uniform(0.08333, 8.3333, r_ceil)
+    rtime_leaf = np.random.uniform(0.166, 8.3333, r_ceil) #8.33 anos = 100 meses (reference: Pavlick et al 2013)
+    rtime_froot = np.random.uniform(0.08333, 8.3333, r_ceil) # log-uniforme [0.25, 4.0] anos (3 meses a 4 anos); Jackson et al. 1997, FRED v3
     print("CREATE GRASSy STRATEGIES - Checking potential npp/alocation")
+    
     while index0 < diffg:
         restime = np.zeros(shape=(3,), dtype=np.float64)
 
@@ -251,14 +238,17 @@ def table_gen(NPLS, fpath=None):
             alloc_g.append(data_to_test0)
             index0 += 1
         sys.stdout.write('\r%s' % (str(index0)))
+    
     sys.stdout.flush()
     print("\n")
     print("CREATE WOODY STRATEGIES - Checking potential npp/alocation")
+    
     # Creating woody plants (maybe herbaceous)
     index1 = 0
+    
     # rtime_wood = vec_ranging(np.random.beta(
     # 2, 4, r_ceil), 1.0, 150)
-    rtime_wood = np.random.uniform(0.20, 100.0, r_ceil)
+    rtime_wood = np.random.uniform(0.20, 100.0, r_ceil) # log-uniforme [5, 150] anos; limite inferior 5 anos = mínimo ecológico para lenhosas
     while index1 < diffw:
         restime = np.zeros(shape=(3,), dtype=np.float64)
         allocatio = plsa_wood[np.random.randint(0, plsa_wood.shape[0])]
@@ -275,24 +265,32 @@ def table_gen(NPLS, fpath=None):
 
     alloc_g = np.array(alloc_g)
     alloc_w = np.array(alloc_w)
-
     alloc = np.concatenate((alloc_g, alloc_w), axis=0,)
 
-    # # # COMBINATIONS
-    # # # Random samples from  distributions (g1, tleaf ...)
-    # # # Random variables
-    g1 = np.random.uniform(0.1, 19.0, NPLS)
+    # COMBINATIONS
+    # Random samples from  distributions (g1, tleaf ...)
+    # Random variables
+    g1 = np.random.uniform(2.0, 18.0, NPLS) # Lin et al. 2015 (Nature Climate Change): mínimo observado global C3 ~2
     # g1 = vec_ranging(np.random.beta(1.2, 2, NPLS), 1.0, 15.0) # dimensionles
-    # # vcmax = np.random.uniform(3e-5, 100e-5,N) # molCO2 m-2 s-1
+    # vcmax = np.random.uniform(3e-5, 100e-5,N) # molCO2 m-2 s-1
     resorption = np.random.uniform(0.2, 0.7, NPLS)
+    # sla_random = np.random.uniform(2.25, 27, NPLS) # uniforme linear: concentra ~74% das PLSs com LL < 1 ano
+    # SLA (mm2 mg-1 de massa seca), sorteio log-uniforme entre 3.5 e 27: mediana ~9.7,
+    # consistente com a lei de potência LL = 138.35 * SLA^(-1.128) (Sakschewsky et al., 2016)
+    sla_random = np.exp(np.random.uniform(np.log(3.50), np.log(27.0), NPLS))
+    # sla_random = np.random.uniform(3.50, 27.0, NPLS) # sorteio uniforme (anterior): mediana ~15, ~40% das PLSs com SLA > 18
+
+    wd_random = np.random.uniform(0.3, 0.9, NPLS) # log-uniforme [0.3, 0.9] g/cm3; Zanne et al. 2009, Chave et al. 2009
+    
+    restime_sap = np.random.uniform(10., 20., NPLS)
 
     # # C4 STYLE
     c4 = np.zeros((NPLS,), dtype=np.float64)
     n123 = ceil(alloc_g.shape[0] * 0.50)
     c4[0: n123 - 1] = 1.0
 
-    # # Nitrogen and Phosphorus content in carbon pools
-    # # C : N : P
+    # Nitrogen and Phosphorus content in carbon pools
+    # C : N : P
 
     leaf = calc_ratios1(NPLS)
     leaf_n2c = leaf[:, 0]
@@ -328,17 +326,16 @@ def table_gen(NPLS, fpath=None):
     stack = (pls_id, g1, resorption, alloc[:, 0], alloc[:, 1], alloc[:, 2],
              alloc[:, 3], alloc[:, 4], alloc[:, 5], c4, leaf_n2c,
              awood_n2c, froot_n2c, leaf_p2c, awood_p2c, froot_p2c,
-             amp, pdia)
+             amp, pdia, sla_random, wd_random, restime_sap)
 
     head = ['PLS_id', 'g1', 'resopfrac', 'tleaf', 'twood', 'troot', 'aleaf', 'awood', 'aroot', 'c4',
             'leaf_n2c', 'awood_n2c', 'froot_n2c', 'leaf_p2c', 'awood_p2c', 'froot_p2c',
-            'amp', 'pdia']
+            'amp', 'pdia', 'sla_random', 'wd_random', 'restime_sap']
 
     if fpath is not None:
-
         pls_table = np.vstack(stack)
 
-        # # ___side_effects
+        # ___side_effects
         if not fpath.exists():
             os.system(f" mkdir -p {fpath.resolve()}")
         fnp = Path(os.path.join(fpath, f'pls_attrs-{NPLS}.csv')).resolve()
