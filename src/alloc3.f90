@@ -779,8 +779,19 @@ module alloc3
 
       if (total_demand_daily .gt. 0.0D0 .and. storage_after_npp .gt. 0.0D0 &
          &.and. max_daily_alloc .gt. 0.0D0) then
+          
+         ! old carbon_to_allocate 
+         !carbon_to_allocate = min(storage_after_npp, total_demand_daily, max_daily_alloc)
 
-         carbon_to_allocate = min(storage_after_npp, total_demand_daily, max_daily_alloc)
+         !the storage pays the new tissue and its construction respiration:
+         !Each gC of new tissue costs (1 + rg_frac) gC from the storage: 1 gC
+         !incorporated into the tissue plus rg_frac gC respired to build it
+         !(F_p+c = 1.25 F_p, Ryan 1991). Dividing the storage by (1 + rg_frac)
+         !gives the maximum tissue that the storage can pay, construction
+         !respiration included. The N/P limitation below can only reduce this
+         !growth, so the storage stays non-negative after paying rg_growth.
+         !carbon_to_allocate + rg_frac*carbon_to_allocate <= storage_after_npp
+         carbon_to_allocate = min(storage_after_npp/(1.0D0 + rg_frac), total_demand_daily, max_daily_alloc)
 
          frac_leaf    = leaf_demand_daily/total_demand_daily
          frac_root    = root_demand_daily/total_demand_daily
@@ -818,6 +829,15 @@ module alloc3
       endif
       ctonfix = ctonfix - ctonfix_refund
 
+      !--------------------------------------------------------------------
+      ! Growth (construction) respiration of the tissue built today, after
+      ! the N/P limitation: rg_frac gC respired per gC incorporated into
+      ! leaf, fine root and sapwood (Ryan 1991). Paid by the storage below.
+      !--------------------------------------------------------------------
+      rg_growth = rg_frac * (delta_leaf + delta_root + delta_sapwood)
+
+      !--------------------------------------------------------------------
+      ! Update the structural compartments with today's growth (delta_*)
       leaf_mass_new      = leaf_in_ind  + delta_leaf
       root_mass_new      = root_in_ind  + delta_root
       sapwood_mass_new   = sap_in_ind   + delta_sapwood
@@ -847,7 +867,10 @@ module alloc3
          heartwood_mass_new = heartwood_mass_new + sap_to_heart
       endif
 
-      storage_after_alloc = storage_after_npp - carbon_to_allocate + ctonfix_refund
+      !--------------------------------------------------------------------
+      ! Update the labile carbon storage after today's allocation and growth
+      ! respiration. NOTE: Growth respiration is always paid by the storage 
+      storage_after_alloc = storage_after_npp - carbon_to_allocate - rg_growth + ctonfix_refund
 
       !--------------------------------------------------------------------
       ! Continuous compartment turnover (annual rates converted to a daily
@@ -907,7 +930,7 @@ module alloc3
       structural_balance_error = carbon_to_allocate - structural_sum
 
       storage_balance_error = sto_final_ind - (sto_in_ind + npp_daily - npp_costs - ctonfix &
-         &+ unmet_storage_deficit - carbon_to_allocate - sto_turn)
+         &+ unmet_storage_deficit - carbon_to_allocate - rg_growth -sto_turn)
 
       carbon_accounting_ok = (abs(structural_balance_error) .le. tol) &
          &.and. (abs(storage_balance_error) .le. tol)

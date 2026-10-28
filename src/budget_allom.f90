@@ -288,6 +288,7 @@ module budget_allom
       real(r_8), dimension(3) :: sto_aux !PLS storage (C, N, P), g m-2
       real(r_8), parameter :: csto_max = 0.5D2 !ceiling of the C storage, g(C) m-2 (same value as budget.f90)
       real(r_8) :: sto_excess            !storage above the ceiling, respired, g(C) m-2 day-1
+      real(r_8) :: rg_growth             !growth respiration of the day (allocation3), g(C) m-2 day-1
 
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
@@ -574,7 +575,7 @@ module budget_allom
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
-      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess)
+      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess, rg_growth)
 
       do p = 1,nlen
          
@@ -594,7 +595,13 @@ module budget_allom
          ! classic version: the total wood (sapwood + heartwood) is passed. Only
          ! a small part of the wood is living tissue.
          call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               !&, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               !! Growth respiration is now computed in allocation3 (rg_growth), on the
+               ! tissue built today, and added to ar/nppa after the allocation.
+               ! Zero increments are passed here so that g_resp returns zero and
+               ! nppa entering the allocation is photosynthesis - maintenance
+               ! respiration. prod is not changed because budget.f90 also uses it.
+               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
@@ -627,7 +634,7 @@ module budget_allom
                &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
                &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
                &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
-               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
+               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), rg_growth)
          else
             call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
                &,cleaf_pls(ri), croot_pls(ri), csto_aux&
@@ -658,6 +665,19 @@ module budget_allom
          ! the same respiration is discounted from the NPP, so that the output
          ! keeps NPP = photosynthesis - ar (budget.f90 does not discount it)
          nppa(p) = nppa(p) - ((sr + mr_sto + sto_excess) * 0.365242D0)
+
+         ! UPDATING THE OUTPUTS AFTER ALLOCATION3/GRASS_ALLOCATION3
+         ! rg_growth is computed in allocation3 on the tissue built today
+         ! (leaf + fine root + sapwood, after the N/P limitation) and is already
+         ! paid by the storage there. prod receives zero increments (see the
+         ! call above), so its rg is zero and the nppa it returns is
+         ! photosynthesis - maintenance respiration. Here rg_growth is converted
+         ! to the output units and added to ar and discounted from nppa, so that
+         ! the output keeps NPP = photosynthesis - ar. These lines only update
+         ! the output fluxes: the storage is not changed here.
+         rg(p)   = rg_growth * 0.365242D0     ! g m-2 day-1 to kg m-2 year-1
+         ar(p)   = ar(p)   + rg(p)
+         nppa(p) = nppa(p) - rg(p)
 
          if (n_sto_pls2(p) .lt. 0.0D0) n_sto_pls2(p) = 0.0D0
          if (p_sto_pls2(p) .lt. 0.0D0) p_sto_pls2(p) = 0.0D0
