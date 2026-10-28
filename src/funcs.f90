@@ -1638,13 +1638,15 @@ contains
 
       integer(kind=i_4),parameter :: npft = npls ! plss futuramente serao
 
-      real(kind=r_8),dimension(npft),intent( in) :: cleaf1, cfroot1, cawood1, awood
+      real(kind=r_8),dimension(3,npft),intent(in) :: cleaf1
+      real(kind=r_8),dimension(npft),intent(in) :: cfroot1, cawood1, awood
       real(kind=r_8),dimension(npft),intent(out) :: ocp_coeffs
       logical(kind=l_1),dimension(npft),intent(out) :: ocp_wood
       integer(kind=i_4),dimension(npft),intent(out) :: run_pls
       real(kind=r_8), dimension(npls), intent(out) :: c_to_soil ! NOT IMPLEMENTED IN BUDGET
       logical(kind=l_1),dimension(npft) :: is_living
-      real(kind=r_8),dimension(npft) :: cleaf, cawood, cfroot
+      real(kind=r_8),dimension(3,npft) :: cleaf
+      real(kind=r_8),dimension(npft) :: cawood, cfroot
       real(kind=r_8),dimension(npft) :: total_biomass_pft,total_w_pft
       integer(kind=i_4) :: p,i
       integer(kind=i_4),dimension(1) :: max_index
@@ -1674,16 +1676,18 @@ contains
 
       ! check for nan in cleaf cawood cfroot
       do p = 1,npft
-         if(ieee_is_nan(cleaf(p))) cleaf(p) = 0.0D0
+         if(ieee_is_nan(cleaf(1,p))) cleaf(1,p) = 0.0D0
+         if(ieee_is_nan(cleaf(2,p))) cleaf(2,p) = 0.0D0
+         if(ieee_is_nan(cleaf(3,p))) cleaf(3,p) = 0.0D0
          if(ieee_is_nan(cfroot(p))) cfroot(p) = 0.0D0
          if(ieee_is_nan(cawood(p))) cawood(p) = 0.0D0
       enddo
 
       do p = 1,npft
-         if(cleaf(p) .lt. cmin .and. cfroot(p) .lt. cmin) then
+         if(sum(cleaf(:,p)) .lt. cmin .and. cfroot(p) .lt. cmin) then
             is_living(p) = .false.
-            c_to_soil(p) = cleaf(p) + cawood(p) + cfroot(p)
-            cleaf(p) = 0.0D0
+            c_to_soil(p) = sum(cleaf(:,p)) + cawood(p) + cfroot(p)
+            cleaf(:,p) = 0.0D0
             cawood(p) = 0.0D0
             cfroot(p) = 0.0D0
          else
@@ -1694,7 +1698,7 @@ contains
 
       do p = 1,npft
          ! total_biomass_pft(p) = cleaf(p) + cfroot(p) + (sapwood * cawood(p)) ! only sapwood?
-         total_biomass_pft(p) = cleaf(p) + cfroot(p) + cawood(p)
+         total_biomass_pft(p) = sum(cleaf(:,p)) + cfroot(p) + cawood(p)
          total_biomass = total_biomass + total_biomass_pft(p)
          total_wood = total_wood + cawood(p)
          total_w_pft(p) = cawood(p)
