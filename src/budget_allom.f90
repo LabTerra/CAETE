@@ -28,7 +28,7 @@ module budget_allom
  
    contains
  
-   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh&
+   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, ts, temp, p0, ipar, rh, rnet&
       &, mineral_n, labile_p, on, sop, op, n_sto_in, p_sto_in, uptk_costs_in, catm&
       &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
       &, dleaf_in, dwood_in, droot_in, dsap_in, dheart_in, dsto_in&
@@ -51,7 +51,7 @@ module budget_allom
       use, intrinsic :: ieee_arithmetic
 
       use photo
-      use water, only: evpot2, penman, available_energy, runoff
+      use water, only: evpot2, penman, runoff
       use alloc3
 
       !==========================================================================
@@ -68,6 +68,7 @@ module budget_allom
       real(r_8),intent(in) :: p0      ! Surface pressure (mb)
       real(r_8),intent(in) :: ipar    ! Incident photosynthetic active radiation mol Photons m-2 s-1
       real(r_8),intent(in) :: rh      ! Relative humidity 
+      real(r_8),intent(in) :: rnet    ! Net radiation (W m-2), FAO-56 (Allen et al. 1998); hydro_caete.net_radiation
       real(r_8),intent(in) :: catm    ! ATM CO2 concentration ppm
       real(r_8),intent(in) :: ts      ! Soil temperature (oC)
 
@@ -460,7 +461,7 @@ module budget_allom
 
       !     Maximum evapotranspiration (emax)
       !     =================================
-      emax = evpot2(p0,temp,rh,available_energy(temp))
+      emax = evpot2(p0,temp,rh,rnet)
       soil_temp = ts
 
       ! ====================================================================
@@ -594,20 +595,20 @@ module budget_allom
          ! (5%) of the wood carbon it receives (Pavlick et al. 2013), as in the
          ! classic version: the total wood (sapwood + heartwood) is passed. Only
          ! a small part of the wood is living tissue.
-         call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
+         call prod_allom(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
                !&, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
                !! Growth respiration is now computed in allocation3 (rg_growth), on the
                ! tissue built today, and added to ar/nppa after the allocation.
                ! Zero increments are passed here so that g_resp returns zero and
                ! nppa entering the allocation is photosynthesis - maintenance
-               ! respiration. prod is not changed because budget.f90 also uses it.
+               ! respiration.
                &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
          
-         evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
+         evap(p) = penman(p0, temp, rh, rnet, rc2(p)) !actual evapotranspiration (evap, mm/day)
          
          ! Maintenance respiration of the stored carbon, paid from the storage
          ! before allocation (as in budget.f90). sto_resp (funcs.f90) uses the

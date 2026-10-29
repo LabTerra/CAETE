@@ -38,6 +38,7 @@ module photo
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
+        photosynthesis_rate_allom ,& ! (s), as photosynthesis_rate, ci from the Medlyn conductance (allometric version)
         leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
         vcmax_a                ,& ! (f), VCmax from domingues et al. 2010 (eq.1)
         vcmax_a1               ,& ! (f), VCmax from domingues et al. 2010 (eq.2)
@@ -968,6 +969,252 @@ contains
    !=================================================================
    !=================================================================
 
+   ! Version of photosynthesis_rate used only by the allometric version
+   ! (prod_allom). It differs only in the internal CO2 (ci) of C3 leaves, which
+   ! is derived from the Medlyn conductance (note [N4]); photosynthesis_rate is
+   ! kept unchanged for the classic version.
+   subroutine photosynthesis_rate_allom(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
+        & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
+        & f1ab_sun, f1ab_shade, rh, g1, vpd)
+
+      ! f1ab_sun and f1ab_shade: 24 h mean gross assimilation of the sunlit and
+      ! shaded leaves (mol CO2 m-2 of leaf s-1), integrated over the day (see
+      ! [SUN/SHADE] and [DIURNAL] below). f1ab = f1ab_sun, used for the canopy
+      ! resistance and the water stress.
+
+      ! f1ab SCALAR returns instantaneous photosynthesis rate at leaf level (molCO2/m2/s)
+      ! vm SCALAR Returns maximum carboxilation Rate (Vcmax) (molCO2/m2/s)
+      use types
+      use global_par
+      use photo_par
+      ! implicit none
+      ! I
+      real(r_8),intent(in) :: temp  ! temp °C
+      real(r_8),intent(in) :: p0    ! atm Pressure hPa
+      real(r_8),intent(in) :: ipar  ! mol Photons m-2 s-1
+      real(r_8),intent(in) :: nbio, c_atm  ! mg g-1, ppm
+      real(r_8),intent(in) :: pbio  ! mg g-1
+      real(r_8),intent(in) :: rh    ! relative humidity (0-1)
+      real(r_8),intent(in) :: g1    ! Medlyn et al. (2011) slope parameter (kPa**0.5)
+      real(r_8),intent(in) :: vpd   ! vapour pressure deficit (kPa)
+      ! logical(l_1),intent(in) :: ll ! is light limited?
+      integer(i_4),intent(in) :: c4 ! is C4 Photosynthesis pathway?
+      ! real(r_8),intent(in) :: leaf_turnover   ! y
+      real(r_8),intent(in) :: sla
+      real(r_8),intent(in) :: height1
+      real(r_8),intent(in) :: cawood1
+      real(r_8),intent(in) :: cleaf
+      ! [LIGHT COMP] New inputs from budget.f90
+      integer(i_4), intent(in) :: nl_shared
+      real(r_8),    intent(in) :: lsize_shared
+      real(r_8), dimension(nl_shared), intent(in) :: linc_layer
+
+      ! O
+      real(r_8),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
+      real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
+      real(r_8),intent(out) :: amax ! light saturated PH rate
+      ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
+      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
+      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
+
+      real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
+      real(r_8) :: mgama,vm_in      !Photo-respiration compensation point (Pa)
+      real(r_8) :: rmax, r
+      real(r_8) :: ci
+      real(r_8) :: d_ci             ! VPD used for ci (kPa)
+      real(r_8) :: jp1
+      real(r_8) :: jp2
+      real(r_8) :: jp
+      real(r_8) :: jc
+      real(r_8) :: jl
+      real(r_8) :: je,jcl
+      real(r_8) :: b,c,c2,b2,es,j1,j2
+      real(r_8) :: delta, delta2,aux_ipar
+      real(r_8) :: f1a
+
+      ! new vars C4 PHOTOSYNTHESIS
+      real(r_8) :: ipar1
+      real(r_8) :: tk           ! (K)
+      real(r_8) :: t25          ! tk at 25°C (K)
+      real(r_8) :: kp
+      real(r_8) :: dummy0, dummy1, dummy2
+      real(r_8) :: vpm, v4m
+      real(r_8) :: cm, cm0, cm1, cm2
+
+      ! real(r_8) :: vm_nutri
+      real(r_8) :: nbio2, pbio2  ! , cbio_aux
+      ! real(r_8) :: nmgg, pmgg
+      ! real(r_8) :: coeffa, coeffb
+
+      ! [LIGHT COMP]
+      integer(i_4) :: n  ! Layer localization counter/index
+
+      ! [SUN/SHADE] and [DIURNAL] local variables
+      real(r_8) :: lai_loc, sunlai_loc     ! LAI and sunlit LAI of this PLS
+      real(r_8) :: i_now                   ! irradiance at the top of the PLS canopy (mol m-2 s-1)
+      real(r_8) :: q_sun, q_sh             ! irradiance of the sunlit and shaded leaves (mol m-2 s-1)
+      real(r_8) :: shape_day               ! diurnal shape factor of the irradiance
+      integer(i_4), parameter :: nsteps = 12 ! points of the diurnal integration
+      integer(i_4) :: k
+
+      nbio2 = nbio !nrubisco(leaf_turnover, nbio)
+      pbio2 = pbio !nrubisco(leaf_turnover, pbio)
+      aux_ipar = 0.0D0 !inicialize
+
+      ! if (nbio2 .lt. 0.01D0) nbio2 = 0.01D0
+      ! if (pbio2 .lt. 0.01D0) pbio2 = 0.01D0
+
+      ! ! ! Calculation of reference carboxilation rate of rubisco
+      ! !### WALKER et al. 2014
+      ! vm_nutri = 3.946D0 + (0.921D0 * dlog(nbio2)) - (0.121D0 * dlog(pbio2))
+      ! vm_nutri = vm_nutri + (0.282D0 * dlog(nbio2) * dlog(pbio2))
+      ! vm = (dexp(vm_nutri)) * 1.0D-6 ! Vcmax convert µmol m-2 s-1 to mol m-2 s-1
+
+      ! ! !### DOMINGUES et al. 2010
+      ! cbio_aux = cbio
+      ! if(cbio .le. 0.0D0) cbio_aux = 0.01D0
+
+      ! nmgg = nbio2 / cbio_aux ! g(Nutrient) kg(Carbon)-1
+      ! pmgg = pbio2 / cbio_aux ! g(Nutrient) kg(Carbon)-1
+      
+      ! coeffa = 1.57D0
+      ! coeffb = 0.55D0
+
+      ! vm_nutri = coeffa + (coeffb * dlog10(nbio2))
+
+      ! vm = vcmax_a(nbio2, pbio2, spec_leaf_area(leaf_turnover)) ! 10**vm_nutri * 1D-6  !
+      vm = vcmax_a(nbio2, pbio2, sla) ! 10**vm_nutri * 1D-6  ! 
+      if(vm + 1 .eq. vm) vm = 1.0D-5 ! If Vc max is inf give it a low value
+      if(vm .gt. p25) vm = p25
+
+      ! Rubisco Carboxilation Rate - temperature dependence
+      vm_in = (vm*2.0D0**(0.1D0*(temp-25.0D0)))/(1.0D0+exp(0.3D0*(temp-36.0)))
+      if(vm_in + 1.0D0 .eq. vm_in) vm_in = p25 - 5.0D-5
+      if(vm_in .gt. p25) vm_in = p25
+
+
+      ! =====================================================================
+      !          ++++++++++++    LIGHT COMPETITION     ++++++++++++
+      !                  --- new structure (B.Cardeli) ---
+      !        
+      ! This subroutine receives linc_layer already calculated with the 
+      ! aggregated LAI of ALL living PLS (calculated in budget.F90 and budget_allom.F9),
+      ! and simply locates the current PLS's layer to read the correct incident light.
+      ! =====================================================================
+ 
+      ! Grass (awood = 0) sits at the forest floor (height = 0), inside canopy
+      ! layer 1. linc_layer(1) already holds the light that survived Beer-Lambert
+      ! extinction through every woody layer above (or the full ipar, if there is
+      ! no woody canopy / light_comp is off) - so grass is shaded by the woody
+      ! canopy exactly like a real understory, instead of always getting a fixed
+      ! fraction of full sun regardless of canopy closure.
+      if (cawood1 .eq. 0.0D0) then
+         aux_ipar = linc_layer(1)
+
+      else
+         ![LIGH_COMP]
+         ! Locates the PLS's layer and reads linc_layer
+         ! aux_ipar = linc of the specific layer where the PLS is located
+         ! (Light reaching that layer after extinction by the canopy layers above,
+         !  pre-calculated in the budget.f90 loop using the full canopy profile)
+         aux_ipar = real(ipar, r_8) ! default: topo do dossel
+         do n = 1, nl_shared
+            if (n .eq. 1) then
+               if (lsize_shared * real(n, r_8) .ge. height1) then
+                  aux_ipar = linc_layer(n)
+                  exit 
+               end if
+            else
+               if ((lsize_shared * real(n, r_8) .ge. height1) .and. &
+                   (lsize_shared * real(n-1, r_8) .lt. height1)) then
+                  aux_ipar = linc_layer(n)
+                  exit 
+               end if
+            end if
+         end do
+      end if
+ 
+      ! =====================================================================
+      ! [LIGHT COMP] +++ END +++
+      ! =====================================================================
+
+      ! Leaf biochemistry (independent of irradiance)
+      mgama = 0.0D0
+      ci    = 0.0D0
+      jc    = 0.0D0
+      vpm   = 0.0D0
+      cm    = 0.0D0
+      kp    = 0.0D0
+      if(c4 .eq. 0) then
+         !====================-C3 PHOTOSYNTHESIS-===============================
+         !Photo-respiration compensation point (Pa)
+         mgama = p3/(p8*(p9**(p10*(temp-p11))))
+         !Michaelis-Menten CO2 constant (Pa)
+         f2 = p12*(p13**(p10*(temp-p11)))
+         !Michaelis-Menten O2 constant (Pa)
+         f3 = p14*(p15**(p10*(temp-p11)))
+         !Internal leaf CO2 partial pressure (Pa), consistent with the Medlyn
+         !conductance used for transpiration: diffusion A = gs (ca - ci) / 1.6 with
+         !gs = 1.6 (1 + g1/sqrt(D)) A / ca gives ci/ca = g1 / (g1 + sqrt(D))
+         !(Medlyn et al. 2011, Eq. 13). D limited as in canopy_resistence.
+         !See note [N4] at the end of this file.
+         d_ci = min(max(vpd, 0.001D0), 4.0D0)
+         ci = (c_atm/9.901) * g1 / (g1 + sqrt(d_ci))
+         !Rubisco carboxilation limited photosynthesis rate (molCO2/m2/s)
+         jc = vm_in*((ci-mgama)/(ci+(f2*(1.+(p3/f3)))))
+      else
+         !===========================-C4 PHOTOSYNTHESIS-=============================
+         ! from Chen et al. 1994
+         tk = temp + 273.15           ! K
+         t25 = 273.15 + 25.0          ! K
+         kp = kp25 * (2.1**(0.1*(tk-t25))) ! ppm
+         !maximum PEPcarboxylase rate Arrhenius eq. (Dependence on temperature)
+         dummy1 = 1.0 + exp((s_vpm * t25 - h_vpm)/(r_vpm * t25))
+         dummy2 = 1.0 + exp((s_vpm * tk - h_vpm)/(r_vpm * tk))
+         dummy0 = dummy1 / dummy2
+         vpm =  vpm25 * exp((-e_vpm/r_vpm) * (1.0D0/tk - 1.0D0/t25)) * dummy0
+         ! [CO2] mesophyl
+         cm0 = 1.674D0 - 6.1294D0 * 10.0D0**(-2) * temp
+         cm1 = 1.1688D0 * 10.0D0**(-3) * temp ** 2
+         cm2 = 8.8741D0 * 10.0D0**(-6) * temp ** 3
+         cm = 0.7D0 * c_atm * ((cm0 + cm1 - cm2) / 0.73D0)
+      endif
+      ! Transport limited photosynthesis rate (molCO2/m2/s) (RuBP) (re)generation
+      je = p7*vm_in
+
+      ! [SUN/SHADE] Sunlit and shaded leaves (De Pury & Farquhar 1997).
+      ! Sunlit leaves: irradiance per unit of sunlit leaf area = irradiance of the
+      ! layer x beam extinction coefficient (p26). Shaded leaves: irradiance of the
+      ! layer attenuated through the sunlit leaf area, I*exp(-p27*LAI_sun), with
+      ! LAI_sun = (1 - exp(-p26*LAI))/p26 and kd = p27 (diffuse extinction).
+      lai_loc    = leaf_area_index(cleaf, sla)
+      sunlai_loc = (1.0D0 - exp(-p26 * lai_loc)) / p26
+
+      ! [DIURNAL] aux_ipar is a 24 h mean. It is spread over a sinusoid of
+      ! daylength_h hours (zero at night) and the leaf rates are averaged over
+      ! the 24 h, so that light saturation around noon is accounted for.
+      f1ab_sun   = 0.0D0
+      f1ab_shade = 0.0D0
+      do k = 1, nsteps
+         shape_day = (pi/2.0D0) * (24.0D0/daylength_h) * sin(pi * (real(k, r_8) - 0.5D0) / real(nsteps, r_8))
+         i_now  = aux_ipar * shape_day
+         q_sun = p26 * i_now
+         q_sh  = i_now * exp(-p27 * sunlai_loc)
+         f1ab_sun   = f1ab_sun   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
+         f1ab_shade = f1ab_shade + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
+      enddo
+      f1ab_sun   = f1ab_sun   / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1ab_shade = f1ab_shade / real(nsteps, r_8) * (daylength_h / 24.0D0)
+
+      f1ab = f1ab_sun
+      ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
+      amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
+
+   end subroutine photosynthesis_rate_allom
+
+   !=================================================================
+   !=================================================================
+
    function leaf_gross_rate(c4, q, ci, mgama, jc, je, vpm, cm, kp) result(f1)
       ! Gross leaf assimilation (mol CO2 m-2 s-1) for the irradiance absorbed
       ! per unit of leaf area q (mol photons m-2 s-1). C3: co-limitation of
@@ -1871,3 +2118,60 @@ end function wtt
   !=================================================================
 
 end module water
+
+! ==============================================================================
+! NOTES
+! ==============================================================================
+!
+! [N4] Internal CO2 (ci) in photosynthesis_rate_allom
+!
+!   In photosynthesis_rate, ci is an empirical function of the air humidity
+!   deficit, ci = 0.9 (1 - r/0.1) (ca - Gamma*) + Gamma*, independent of the
+!   stomatal conductance. The conductance used for transpiration, however, comes
+!   from Medlyn et al. (2011) (canopy_resistence):
+!
+!       gs = g0 + 1.6 (1 + g1/sqrt(D)) A / ca                                 (1)
+!
+!   and CO2 diffusion through the stomata requires
+!
+!       A = gs (ca - ci) / 1.6                                                (2)
+!
+!   With the empirical ci, (1) and (2) do not hold together (difference of up to
+!   0.15 in ci/ca at gridcell 186-239). Solving (1) and (2) with g0 = 0:
+!
+!       ca - ci = 1.6 A / gs = ca / (1 + g1/sqrt(D))
+!       ci / ca = g1 / (g1 + sqrt(D))                (Medlyn et al. 2011, Eq. 13)
+!
+!   ci does not depend on A, so no iteration is needed: ci is computed first,
+!   then A (Farquhar et al. 1980; Collatz et al. 1991 co-limitation, as in
+!   photosynthesis_rate), then gs from A with (1). The same ratio is the optimal
+!   ci/ca of the least-cost/optimality theory (Prentice et al. 2014).
+!
+!   Consequences:
+!   - g1 sets ci and therefore A and the water-use efficiency; before, it only
+!     affected transpiration.
+!   - A multiplicative reduction of A (f5) reduces gs in the same proportion
+!     (gs is proportional to A), so ci/ca and (2) are kept.
+!   - D is the daily mean VPD, limited to 0.001-4 kPa as in canopy_resistence,
+!     so that ci and gs use the same D.
+!
+!   Choices: g0 (0.003 mol m-2 s-1, ~2% of gs) is kept in the conductance for
+!   water and left out of ci; it represents the minimum (mostly cuticular)
+!   conductance, through which CO2 exchange is negligible (Duursma et al. 2019).
+!   C4 photosynthesis is unchanged (mesophyll CO2 from Chen et al. 1994).
+!
+! References
+!   Collatz, G.J., Ball, J.T., Grivet, C. & Berry, J.A. (1991). Physiological and
+!     environmental regulation of stomatal conductance, photosynthesis and
+!     transpiration. Agricultural and Forest Meteorology, 54, 107-136.
+!   Duursma, R.A. et al. (2019). On the minimum leaf conductance: its role in
+!     models of plant water use, and ecological and environmental controls.
+!     New Phytologist, 221, 693-705.
+!   Farquhar, G.D., von Caemmerer, S. & Berry, J.A. (1980). A biochemical model
+!     of photosynthetic CO2 assimilation in leaves of C3 species. Planta, 149, 78-90.
+!   Medlyn, B.E. et al. (2011). Reconciling the optimal and empirical approaches
+!     to modelling stomatal conductance. Global Change Biology, 17, 2134-2144.
+!   Prentice, I.C., Dong, N., Gleason, S.M., Maire, V. & Wright, I.J. (2014).
+!     Balancing the costs of carbon gain and water transport. Ecology Letters,
+!     17, 82-91.
+! ==============================================================================

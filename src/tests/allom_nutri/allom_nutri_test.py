@@ -128,6 +128,9 @@ def summary(d, mode):
            'psto': d['psto'][y].mean(),
            'c_cost': d['c_cost'][y].sum(),
            'hresp': d['hresp'][y].mean(),
+           'evapotranspiration': np.mean(d['evapm'][y]),
+           'runoff': np.mean(d['runom'][y]),
+           'soil_water': np.mean(np.asarray(d['wsoil'][y]) + np.asarray(d['swsoil'][y])),
            'area_no_limitation': d['area'][alive & no_lim, -1].sum(),
            'area_n_limited': d['area'][alive & n_lim, -1].sum(),
            'area_p_limited': d['area'][alive & p_lim, -1].sum(),
@@ -145,7 +148,8 @@ if __name__ == "__main__":
     print("\nMEAN/SUM OF THE LAST 365 DAYS")
     print("carbon pools: kg(C) m-2; nsto, psto, nmin, pmin: g m-2;")
     print("npp, photo, ar: kg(C) m-2 yr-1; uptake, litter and c_cost: g m-2 yr-1;")
-    print("hresp: g(C) m-2 day-1; area_*: fraction of the gridcell\n")
+    print("hresp: g(C) m-2 day-1; evapotranspiration, runoff: mm day-1;")
+    print("soil_water: mm (both layers); area_*: fraction of the gridcell\n")
     print(result)
 
     if '--save' in sys.argv:

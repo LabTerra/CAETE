@@ -270,7 +270,8 @@ def table_gen(NPLS, fpath=None):
     # COMBINATIONS
     # Random samples from  distributions (g1, tleaf ...)
     # Random variables
-    g1 = np.random.uniform(2.0, 18.0, NPLS) # Lin et al. 2015 (Nature Climate Change): mínimo observado global C3 ~2
+    # g1 sorteado abaixo, depois da definicao de c4 (C3 e C4 tem intervalos diferentes)
+    # g1 = np.random.uniform(2.0, 18.0, NPLS) # anterior: sem base para o maximo de 18
     # g1 = vec_ranging(np.random.beta(1.2, 2, NPLS), 1.0, 15.0) # dimensionles
     # vcmax = np.random.uniform(3e-5, 100e-5,N) # molCO2 m-2 s-1
     resorption = np.random.uniform(0.2, 0.7, NPLS)
@@ -288,6 +289,14 @@ def table_gen(NPLS, fpath=None):
     c4 = np.zeros((NPLS,), dtype=np.float64)
     n123 = ceil(alloc_g.shape[0] * 0.50)
     c4[0: n123 - 1] = 1.0
+
+    # g1 (kPa^0.5), parametro de Medlyn et al. (2011): sorteio log-uniforme entre os
+    # percentis 5 e 95 do g1 por especie no banco de Lin et al. (2015, Nature Climate
+    # Change; g1 ajustado com g0 = 0): C3 1.6-8.6 (mediana 3.5; arvores tropicais
+    # 2.4-6.0), C4 0.7-4.1 (mediana 1.4)
+    g1_c3 = np.exp(np.random.uniform(np.log(1.6), np.log(8.6), NPLS))
+    g1_c4 = np.exp(np.random.uniform(np.log(0.7), np.log(4.1), NPLS))
+    g1 = np.where(c4 == 1.0, g1_c4, g1_c3)
 
     # Nitrogen and Phosphorus content in carbon pools
     # C : N : P

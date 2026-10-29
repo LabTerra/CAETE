@@ -34,7 +34,7 @@ from joblib import load, dump
 import cftime
 import numpy as np
 from numpy import log as ln
-from hydro_caete import soil_water
+from hydro_caete import soil_water, net_radiation
 from caete_module import global_par as gp
 from caete_module import budget as model
 from caete_module import budget_allom as model_allom
@@ -1721,6 +1721,10 @@ class grd:
         # W m-2 to mol m-2 s-1 ! 0.5 converts RSDS to PAR
         ipar = self.rsds[lb: hb + 1] * 0.5 / 2.18e5
         ru = self.rhs[lb: hb + 1] / 100.0
+        # net radiation (W m-2): available energy for the Penman equations
+        # (FAO-56, Allen et al. 1998; see note [N3] in hydro_caete.py)
+        doy = np.array([d.dayofyr for d in cftime.num2date(day_indexes, self.time_unit, self.calendar)])
+        rnet = net_radiation(self.rsds[lb: hb + 1], temp, ru, 89.75 - 0.5 * self.y, doy)
 
         year0 = start.year
         co2 = find_co2(year0)
@@ -1867,6 +1871,7 @@ class grd:
                     p_atm[step],
                     ipar[step],
                     ru[step],
+                    rnet[step],
                     mineral_n,
                     labile_p,
                     org_n,
@@ -1980,11 +1985,18 @@ class grd:
 
                 # UPDATE STATE VARIABLES
                 # WATER CWM
-                self.runom[step] = self.swp._update_pool(prec[step], daily_output_allom['evavg'])
-                self.swp.w1 = np.float64(
-                    0.0) if self.swp.w1 < 0.0 else self.swp.w1
-                self.swp.w2 = np.float64(
-                    0.0) if self.swp.w2 < 0.0 else self.swp.w2
+                # evapotranspiration limited by the soil water above the wilting point
+                # (note [N2] in hydro_caete.py); et_real is the water actually removed from the soil
+                self.runom[step], et_real = self.swp._update_pool_allom(prec[step], daily_output_allom['evavg'])
+                # _update_pool_allom conserves mass and never leaves a layer negative:
+                # round-off (< 1e-6 mm) is set to zero; larger deficits are errors
+                for layer in ('w1', 'w2'):
+                    w_layer = getattr(self.swp, layer)
+                    if w_layer < -1.0e-6:
+                        raise ValueError(f"negative soil water in {layer} ({w_layer} mm) "
+                                         f"at step {step}, {self.plot_name}")
+                    if w_layer < 0.0:
+                        setattr(self.swp, layer, np.float64(0.0))
                 self.wp_water_upper_mm = self.swp.w1
                 self.wp_water_lower_mm = self.swp.w2
 
@@ -2088,7 +2100,7 @@ class grd:
                     self.lai_allom[step]     = daily_output_allom['laiavg']
                     self.rcm[step]           = daily_output_allom['rcavg']
                     self.f5[step]            = daily_output_allom['f5avg']
-                    self.evapm[step]         = daily_output_allom['evavg']
+                    self.evapm[step]         = et_real
                     self.wsoil[step]         = self.wp_water_upper_mm
                     self.swsoil[step]        = self.wp_water_lower_mm
                     self.rm_allom[step]      = daily_output_allom['rmavg']
