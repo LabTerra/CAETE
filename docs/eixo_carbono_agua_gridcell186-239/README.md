@@ -122,36 +122,8 @@ python ../docs/eixo_carbono_agua_gridcell186-239/scripts/ajusta_g1_lin2015.py   
 | `g1_lin2015_por_especie.csv`, `g1_lin2015_por_grupo.csv` | g1 ajustado por espécie e estatísticas por grupo | `ajusta_g1_lin2015.py`, dados de Lin et al. (2015), CC BY 4.0 |
 | `observacoes.csv` | Valores medidos usados na Figura 9, com as referências | compilada da literatura |
 
-## 6. Testes e o que ficou pendente
 
-**Testes** (de `src/`, com o `caete_module` compilado com 3000 PLSs):
-
-```bash
-PYTHONPATH=. python tests/carbono_agua/bancada_carbono_agua.py      # bancada: prod_allom + Penman, grade fatorial
-printf 'c\n1\n' | python tests/allom_nutri/allom_nutri_test.py       # K34: modelo completo, compara com a referência
-```
-
-A bancada lista verificações fisiológicas. Ficam "NAO", por limitações conhecidas:
-o `f5` não reage à seca acima do ponto de murcha (três verificações) e a
-evapotranspiração real pode passar da potencial (`evpot2`, abaixo).
-
-**Não alterado nesta fase:**
-
-- **Estresse hídrico na fotossíntese (`f5`):** só age abaixo do ponto de murcha
-  (Figura 10). Será substituído pela razão K/Kmax da hidráulica do xilema.
-- **Pesos de sol e sombra (`f_four`):** a área de sombra usa (1 − e^(−kd·LAI))/kd,
-  que não é o complemento da área de sol; afeta a GPP e a resistência do dossel.
-- **Absorção passiva de nutrientes:** usa a transpiração de uma folha de sol, e não
-  a do dossel (para discussão do grupo).
-- **Resistência aerodinâmica:** continua igual a `rcmin` (100 s m⁻¹).
-- **`evpot2`:** usa `rcmin` como resistência do dossel; com o dossel corrigido, a
-  evapotranspiração real pode passar dessa "potencial".
-- **Condutância de Medlyn com fotossíntese bruta**, em vez da líquida.
-- **Solo de 1 m:** na floresta, as raízes extraem água a mais de 2,5 m (da Rocha et
-  al. 2004). A água disponível no solo do modelo (169 mm em 0–100 cm na célula
-  186-239) é maior que a medida perto de Manaus (~70 mm por metro; Malhi et al. 2002).
-
-## 7. Referências
+## 6. Referências
 
 - Allen, R.G., Pereira, L.S., Raes, D. & Smith, M. (1998). Crop evapotranspiration: guidelines for computing crop water requirements. FAO Irrigation and Drainage Paper 56. FAO, Rome.
 - Culf, A.D., Fisch, G. & Hodnett, M.G. (1995). The albedo of Amazonian forest and ranch land. Journal of Climate, 8, 1544-1554.
