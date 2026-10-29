@@ -302,6 +302,7 @@ contains
         real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
         real(r_8) :: rc_sun, rc_shade, gc_canopy  ! canopy resistance (two-big-leaf)
+        real(r_8) :: rd_leaf  ! leaf respiration per unit leaf area (molCO2/m2/s), note [N7]
 
     !getting pls parameters
 
@@ -323,15 +324,15 @@ contains
     !     Photosynthesis
     !     ==============
     ! rate (molCO2/m2/s)
-    
+
         ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
         sla = sla_trait(dt(18))  ! m2/gC
-    
+
         ! [LIGHT COMP] Repassa linc_layer, nl_shared e lsize_shared para
         ! photosynthesis_rate, que usara esses valores em vez de recalcular
         ! o dossel individualmente para cada PLS.
         ! [SUN/SHADE FIX] Also captures f1a_sun and f1a_shade (new outputs).
-        
+
         ! VPD (kPa): also sets ci in photosynthesis_rate_allom
         !========
         vpd = vapor_p_defcit(temp,rh)
@@ -342,13 +343,36 @@ contains
             & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
             & f1a_sun,f1a_shade,rh,g1,vpd)
 
-        !Stomatal resistence
-        !===================
-        rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
+        ! Leaf area index (m2/m2)
+        laia = leaf_area_index(cl1_prod, sla)
+
+        ! Leaf respiration Rd per unit leaf area (molCO2/m2/s): leaf term of the
+        ! maintenance respiration (Ryan 1991, as in m_resp) divided by the LAI.
+        ! The Medlyn conductance uses the net assimilation max(A - Rd, 0); GPP and
+        ! the respiration of the PLS are unchanged. See note [N7] at the end.
+        if (laia .gt. 0.0D0) then
+            rd_leaf = leaf_maint_resp(temp, cl1_prod, n2cl_resp) / (0.012D0 * 31557600.0D0) / laia
+        else
+            rd_leaf = 0.0D0
+        endif
+
+        !Potential canopy resistance (no water stress)
+        !============================================
+        ! Same two-big-leaf scaling as the canopy resistance rc below ([N1]); the
+        ! demand of the water stress modifier uses the canopy conductance (Gerten
+        ! et al. 2004). See note [N6] in budget_allom.f90.
+        gc_canopy = f_four(1, cl1_prod, sla) / canopy_resistence(vpd, max(f1a_sun - rd_leaf, 0.0D0), g1, catm, temp) &
+                & + f_four(2, cl1_prod, sla) / canopy_resistence(vpd, max(f1a_shade - rd_leaf, 0.0D0), g1, catm, temp)
+        if (gc_canopy .gt. 0.0D0) then
+            rc_pot = 1.0D0 / gc_canopy  ! s m-1, canopy
+        else
+            rc_pot = rcmax
+        endif
 
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
-        f5 =  water_stress_modifier(w, cf1_prod, rc_pot, emax, wmax)
+        ! demand: equilibrium evapotranspiration (emax) and canopy conductance
+        f5 =  water_stress_modifier_allom(w, cf1_prod, rc_pot, emax, wmax)
     
     !     Photosysthesis minimum and maximum temperature
     !     ----------------------------------------------
@@ -372,23 +396,20 @@ contains
             f1_shade = 0.0D0
         endif
     
-        rc_aux = canopy_resistence(vpd, f1, g1, catm,temp)  ! RCM leaf level -!s m-1
-    
-        wue = water_ue(f1, rc_aux, p0, vpd,temp)
-    
+        ! sunlit leaf, net assimilation (note [N7]): leaf transpiration e and wue (A_net/E)
+        rc_aux = canopy_resistence(vpd, max(f1 - rd_leaf, 0.0D0), g1, catm,temp)  ! RCM leaf level -!s m-1
+
+        wue = water_ue(max(f1 - rd_leaf, 0.0D0), rc_aux, p0, vpd,temp)
+
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
-    
-        ! Leaf area index (m2/m2)
-        ! recalcula rc e escalona para dossel
-        ! laia = 0.2D0 * dexp((2.5D0 * f1)/p25)
-        laia = leaf_area_index(cl1_prod, sla)
-        ! laia = f_four(0, cl1_prod, sla) + f_four(1, cl1_prod, sla)
+
         ! Canopy resistance (two-big-leaf; De Pury & Farquhar 1997; Leuning et al. 1995):
         ! leaves are parallel conductances, gc = gs_sun*f4sun + gs_shade*f4shade, with the
         ! same sun/shade weights used for GPP in gross_ph. See note [N1] at the end.
-        rc_sun   = canopy_resistence(vpd, f1_sun,   g1, catm, temp)  ! s m-1, leaf
-        rc_shade = canopy_resistence(vpd, f1_shade, g1, catm, temp)  ! s m-1, leaf
+        ! gs from the net assimilation of each leaf class (note [N7]).
+        rc_sun   = canopy_resistence(vpd, max(f1_sun   - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
+        rc_shade = canopy_resistence(vpd, max(f1_shade - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
         gc_canopy = f_four(1, cl1_prod, sla) / rc_sun + f_four(2, cl1_prod, sla) / rc_shade  ! m s-1
         if (gc_canopy .gt. 0.0D0) then
             rc = 1.0D0 / gc_canopy  ! s m-1, canopy
@@ -484,13 +505,44 @@ end module productivity
 !   about 3 times the maximum leaf conductance across vegetation types. With the
 !   mean conditions of gridcell 186-239 (LAI 6.8), gc / gs_sun = 2.8.
 !
-!   Kept as in prod (to be revised): rc_aux (sunlit leaf) is still used for the
-!   leaf transpiration e (passive nutrient uptake) and for wue.
+!   rc_aux (sunlit leaf) is kept for the leaf transpiration e (output tra) and
+!   for wue. The passive nutrient uptake no longer uses e: it uses the canopy
+!   transpiration evap(p) (note [N5] in budget_allom.f90).
+!
+!   The potential canopy resistance rc_pot (no water stress), used by the water
+!   stress modifier, is scaled in the same way (note [N6] in budget_allom.f90).
+!
+! [N7] Net assimilation in the Medlyn conductance
+!
+!   Medlyn et al. (2011) and the g1 values of Lin et al. (2015) refer to the net
+!   leaf assimilation, An = Ag - Rd. photosynthesis_rate_allom returns the gross
+!   rate Ag (24 h mean). The leaf respiration of CAETE is inside the maintenance
+!   respiration (m_resp, Ryan 1991): its leaf term, per unit leaf area,
+!
+!       Rd = rml / (0.012 * 31557600) / LAI        (molCO2 m-2 s-1)
+!       rml = n2cl * Cleaf * 25 * exp(0.04 T)      (leaf_maint_resp, kgC m-2 yr-1)
+!
+!   is used, so that Rd is the same respiration already paid in the carbon
+!   balance. The conductance of each leaf class uses max(A_i - Rd, 0); when
+!   An = 0, gs = g0 (canopy_resistence). Only the conductance (and rc, rc_pot,
+!   e and wue = An/E) changes: GPP, ar and nppa are unchanged (no double
+!   counting). ci is not affected, since ci/ca = g1/(g1 + sqrt(D)) does not
+!   depend on A ([N4] in funcs.f90).
+!
+!   Bench (gridcell 186-239 mean conditions, g1 = 4): Rd = 0.28 umol m-2 s-1,
+!   ~7% of the 24 h mean gross rate of the sunlit leaves; canopy resistance
+!   137 -> 149 s m-1, evapotranspiration 3.79 -> 3.72 mm day-1.
+!   Limitation: Rd is the same for sunlit and shaded leaves (in De Pury &
+!   Farquhar 1997 it follows the Vcmax profile) and is a 24 h mean.
 !
 ! References
 !   De Pury, D.G.G. & Farquhar, G.D. (1997). Simple scaling of photosynthesis from
 !     leaves to canopies without the errors of big-leaf models. Plant, Cell &
 !     Environment, 20, 537-557.
+!   Lin, Y.-S. et al. (2015). Optimal stomatal behaviour around the world. Nature
+!     Climate Change, 5, 459-464.
+!   Ryan, M.G. (1991). Effects of climate change on plant respiration. Ecological
+!     Applications, 1, 157-167.
 !   Kelliher, F.M., Leuning, R., Raupach, M.R. & Schulze, E.-D. (1995). Maximum
 !     conductances for evaporation from global vegetation types. Agricultural and
 !     Forest Meteorology, 73, 1-16.

@@ -43,7 +43,7 @@ module budget_allom
       &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
 
       use types
-      use global_par, only: ntraits, npls, light_comp, sapwood, year_days
+      use global_par, only: ntraits, npls, light_comp, sapwood, year_days, alfm
       use alloc
       use productivity
       use omp_lib
@@ -51,7 +51,7 @@ module budget_allom
       use, intrinsic :: ieee_arithmetic
 
       use photo
-      use water, only: evpot2, penman, runoff
+      use water, only: equilibrium_evap, penman, runoff
       use alloc3
 
       !==========================================================================
@@ -459,9 +459,12 @@ module budget_allom
       allocate(dheart_pls_aux(nlen))
       allocate(dsto_pls_aux(nlen))
 
-      !     Maximum evapotranspiration (emax)
-      !     =================================
-      emax = evpot2(p0,temp,rh,rnet)
+      !     Demand of the water stress modifier (emax)
+      !     ==========================================
+      ! Equilibrium evapotranspiration (Gerten et al. 2004; Pavlick et al. 2013,
+      ! Eq. B11), instead of evpot2 (Penman with the leaf resistance rcmin as the
+      ! canopy resistance). See note [N6] at the end of this file.
+      emax = equilibrium_evap(p0,temp,rnet)
       soil_temp = ts
 
       ! ====================================================================
@@ -625,9 +628,12 @@ module budget_allom
          ! Alocação (alloc3.f90): allocation3 para lenhosas e grass_allocation3
          ! para gramíneas. height_pls(p) vem do pré-loop e é reutilizado aqui,
          ! para ser o mesmo valor usado na competição por luz.
+         ! Passive uptake (mass flow) uses the canopy transpiration of the PLS,
+         ! evap(p) in mm s-1, not the transpiration of one sunlit leaf (tra)
+         ! (Fisher et al. 2010). See note [N5] at the end of this file.
 
          if (dt1(7) .gt. 0.0D0) then
-            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
                &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
                &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
@@ -637,7 +643,7 @@ module budget_allom
                &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
                &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), rg_growth)
          else
-            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
                &,cleaf_pls(ri), croot_pls(ri), csto_aux&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
                &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
@@ -734,7 +740,8 @@ module budget_allom
       enddo
       !$OMP END PARALLEL DO
 
-      epavg = emax
+      ! output (emaxm): maximum demand, alfm * Eeq, reached when gc >> gm (note [N6])
+      epavg = alfm * emax
 
       !Fill output data
       evavg  = 0.0D0
@@ -930,6 +937,66 @@ module budget_allom
       deallocate(lavai_layer)
 
    end subroutine daily_budget_allom
- 
+
  end module budget_allom
+
+! ==============================================================================
+! NOTES
+! ==============================================================================
+!
+! [N5] Passive nutrient uptake from the canopy transpiration
+!
+!   The passive uptake (passive_uptake, cc.f90) follows the mass flow of the FUN
+!   model (Fisher et al. 2010): nutrient concentration in the soil water times
+!   the water taken up by the plants,
+!
+!       U_passive = (N_soil / W_soil) * E * 86400,   E in mm s-1
+!
+!   E must be the transpiration of the vegetation (per unit ground area). The
+!   argument was tra, the transpiration of ONE sunlit leaf per unit leaf area
+!   (E = gs D / P, no energy balance; 0.7 to 4.9 mm day-1 for g1 = 2 to 18). It
+!   is now evap(p) / 86400, the Penman transpiration of the PLS canopy, the same
+!   flux removed from the soil water.
+!
+!   Limitation: evap(p) is the canopy demand; the limitation by the soil water
+!   (_update_pool_allom, hydro_caete.py) is applied afterwards for the whole
+!   gridcell, so in very dry soil the passive uptake can be slightly too high.
+!
+! [N6] Demand of the water stress modifier (f5)
+!
+!   The supply/demand form of f5 comes from LPJ (Gerten et al. 2004) and
+!   JeDi-DGVM (Pavlick et al. 2013, Eqs. B11-B12):
+!
+!       D = Eeq * alfm / (1 + gm / gc)
+!       Eeq = Delta / (Delta + gamma) * Rn / lambda   (equilibrium evapotranspiration)
+!       alfm = 1.391, gm = 3.26 mm s-1, gc = potential canopy conductance
+!
+!   Before, Eeq was replaced by evpot2, a Penman evapotranspiration with the
+!   minimum LEAF resistance (rcmin = 100 s m-1) as the canopy resistance (so
+!   alfm was applied on top of the aerodynamic term), and gc was the
+!   conductance of one sunlit leaf, floored at rcmin. Now:
+!     - emax = equilibrium_evap(p0, temp, rnet) (funcs.f90);
+!     - gc = potential canopy conductance (sunlit + shaded, no water stress;
+!       rc_pot in prod_allom), without the leaf floor
+!       (water_stress_modifier_allom, funcs.f90);
+!     - output emaxm = alfm * Eeq, the maximum demand (gc >> gm).
+!   The rest of f5 (supply, the factor 0.1) is unchanged; f5 will be replaced
+!   by the xylem hydraulics.
+!
+!   alfm * Eeq (Priestley-Taylor) assumes humid air: with dry air (VPD > 1 kPa)
+!   and high g1, the Penman transpiration can exceed it (bench).
+!
+! References
+!   Fisher, J.B. et al. (2010). Carbon cost of plant nitrogen acquisition: a
+!     mechanistic, globally applicable model of plant nitrogen uptake,
+!     retranslocation, and fixation. Global Biogeochemical Cycles, 24, GB1014.
+!   Gerten, D., Schaphoff, S., Haberlandt, U., Lucht, W. & Sitch, S. (2004).
+!     Terrestrial vegetation and water balance - hydrological evaluation of a
+!     dynamic global vegetation model. Journal of Hydrology, 286, 249-270.
+!   Pavlick, R. et al. (2013). The Jena Diversity-Dynamic Global Vegetation Model
+!     (JeDi-DGVM). Biogeosciences, 10, 4137-4177.
+!   Priestley, C.H.B. & Taylor, R.J. (1972). On the assessment of surface heat
+!     flux and evaporation using large-scale parameters. Monthly Weather Review,
+!     100, 81-92.
+! ==============================================================================
  

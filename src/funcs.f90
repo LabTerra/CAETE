@@ -37,6 +37,7 @@ module photo
         sla_trait              ,& ! (f), specific leaf area (m2 gC-1) from the SLA trait (mm2 mg-1)
         leaf_long              ,& ! (f), leaf longevity from SLA (months) - Sakschewsky et al. 2016
         water_stress_modifier  ,& ! (f), F5 - water stress modifier (dimensionless)
+        water_stress_modifier_allom ,& ! (f), F5 with the canopy conductance (allometric version)
         photosynthesis_rate    ,& ! (s), leaf level CO2 assimilation rate (molCO2 m-2 s-1)
         photosynthesis_rate_allom ,& ! (s), as photosynthesis_rate, ci from the Medlyn conductance (allometric version)
         leaf_gross_rate        ,& ! (f), gross leaf assimilation for a given leaf irradiance (molCO2 m-2 s-1)
@@ -50,6 +51,7 @@ module photo
         tetens                 ,& ! (f), Maximum vapor pressure (hPa)
         nrubisco               ,& ! (f), Fraction of N not in lignin (disponible to rubisco)
         m_resp                 ,& ! (f), maintenance respiration (plants)
+        leaf_maint_resp        ,& ! (f), leaf term of m_resp (kgC m-2 yr-1), for the net assimilation (allometric version)
         sto_resp               ,&
         realized_npp           ,&
         spinup2                ,& ! (s), SPINUP function for CVEG pools
@@ -359,6 +361,35 @@ contains
       f5 = f5_64
       if (f5 .lt. 0.0D0) f5 = 0.0D0
    end function water_stress_modifier
+
+   function water_stress_modifier_allom(w, cfroot, rc, ep, wmax) result(f5)
+      ! As water_stress_modifier, used only by the allometric version (prod_allom).
+      ! Demand as in Gerten et al. (2004): D = Eeq * alfm / (1 + gm/gc), with
+      ! ep = equilibrium evapotranspiration (equilibrium_evap) and gc the potential
+      ! CANOPY conductance (rc = canopy resistance, s m-1). The minimum leaf
+      ! resistance (rcmin) is not applied, since rc is a canopy value.
+      ! See note [N6] in budget_allom.f90.
+      use types, only: r_8
+      use global_par, only: csru, alfm, gm, rcmax
+      real(r_8),intent(in) :: w      !soil water (mm)
+      real(r_8),intent(in) :: cfroot !carbon in fine roots (kg m-2)
+      real(r_8),intent(in) :: rc     !potential canopy resistance (s m-1)
+      real(r_8),intent(in) :: ep     !equilibrium evapotranspiration (mm/day)
+      real(r_8),intent(in) :: wmax   !soil water at saturation (mm)
+      real(r_8) :: f5
+      real(r_8) :: wa, pt, gc, d
+
+      wa = w / wmax
+      pt = csru * (cfroot * 1000.0D0) * wa      ! supply, Pavlick et al. (2013), mm/day
+      gc = 1.0D0 / (min(rc, rcmax) * 1.15741D-08) ! canopy conductance, mm/day
+      d = (ep * alfm) / (1.0D0 + (gm / gc))     ! demand, Gerten et al. (2004), mm/day
+      if (d .gt. 0.0D0) then
+         f5 = 1.0D0 - exp(-0.1D0 * pt / d)
+      else
+         f5 = wa
+      endif
+      if (f5 .lt. 0.0D0) f5 = 0.0D0
+   end function water_stress_modifier_allom
 
    ! =============================================================
    ! =============================================================
@@ -1531,6 +1562,21 @@ contains
 
    end function m_resp
 
+   function leaf_maint_resp(temp, cleaf, n2cl) result(rml)
+      ! Leaf term of m_resp (Ryan 1991), kgC m-2 yr-1. Used by the allometric
+      ! version only to obtain the leaf respiration Rd for the net assimilation
+      ! of the Medlyn conductance (note [N7] in productivity.f90); the carbon
+      ! balance still uses m_resp.
+      use types, only: r_8
+      real(r_8), intent(in) :: temp   ! air temperature (oC)
+      real(r_8), intent(in) :: cleaf  ! leaf carbon (kgC m-2)
+      real(r_8), intent(in) :: n2cl   ! leaf N:C (g g-1)
+      real(r_8) :: rml
+      real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0   ! same as m_resp
+      rml = (n2cl * (cleaf * 1.0D3)) * a1 * dexp(a2 * temp) * 1.0D-3
+      if (rml .lt. 0.0D0) rml = 0.0D0
+   end function leaf_maint_resp
+
 
   !===================================================================
   !===================================================================
@@ -1869,6 +1915,7 @@ module water
        soil_temp_sub    ,&
        penman           ,&
        evpot2           ,&
+       equilibrium_evap ,&
        available_energy ,&
        runoff
 
@@ -2113,6 +2160,31 @@ end function wtt
     evap = evap*(86400.0D0/2.45D6) !mm/day
     evap = max(evap, 0.0D0)     !Eliminates condensation
   end function evpot2
+
+  !=================================================================
+  !=================================================================
+
+  function equilibrium_evap (spre,temp,rn) result(evap)
+    ! Equilibrium evapotranspiration (mm/day): radiation term of Penman,
+    ! Eeq = Delta/(Delta + gamma) * Rn / lambda (Priestley & Taylor 1972).
+    ! Used by the allometric version as the demand of the water stress
+    ! modifier, as in Gerten et al. (2004) and Pavlick et al. (2013, Eq. B11).
+    ! Same Delta and gamma as penman/evpot2. See note [N6] in budget_allom.f90.
+    use types, only: r_8
+    real(r_8),intent(in) :: spre   !Surface pressure (mb)
+    real(r_8),intent(in) :: temp   !Temperature (oC)
+    real(r_8),intent(in) :: rn     !Net radiation (W/m2)
+    real(r_8) :: evap              !Equilibrium evapotranspiration (mm/day)
+    real(r_8) :: t1, t2, delta, gama
+
+    t1 = temp + 1.0D0
+    t2 = temp - 1.0D0
+    delta = (wtt(t1) - wtt(t2)) / (t1 - t2)        !mb/oC
+    gama  = spre * (1004.0D0) / (2.45D6 * 0.622D0) !mb/oC
+    evap = (delta / (delta + gama)) * rn            !W/m2
+    evap = evap * (86400.0D0 / 2.45D6)              !mm/day
+    evap = max(evap, 0.0D0)
+  end function equilibrium_evap
 
   !=================================================================
   !=================================================================
