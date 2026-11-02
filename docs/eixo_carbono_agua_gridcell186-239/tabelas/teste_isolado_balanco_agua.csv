@@ -1,0 +1,8 @@
+teste,valor
+solo úmido: diferença máxima para o original (mm),3.126388037344441e-13
+seca: erro máximo de conservação de massa (mm),1.1368683772161603e-13
+seca: dias com camada negativa,0.0
+"seca: água mínima no solo, novo (mm)",347.70676336453556
+ponto de murcha das duas camadas (mm),347.72155582904816
+"seca: água mínima no solo, original (mm)",0.0
+"seca: água criada pela correção para zero, original (mm em 3000 dias)",9584.738527533966

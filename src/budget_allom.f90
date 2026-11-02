@@ -28,7 +28,7 @@ module budget_allom
  
    contains
  
-   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, soil_text, p_sat, ts, temp, p0, ipar, rh&
+   subroutine daily_budget_allom(step, dt, w1, w2, wmax_in, soil_text, p_sat, ts, temp, p0, ipar, rh, rnet&
       &, mineral_n, labile_p, on, sop, op, n_sto_in, p_sto_in, uptk_costs_in, catm&
       &, cleaf_in, cwood_in, croot_in, csap_in, cheart_in, csto_in&
       &, dleaf_in, dwood_in, droot_in, dsap_in, dheart_in, dsto_in&
@@ -43,7 +43,7 @@ module budget_allom
       &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
 
       use types
-      use global_par, only: ntraits, npls, light_comp, sapwood, year_days
+      use global_par, only: ntraits, npls, light_comp, sapwood, year_days, alfm
       use alloc
       use productivity
       use omp_lib
@@ -51,7 +51,7 @@ module budget_allom
       use, intrinsic :: ieee_arithmetic
 
       use photo
-      use water, only: evpot2, penman, available_energy, runoff
+      use water, only: equilibrium_evap, penman, runoff
       use alloc3
 
       !==========================================================================
@@ -68,6 +68,7 @@ module budget_allom
       real(r_8),intent(in) :: p0      ! Surface pressure (mb)
       real(r_8),intent(in) :: ipar    ! Incident photosynthetic active radiation mol Photons m-2 s-1
       real(r_8),intent(in) :: rh      ! Relative humidity 
+      real(r_8),intent(in) :: rnet    ! Net radiation (W m-2), FAO-56 (Allen et al. 1998); hydro_caete.net_radiation
       real(r_8),intent(in) :: catm    ! ATM CO2 concentration ppm
       real(r_8),intent(in) :: ts      ! Soil temperature (oC)
 
@@ -297,6 +298,7 @@ module budget_allom
       real(r_8), dimension(3) :: sto_aux !PLS storage (C, N, P), g m-2
       real(r_8), parameter :: csto_max = 0.5D2 !ceiling of the C storage, g(C) m-2 (same value as budget.f90)
       real(r_8) :: sto_excess            !storage above the ceiling, respired, g(C) m-2 day-1
+      real(r_8) :: rg_growth             !growth respiration of the day (allocation3), g(C) m-2 day-1
 
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
@@ -493,9 +495,12 @@ module budget_allom
       allocate(dheart_pls_aux(nlen))
       allocate(dsto_pls_aux(nlen))
 
-      !     Maximum evapotranspiration (emax)
-      !     =================================
-      emax = evpot2(p0,temp,rh,available_energy(temp))
+      !     Demand of the water stress modifier (emax)
+      !     ==========================================
+      ! Equilibrium evapotranspiration (Gerten et al. 2004; Pavlick et al. 2013,
+      ! Eq. B11), instead of evpot2 (Penman with the leaf resistance rcmin as the
+      ! canopy resistance). See note [N6] at the end of this file.
+      emax = equilibrium_evap(p0,temp,rnet)
       soil_temp = ts
 
       ! ====================================================================
@@ -610,7 +615,7 @@ module budget_allom
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
-      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess)
+      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess, rg_growth)
 
       do p = 1,nlen
          
@@ -629,15 +634,21 @@ module budget_allom
          ! (5%) of the wood carbon it receives (Pavlick et al. 2013), as in the
          ! classic version: the total wood (sapwood + heartwood) is passed. Only
          ! a small part of the wood is living tissue.
-         call prod(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
-               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+         call prod_allom(dt1,catm, temp, soil_temp, p0, w, ipar,rh, emax&
+               !&, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), dleaf(ri), dsap(ri), droot(ri)&
+               !! Growth respiration is now computed in allocation3 (rg_growth), on the
+               ! tissue built today, and added to ar/nppa after the allocation.
+               ! Zero increments are passed here so that g_resp returns zero and
+               ! nppa entering the allocation is photosynthesis - maintenance
+               ! respiration.
+               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p), knor(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
 
          
-         evap(p) = penman(p0, temp, rh, available_energy(temp), rc2(p)) !actual evapotranspiration (evap, mm/day)
+         evap(p) = penman(p0, temp, rh, rnet, rc2(p)) !actual evapotranspiration (evap, mm/day)
          
          ! Maintenance respiration of the stored carbon, paid from the storage
          ! before allocation (as in budget.f90). sto_resp (funcs.f90) uses the
@@ -654,9 +665,12 @@ module budget_allom
          ! Alocação (alloc3.f90): allocation3 para lenhosas e grass_allocation3
          ! para gramíneas. height_pls(p) vem do pré-loop e é reutilizado aqui,
          ! para ser o mesmo valor usado na competição por luz.
+         ! Passive uptake (mass flow) uses the canopy transpiration of the PLS,
+         ! evap(p) in mm s-1, not the transpiration of one sunlit leaf (tra)
+         ! (Fisher et al. 2010). See note [N5] at the end of this file.
 
          if (dt1(7) .gt. 0.0D0) then
-            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+            call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
                &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
                &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
@@ -664,9 +678,9 @@ module budget_allom
                &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
                &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
                &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
-               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p))
+               &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), rg_growth)
          else
-            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, tra(p)&
+            call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
                &,cleaf_pls(ri), croot_pls(ri), csto_aux&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
                &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
@@ -695,6 +709,19 @@ module budget_allom
          ! the same respiration is discounted from the NPP, so that the output
          ! keeps NPP = photosynthesis - ar (budget.f90 does not discount it)
          nppa(p) = nppa(p) - ((sr + mr_sto + sto_excess) * 0.365242D0)
+
+         ! UPDATING THE OUTPUTS AFTER ALLOCATION3/GRASS_ALLOCATION3
+         ! rg_growth is computed in allocation3 on the tissue built today
+         ! (leaf + fine root + sapwood, after the N/P limitation) and is already
+         ! paid by the storage there. prod receives zero increments (see the
+         ! call above), so its rg is zero and the nppa it returns is
+         ! photosynthesis - maintenance respiration. Here rg_growth is converted
+         ! to the output units and added to ar and discounted from nppa, so that
+         ! the output keeps NPP = photosynthesis - ar. These lines only update
+         ! the output fluxes: the storage is not changed here.
+         rg(p)   = rg_growth * 0.365242D0     ! g m-2 day-1 to kg m-2 year-1
+         ar(p)   = ar(p)   + rg(p)
+         nppa(p) = nppa(p) - rg(p)
 
          if (n_sto_pls2(p) .lt. 0.0D0) n_sto_pls2(p) = 0.0D0
          if (p_sto_pls2(p) .lt. 0.0D0) p_sto_pls2(p) = 0.0D0
@@ -750,7 +777,9 @@ module budget_allom
       enddo
       !$OMP END PARALLEL DO
 
-      epavg = emax
+      ! output (emaxm): maximum demand, alfm * Eeq, reached when gc >> gm (note [N6])
+      epavg = alfm * emax
+
       pot_soil = psi_soil
 
       !Fill output data
@@ -965,6 +994,66 @@ module budget_allom
       deallocate(lavai_layer)
 
    end subroutine daily_budget_allom
- 
+
  end module budget_allom
+
+! ==============================================================================
+! NOTES
+! ==============================================================================
+!
+! [N5] Passive nutrient uptake from the canopy transpiration
+!
+!   The passive uptake (passive_uptake, cc.f90) follows the mass flow of the FUN
+!   model (Fisher et al. 2010): nutrient concentration in the soil water times
+!   the water taken up by the plants,
+!
+!       U_passive = (N_soil / W_soil) * E * 86400,   E in mm s-1
+!
+!   E must be the transpiration of the vegetation (per unit ground area). The
+!   argument was tra, the transpiration of ONE sunlit leaf per unit leaf area
+!   (E = gs D / P, no energy balance; 0.7 to 4.9 mm day-1 for g1 = 2 to 18). It
+!   is now evap(p) / 86400, the Penman transpiration of the PLS canopy, the same
+!   flux removed from the soil water.
+!
+!   Limitation: evap(p) is the canopy demand; the limitation by the soil water
+!   (_update_pool_allom, hydro_caete.py) is applied afterwards for the whole
+!   gridcell, so in very dry soil the passive uptake can be slightly too high.
+!
+! [N6] Demand of the water stress modifier (f5)
+!
+!   The supply/demand form of f5 comes from LPJ (Gerten et al. 2004) and
+!   JeDi-DGVM (Pavlick et al. 2013, Eqs. B11-B12):
+!
+!       D = Eeq * alfm / (1 + gm / gc)
+!       Eeq = Delta / (Delta + gamma) * Rn / lambda   (equilibrium evapotranspiration)
+!       alfm = 1.391, gm = 3.26 mm s-1, gc = potential canopy conductance
+!
+!   Before, Eeq was replaced by evpot2, a Penman evapotranspiration with the
+!   minimum LEAF resistance (rcmin = 100 s m-1) as the canopy resistance (so
+!   alfm was applied on top of the aerodynamic term), and gc was the
+!   conductance of one sunlit leaf, floored at rcmin. Now:
+!     - emax = equilibrium_evap(p0, temp, rnet) (funcs.f90);
+!     - gc = potential canopy conductance (sunlit + shaded, no water stress;
+!       rc_pot in prod_allom), without the leaf floor
+!       (water_stress_modifier_allom, funcs.f90);
+!     - output emaxm = alfm * Eeq, the maximum demand (gc >> gm).
+!   The rest of f5 (supply, the factor 0.1) is unchanged; f5 will be replaced
+!   by the xylem hydraulics.
+!
+!   alfm * Eeq (Priestley-Taylor) assumes humid air: with dry air (VPD > 1 kPa)
+!   and high g1, the Penman transpiration can exceed it (bench).
+!
+! References
+!   Fisher, J.B. et al. (2010). Carbon cost of plant nitrogen acquisition: a
+!     mechanistic, globally applicable model of plant nitrogen uptake,
+!     retranslocation, and fixation. Global Biogeochemical Cycles, 24, GB1014.
+!   Gerten, D., Schaphoff, S., Haberlandt, U., Lucht, W. & Sitch, S. (2004).
+!     Terrestrial vegetation and water balance - hydrological evaluation of a
+!     dynamic global vegetation model. Journal of Hydrology, 286, 249-270.
+!   Pavlick, R. et al. (2013). The Jena Diversity-Dynamic Global Vegetation Model
+!     (JeDi-DGVM). Biogeosciences, 10, 4137-4177.
+!   Priestley, C.H.B. & Taylor, R.J. (1972). On the assessment of surface heat
+!     flux and evaporation using large-scale parameters. Monthly Weather Review,
+!     100, 81-92.
+! ==============================================================================
  
