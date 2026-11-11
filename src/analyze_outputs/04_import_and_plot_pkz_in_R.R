@@ -29,7 +29,7 @@
 #   Python package: joblib (and its dependencies)
 #
 # HOW TO USE:
-#   1. Update PYTHON_PATH and OUTPUT_FOLDER below.
+#   1. Update PYTHON_PATH and OUTPUT_DIR_GRIDCELL below.
 #   2. Make sure reticulate uses a Python environment with joblib.
 #   3. Run this script in RStudio.
 #   4. Change the PKZ filenames to explore other simulation periods.
@@ -47,17 +47,25 @@ library(reticulate)
 library(ggplot2)
 library(tidyr)
 
-
 # ====================== USER SETTINGS =======================
 
 # Python interpreter containing the joblib package
 # Replace with the path to your own Python environment.
 PYTHON_PATH <- "/home/<username>/anaconda3/bin/python"
 
-# Folder containing the CAETE PKZ outputs
-OUTPUT_FOLDER <- paste0(
-  "~/Documents/CAETE/outputs/<run_name>/<grid_cell>"
-)
+# Set run name
+run_name <- "run_for_caete_ws"
+
+# Set gridcell prefix
+gridcell_prefix <- "gridcell186-239"
+
+
+# ===========================================================
+
+# Folder containing the CSV files (relative to this script)
+OUTPUT_DIR_TO_PROCESS = file.path(normalizePath("../../outputs"), run_name)
+OUTPUT_DIR_GRIDCELL <- file.path(OUTPUT_DIR_TO_PROCESS, gridcell_prefix)
+
 
 # Select the files to analyze
 SPINUP_FILE <- "spin35.pkz"
@@ -79,7 +87,7 @@ joblib <- import("joblib")
 read_caete_pkz <- function(filename) {
   
   file_path <- path.expand(
-    file.path(OUTPUT_FOLDER, filename)
+    file.path(OUTPUT_DIR_GRIDCELL, filename)
   )
   
   # Load the Python object
@@ -160,7 +168,7 @@ plot_caete(
 #    their names using:
 #
 #    names(reticulate::py_to_r(
-#      joblib$load(path.expand(file.path(OUTPUT_FOLDER, SPINUP_FILE)))
+#      joblib$load(path.expand(file.path(OUTPUT_DIR_GRIDCELL, SPINUP_FILE)))
 #    ))
 #
 # 3. To analyze multiple years, use a loop to read successive

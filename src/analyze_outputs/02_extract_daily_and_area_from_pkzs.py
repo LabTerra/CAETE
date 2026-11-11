@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Export daily CAETÊ output and PLS area from historical spin*.pkz files.
+"""Export daily CAETÊ output and PLS area from historical spin*.pkz files for each gridcell folder.
 
 This script writes ONLY two CSV files:
-    diario.csv  One row per day. Includes all 1D daily variables and small
+    gridcell...daily.csv  One row per day. Includes all 1D daily variables and small
                 multi-component daily arrays (e.g., nupt_1, nupt_2).
-    area.csv    One row per day and one column per PLS (pls_0000, ...).
+    gridcell...area.csv    One row per day and one column per PLS (pls_0000, ...).
 
 The original PKZ files are read only; no temporal averaging is performed.
 
@@ -14,31 +14,21 @@ Requirements:
 Suggested project structure (your analysis folder can have ANY name):
     CAETE/
       outputs/<run_name>/<gridcell>/spin36.pkz ... spin73.pkz
-      docs/<your_analysis_folder>/scripts/01_extract_daily_and_area_manual.py
-      docs/<your_analysis_folder>/tabelas/  (created automatically)
+      outputs/<run_name>/tabelas/  (created automatically)
 
 HOW TO USE:
-    1. Save this script in CAETE/docs/<your_analysis_folder>/scripts/.
-    2. Change RUN_NAME and GRIDCELL below to match your simulation.
-    3. If necessary, change FIRST_SPIN, START_YEAR and END_YEAR.
-    4. From the CAETE directory (e.g. open a terminal in vscode), run:
-       python docs/<your_analysis_folder>/scripts/01_extract_daily_and_area_manual.py
+    1. Run script and it will ask RUN_NAME .
+    2. If necessary, change FIRST_SPIN, START_YEAR and END_YEAR.
+    3. From the CAETE directory (e.g. open a terminal in vscode), run:
+       python src/analyze_outputs/01_extract_daily_and_area_manual.py
 
-       If necessary, specify the full path to your Python interpreter.
-       Example (Anaconda on Linux):
-       /home/<username>/anaconda3/bin/python docs/<your_analysis_folder>/scripts/01_extract_daily_and_area_manual.py
-       Replace <username> and <your_analysis_folder> with your own paths.
-
-
-The script assumes the above folder structure. If your data are elsewhere,
-set INPUT_DIR and OUTPUT_DIR to explicit paths instead.
-
-Existing diario.csv and area.csv are overwritten when the script runs.
+Existing files 'gridcell...daily.csv' and 'gridcell...area.csv' are overwritten when the script runs.
 """
 
 from __future__ import annotations
 
 import csv
+import os
 import re
 from datetime import date, timedelta
 from pathlib import Path
@@ -46,22 +36,22 @@ from pathlib import Path
 import numpy as np
 from joblib import load
 
-# ======================= USER SETTINGS =======================
-# Place this script in CAETE/docs/<your_analysis_folder>/scripts/.
-# BASE is then the CAETE project directory, regardless of the analysis
-# folder's name (e.g. caete_ws, allom_nutri_gridcell186-239, eixo_carbono_agua_gridcell186-239, etc.).
-BASE = Path(__file__).resolve().parents[3]
+# BASE is the CAETE project directory, regardless of the analysis
+BASE = Path(__file__).resolve().parents[2]
 
-# Change these two values to match your model output folder:
-RUN_NAME = "allomnutri_hydraulics_3k_PKLS"
-GRIDCELL = "gridcell186-239"
+# Set the run name (For example, in the case 'CAETE/outputs/run_for_caete_ws',
+# ...your run name is run_for_caete_ws.
+RUN_NAME = input(
+    "Run name (For example, if you have the folder "
+    "'CAETE/outputs/run_for_caete_ws', "
+    "add here just run_for_caete_ws: "
+)
 
-# Input: existing CAETE simulation results (read only).
-INPUT_DIR = BASE / "outputs" / RUN_NAME / GRIDCELL
+# Set output folder to be processed
+OUTPUT_DIR_TO_PROCESS = BASE / "outputs" / RUN_NAME
 
-# Output: a 'tabelas' folder alongside the 'scripts' folder.
-# Example: CAETE/docs/student_analysis/tabelas/
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "tabelass"
+# Output: Folder where all CSV files will be generated.
+OUTPUT_DIR_GRIDS_PKZS_TO_CSVS = OUTPUT_DIR_TO_PROCESS / "grids_pkzs_to_csvs"
 
 # Change these values if your run has a different spinup or time range.
 FIRST_SPIN = 36
@@ -73,6 +63,7 @@ SPIN_FILENAME = re.compile(r"spin(\d+)\.pkz$")
 
 
 def get_spin_files(folder: Path, first_spin: int):
+    """Function to get all 'spin....pkz' filepaths."""
     files = []
     for path in folder.iterdir():
         match = SPIN_FILENAME.fullmatch(path.name)
@@ -96,24 +87,33 @@ def get_daily_columns(data: dict, n_days: int, day_indices: list[int]):
     return result
 
 
-def main():
+def process_csvs_for_one_gridcell(gridcell_folder_name):
+    """Function to process one gridcell folder."""
+
+    # Set gridcell folder to process pkz files
+    GRIDCELL_DIR = OUTPUT_DIR_TO_PROCESS / gridcell_folder_name
+
     if START_YEAR > END_YEAR:
         raise ValueError("START_YEAR must not exceed END_YEAR")
-    if not INPUT_DIR.is_dir():
-        raise SystemExit(f"Input directory does not exist: {INPUT_DIR}")
-    files = get_spin_files(INPUT_DIR, FIRST_SPIN)
+    if not GRIDCELL_DIR.is_dir():
+        raise SystemExit(f"Input directory does not exist: {GRIDCELL_DIR}")
+    files = get_spin_files(GRIDCELL_DIR, FIRST_SPIN)
     if not files:
-        raise SystemExit(f"No spin files found from spin{FIRST_SPIN:02d}.pkz onward: {INPUT_DIR}")
+        raise SystemExit(f"No spin files found from spin{FIRST_SPIN:02d}.pkz onward: {GRIDCELL_DIR}")
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR_GRIDS_PKZS_TO_CSVS.mkdir(parents=True, exist_ok=True)
     seen_dates = set()
     daily_header = None
     area_header = None
     processed = 0
 
+    # Set processed "daily.csv" and "area.csv" filepaths
+    daily_csv_filepath = OUTPUT_DIR_GRIDS_PKZS_TO_CSVS / f"{gridcell_folder_name}_daily.csv"
+    area_csv_filepath = OUTPUT_DIR_GRIDS_PKZS_TO_CSVS / f"{gridcell_folder_name}_area.csv"
+
     # The outputs are generated in the specified folder, overwriting existing files.
-    with (OUTPUT_DIR / "diario.csv").open("w", newline="", encoding="utf-8") as daily_file, \
-         (OUTPUT_DIR / "area.csv").open("w", newline="", encoding="utf-8") as area_file:
+    with daily_csv_filepath.open("w", newline="", encoding="utf-8") as daily_file, \
+         area_csv_filepath.open("w", newline="", encoding="utf-8") as area_file:
         daily_writer = csv.writer(daily_file)
         area_writer = csv.writer(area_file)
 
@@ -162,13 +162,32 @@ def main():
 
     if processed == 0:
         # Avoid keeping empty files when the selected date range contains no data.
-        (OUTPUT_DIR / "diario.csv").unlink(missing_ok=True)
-        (OUTPUT_DIR / "area.csv").unlink(missing_ok=True)
+        daily_csv_filepath.unlink(missing_ok=True)
+        area_csv_filepath.unlink(missing_ok=True)
         raise SystemExit("No data found within the requested years")
 
-    print(f"\nDone: {processed} spin files. CSV files saved in: {OUTPUT_DIR.resolve()}")
-    print("Created: diario.csv and area.csv")
+    print(f"\nDone: {processed} spin files. CSV files saved in: {OUTPUT_DIR_GRIDS_PKZS_TO_CSVS.resolve()}")
+    print(f"Files '{daily_csv_filepath}' and '{area_csv_filepath}' were created!")
 
 
 if __name__ == "__main__":
-    main()
+
+    # List all folder starting with "gridcell..."
+    gridcell_folder_names = [
+        p for p in os.listdir(OUTPUT_DIR_TO_PROCESS)
+        if os.path.isdir(os.path.join(OUTPUT_DIR_TO_PROCESS, p)) and p.startswith("gridcell")
+    ]
+
+    print("\n")
+    print("="*50)
+    print(f"Generating csvs for all gridfolders {gridcell_folder_names}...")
+    print("="*50)
+    print(f"Output csv files will be saved into '{OUTPUT_DIR_GRIDS_PKZS_TO_CSVS}' folder...")
+    print("="*50)
+    print("\n")
+
+    # Creates a daily.csv and area.csv for each gridcell folder
+    for gridcell_foldername in gridcell_folder_names:
+        print(f"Processing pkz files for gridcell {gridcell_foldername}...\n")
+        process_csvs_for_one_gridcell(gridcell_foldername)
+        print("-" * 50 + "\n")
