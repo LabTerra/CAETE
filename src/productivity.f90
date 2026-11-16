@@ -32,7 +32,7 @@ contains
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
         & linc_layer,nl_shared,lsize_shared,wmax,&
         & psisoil,psi50,klmax,krcmax,psixylem,kxylem,knorm,&
-        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,sla,e)
+        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,e_pot,sla,e)
 
         use types
         use global_par
@@ -86,6 +86,7 @@ contains
         real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
         real(r_8), intent(out) :: jl_out
+        real(r_8), intent(out) :: e_pot
 
     !     Internal
     !     --------
@@ -109,7 +110,7 @@ contains
         real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
         real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
-        real(r_8) :: e_pot
+        !real(r_8) :: e_pot
 
     !getting pls parameters
 
@@ -291,7 +292,7 @@ contains
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
         & linc_layer,nl_shared,lsize_shared,wmax,&
         & psisoil,psi50,klmax,krcmax,psixylem,kxylem,knorm,&
-        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,sla,e)
+        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,e_pot,sla,e)
 
         use types
         use global_par
@@ -345,6 +346,7 @@ contains
         real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
         real(r_8), intent(out) :: jl_out
+        real(r_8), intent(out) :: e_pot
 
     !     Internal
     !     --------
@@ -369,7 +371,7 @@ contains
         real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
         real(r_8) :: rc_sun, rc_shade, gc_canopy  ! canopy resistance (two-big-leaf)
-        real(r_8) :: e_pot
+        !real(r_8) :: e_pot
         real(r_8) :: rd_leaf  ! leaf respiration per unit leaf area (molCO2/m2/s), note [N7]
 
     !getting pls parameters
@@ -440,7 +442,7 @@ contains
 
         ! calcula a transpiração potencial em mol H2O m-2 s-1 usado no psi_xylem por enquanto
         e_pot = transpiration(rc_pot, p0, vpd, 1,temp)
-        !print*,'epot(1)',e_pot
+        print*,'epot(1)',e_pot
 
        !===========================
        ! Plant hydraulic structure
@@ -452,7 +454,7 @@ contains
 
         ! Klmax
         klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,ca1_prod)
-        print*,'klmax',klmax,'jl_out*1e6',jl_out* 1e6, 'jl_out',jl_out
+        !print*,'klmax',klmax,'jl_out*1e6',jl_out* 1e6, 'jl_out',jl_out
 
         ! Krcmax
         krcmax = max_xylem_conductance(klmax,height1,ca1_prod)   
@@ -460,7 +462,7 @@ contains
 
         ! Psixylem
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
-        !print*,'psixylem',psixylem, 'psisoil',psisoil
+        print*,'psixylem',psixylem, 'psisoil',psisoil, 'epot(1)',e_pot
 
         ! k xylem
         kxylem = xylem_conductance(krcmax,psixylem,psi50,ca1_prod)

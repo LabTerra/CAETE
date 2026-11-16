@@ -276,7 +276,7 @@ def neighbours_index(pos, matrix):
 def catch_out_budget(out):
     lst = ["evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "kxylemavg", "knormavg",
            "phavg", "aravg", "nppavg", "laiavg", "rcavg", "f5avg", "rmavg", "rgavg", "cleafavg_pft", "cawoodavg_pft",
-           "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax", "amax",
+           "cfrootavg_pft", "stodbg", "ocpavg", "wueavg", "cueavg", "c_defavg", "vcmax", "amax","epot",
            "specific_la", "nupt", "pupt", "litter_l", "cwd", "litter_fr", "npp2pay", "lnc", "delta_cveg",
            "limitation_status", "uptk_strat", 'cp', 'c_cost_cwm']
 
@@ -295,7 +295,7 @@ def catch_out_budget_allom (out):
            "cleaf_grd", "cwood_grd", "croot_grd", "csap_grd", "cheart_grd", "csto_grd",
            "evavg", "epavg", "pot_soil", "p50avg", "klmavg", "krcmavg", "pxylemavg", "kxylemavg", "knormavg",
            "phavg", "aravg", "nppavg", "laiavg","rcavg","f5avg","rmavg","rgavg",
-           "wueavg", "cueavg","vcmax","amax","specific_la", "ocpavg",
+           "wueavg", "cueavg","vcmax","amax","epot","specific_la", "ocpavg",
            "nupt", "pupt", "lnc", "limitation_status",
            "litter_l", "cwd", "litter_fr", "npp2pay", "uptk_strat", "c_cost_cwm",
            "ctonfix"]
@@ -454,6 +454,7 @@ class grd:
         self.pmin = None
         self.vcmax = None
         self.amax = None
+        self.epot = None
         self.specific_la = None
         self.nupt = None
         self.pupt = None
@@ -600,6 +601,7 @@ class grd:
         self.pmin = np.zeros(shape=(n,), order='F')
         self.vcmax = np.zeros(shape=(n,), order='F')
         self.amax = np.zeros(shape=(n,), order='F')
+        self.epot = np.zeros(shape=(n,), order='F')
         self.specific_la = np.zeros(shape=(n,), order='F')
         self.nupt = np.zeros(shape=(2, n), order='F')
         self.pupt = np.zeros(shape=(3, n), order='F')
@@ -666,6 +668,7 @@ class grd:
         
         self.vcmax = np.zeros(shape=(n,), order='F')
         self.amax = np.zeros(shape=(n,), order='F')
+        self.epot = np.zeros(shape=(n,), order='F')
         self.specific_la = np.zeros(shape=(n,), order='F')
 
         self.ls = np.zeros(shape=(n,), order='F')       
@@ -752,6 +755,7 @@ class grd:
                     'pmin': self.pmin,
                     'vcmax': self.vcmax,
                     'amax': self.amax,
+                    'epot': self.epot,
                     'specific_la': self.specific_la,
                     'nupt': self.nupt,
                     'pupt': self.pupt,
@@ -810,6 +814,7 @@ class grd:
         self.pmin = None
         self.vcmax = None
         self.amax = None
+        self.epot = None
         self.specific_la = None
         self.nupt = None
         self.pupt = None
@@ -1648,6 +1653,7 @@ class grd:
                     self.cdef[step] = daily_output['c_defavg']
                     self.vcmax[step] = daily_output['vcmax']
                     self.amax[step] = daily_output['amax']
+                    self.epot[step] = daily_output['epot']
                     self.specific_la[step] = daily_output['specific_la']
                     self.cleaf[step] = daily_output['cp'][0]
                     self.cawood[step] = daily_output['cp'][1]
@@ -2180,6 +2186,7 @@ class grd:
                     self.wue[step]           = daily_output_allom['wueavg']
                     self.vcmax[step]         = daily_output_allom['vcmax']
                     self.amax[step]         = daily_output_allom['amax']
+                    self.epot[step]         = daily_output_allom['epot']
                     self.specific_la[step]   = daily_output_allom['specific_la']
 
                     self.cleaf_allom[step]   = daily_output_allom['cleaf_grd']
