@@ -32,7 +32,7 @@ contains
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
         & linc_layer,nl_shared,lsize_shared,wmax,&
         & psisoil,psi50,klmax,krcmax,psixylem,kxylem,knorm,&
-        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
+        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,sla,e)
 
         use types
         use global_par
@@ -85,6 +85,7 @@ contains
                                                 ! alloc3.f90 actually uses to pay the deficit from storage.
         real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
+        real(r_8), intent(out) :: jl_out
 
     !     Internal
     !     --------
@@ -100,7 +101,7 @@ contains
         real(r_8) :: p2cl
         real(r_8) :: wd_allom
         integer(i_4) :: c4_int
-        real(r_8) :: jl_out
+        !real(r_8) :: jl_out
 
         real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
         real(r_8) :: f1a      !auxiliar_f1
@@ -155,7 +156,7 @@ contains
 
         !Stomatal resistence
         !===================
-        e_pot = transpiration(rc_pot, p0, vpd, 2,temp)
+        e_pot = transpiration(rc_pot, p0, vpd, 1,temp)
         !print*, 'e_pot:',e_pot
 
         !===========================
@@ -290,7 +291,7 @@ contains
         & ca1_prod,cf1_prod,beta_leaf,beta_awood,beta_froot,height1,&
         & linc_layer,nl_shared,lsize_shared,wmax,&
         & psisoil,psi50,klmax,krcmax,psixylem,kxylem,knorm,&
-        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,sla,e)
+        & ph,ar,nppa,laia,f5,vpd,rm,rg,rc,wue,c_defcit,vm_out,jl_out,sla,e)
 
         use types
         use global_par
@@ -343,6 +344,8 @@ contains
                                                 ! alloc3.f90 actually uses to pay the deficit from storage.
         real(r_8), intent(out) :: e,sla     !sla   !specific leaf area (m2/kg)
         real(r_8), intent(out) :: vm_out
+        real(r_8), intent(out) :: jl_out
+
     !     Internal
     !     --------
 
@@ -357,7 +360,7 @@ contains
         real(r_8) :: p2cl
         real(r_8) :: wd_allom
         integer(i_4) :: c4_int
-        real(r_8) :: jl_out
+        !real(r_8) :: jl_out
 
         real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
         real(r_8) :: f1a      !auxiliar_f1
@@ -435,9 +438,9 @@ contains
             rc_pot = rcmax
         endif
 
-        ! calcula a transpiração potencial em mm/s usado no psi_xylem por enquanto
-        e_pot = transpiration(rc_pot, p0, vpd, 2,temp)
-        print*,'epot',e_pot
+        ! calcula a transpiração potencial em mol H2O m-2 s-1 usado no psi_xylem por enquanto
+        e_pot = transpiration(rc_pot, p0, vpd, 1,temp)
+        !print*,'epot(1)',e_pot
 
        !===========================
        ! Plant hydraulic structure
@@ -445,34 +448,46 @@ contains
 
         ! Psi50
         psi50 = psi_fifty(wd_allom,ca1_prod)
-        print*,'P50',psi50, 'wd',wd_allom
+        !print*,'P50',psi50, 'wd',wd_allom
 
         ! Klmax
         klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,ca1_prod)
-        print*,'klmax',klmax
+        print*,'klmax',klmax,'jl_out*1e6',jl_out* 1e6, 'jl_out',jl_out
 
         ! Krcmax
         krcmax = max_xylem_conductance(klmax,height1,ca1_prod)   
-        print*,'krcmax',krcmax,'klmax',klmax
+        !print*,'krcmax',krcmax,'klmax',klmax
 
         ! Psixylem
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
-        print*,'psixylem',psixylem, 'psisoil',psisoil
+        !print*,'psixylem',psixylem, 'psisoil',psisoil
 
         ! k xylem
         kxylem = xylem_conductance(krcmax,psixylem,psi50,ca1_prod)
-        print*,'KXYLEM:',kxylem, 'P50:',psi50, 'KRCMAX:',krcmax
+        !print*,'KXYLEM:',kxylem, 'P50:',psi50, 'KRCMAX:',krcmax
 
         ! Normalized k xylem
         knorm = norm_xylem_conductance(krcmax,kxylem,ca1_prod)
-        print*,'knorm:',knorm,'krcmax:',krcmax,'kxylem:',kxylem
+        !print*,'knorm:',knorm,'krcmax:',krcmax,'kxylem:',kxylem
 
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
         ! demand: equilibrium evapotranspiration (emax) and canopy conductance
         f5 =  water_stress_modifier_allom(w, cf1_prod, rc_pot, emax, wmax, knorm, ca1_prod)
-        print*,'f5:',f5
-    
+        !print*,'f5:',f5
+
+        !if (psixylem < -5.0D0 .and. krcmax > 0.0D0) then
+        !    print *, 'HYDRAULIC DEBUG'
+        !    print *, 'Amax(jl_out * 1e6):', jl_out* 1e6
+        !    print *, 'WD:', wd_allom
+        !    print *, 'Klmax:', klmax
+        !    print *, 'Krcmax:', krcmax
+        !    print *, 'Psi soil:', psisoil
+        !    print *, 'Psi xylem:', psixylem
+        !    print *, 'P50:', psi50
+        !    print *, 'Epot(1):', e_pot
+        !endif
+            
     !     Photosysthesis minimum and maximum temperature
     !     ----------------------------------------------
     
@@ -502,7 +517,7 @@ contains
 
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
-        print*,'e',e
+        !print*,'e',e
 
         ! Canopy resistance (two-big-leaf; De Pury & Farquhar 1997; Leuning et al. 1995):
         ! leaves are parallel conductances, gc = gs_sun*f4sun + gs_shade*f4shade, with the

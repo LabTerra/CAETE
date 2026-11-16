@@ -354,7 +354,7 @@ contains
 
       if(cawood1 .gt. 0.0D0) then
          kl_max = 0.0021 * exp((-26.6 * dwood)/amax)  ! µmol m-2 s-1 - 1e6 converts mol to µmol  
-         !print*,'amax in umol',amax
+         print*,'amax in umol',amax
       else 
          kl_max = 0.0D0
       endif
@@ -401,6 +401,7 @@ contains
 
       real(r_8) :: psi_g                       !MPa - gravitational potential
 
+      !> To test psi_xylem connected with water cycle 
       if(cawood .gt. 0.0D0) then
          psi_g = rho * grav * height * 1e-6        !converts Pa to MPa
          psi_xylem = psi_soil - psi_g - (e/krc_max)
@@ -409,6 +410,16 @@ contains
          psi_g = 0.0D0
          psi_xylem = 0.0D0
       endif
+
+      !> Test simple function of psi_xylem
+      !if(cawood .gt. 0.0D0) then
+      !   psi_g = rho * grav * height * 1e-6        !converts Pa to MPa
+      !   psi_xylem = psi_soil - psi_g
+      !   !print*,'psi_gravitational',psi_g,'height',height,'psisoil',psi_soil
+      !else
+      !   psi_g = 0.0D0
+      !   psi_xylem = 0.0D0
+      !endif
 
    end function xylem_waterpotential
 
@@ -443,7 +454,7 @@ contains
    !=================================================================
    !=================================================================
 
-      function norm_xylem_conductance(krc_max,k, cawood) result(k_norm)
+   function norm_xylem_conductance(krc_max,k, cawood) result(k_norm)
       !Returns normalized xylem conductance (dimensionless)
       use types
 
@@ -1146,7 +1157,6 @@ contains
       f1ab = f1ab_sun
       ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
       amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
-
    end subroutine photosynthesis_rate
 
    !=================================================================
@@ -1392,6 +1402,8 @@ contains
       f1ab = f1ab_sun
       ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
       amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
+
+      print*,'amax in mol',amax
 
    end subroutine photosynthesis_rate_allom
 

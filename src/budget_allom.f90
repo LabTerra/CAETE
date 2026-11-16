@@ -37,7 +37,7 @@ module budget_allom
       &, dleaf_out, dwood_out, droot_out, dsap_out, dheart_out, dsto_out&
       &, cleaf_grd, cwood_grd, croot_grd, csap_grd, cheart_grd, csto_grd, evavg, epavg&
       &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg, kxylemavg, knormavg& 
-      &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1&
+      &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, wueavg, cueavg, vcmax_1, amax_1&
       &, specific_la_1, ocpavg&
       &, nupt_1, pupt_1, lit_nut_content_1, limiting_nutrient_out&
       &, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, uptk_strat_1, c_cost_cwm, ctonfix_cwm)
@@ -155,6 +155,7 @@ module budget_allom
       real(r_8),intent(out) :: wueavg         ! Water use efficiency
       real(r_8),intent(out) :: cueavg         ! [0-1]
       real(r_8),intent(out) :: vcmax_1          ! µmol m-2 s-1
+      real(r_8),intent(out) :: amax_1           ! mol m-2 s-1
       real(r_8),intent(out) :: specific_la_1    ! m2 g(C)-1
 
       !carbon veg. pools for the gridcell (grd)
@@ -285,6 +286,7 @@ module budget_allom
       real(r_8),dimension(:),allocatable :: cue          !Carbon use efficiency
       real(r_8),dimension(:),allocatable :: c_def        !Carbon deficit due to negative NPP (kgC/m2/yr) - i.e. ph < ar
       real(r_8),dimension(:),allocatable :: vcmax        !Rubisco maximum velocity of carboxilation (µmol/m2/s)
+      real(r_8),dimension(:),allocatable :: amax
       real(r_8),dimension(:),allocatable :: specific_la  !Specific leaf area (m2/kg)
       real(r_8),dimension(:),allocatable :: litter_l     ! leaf litter
       real(r_8),dimension(:),allocatable :: cwd          ! coarse wood debris (to litter)
@@ -375,7 +377,7 @@ module budget_allom
 
       psi_soil = ((p_sat*(-0.0098)) * (w/soil_sat) ** (-soil_text))
       !psi_soil = -2
-      print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
+      !print*,'psoil',psi_soil,'psat',p_sat*(-0.0098),'b',soil_text,'w',w,'wmax',soil_sat
 
       !!GAMBIARRA
       !!I put a if here just to make the adjustments in other variables, after that I solve the psisoil problem
@@ -454,6 +456,7 @@ module budget_allom
       allocate(cue(nlen))
       allocate(c_def(nlen))
       allocate(vcmax(nlen))
+      allocate(amax(nlen))
       allocate(specific_la(nlen))
       allocate(litter_l(nlen))
       allocate(cwd(nlen))
@@ -645,7 +648,9 @@ module budget_allom
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p), knor(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
-               &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+               &, wue(p), c_def(p), vcmax(p), amax(p), specific_la(p),tra(p))
+
+               print*,'amax_budget',amax
 
          
          evap(p) = penman(p0, temp, rh, rnet, rc2(p)) !actual evapotranspiration (evap, mm/day)
@@ -800,7 +805,8 @@ module budget_allom
       rgavg  = 0.0D0       
       wueavg = 0.0D0       
       cueavg = 0.0D0       
-      vcmax_1 = 0.0D0       
+      vcmax_1 = 0.0D0   
+      amax_1 = 0.0D0
       specific_la_1 = 0.0D0
       
       cleaf_out(:)  = 0.0D0
@@ -863,6 +869,7 @@ module budget_allom
       wueavg        = sum(real(wue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(wue))
       cueavg        = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(cue))
       vcmax_1       = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
+      amax_1        = sum(amax * ocp_coeffs, mask= .not. ieee_is_nan(amax))
       specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
 
       cleaf_grd  = sum(cleaf_int  * ocp_coeffs, mask = .not. ieee_is_nan(cleaf_int))
@@ -945,6 +952,7 @@ module budget_allom
       deallocate(cue)
       deallocate(c_def)
       deallocate(vcmax)
+      deallocate(amax)
       deallocate(specific_la)
       deallocate(litter_l)
       deallocate(cwd)

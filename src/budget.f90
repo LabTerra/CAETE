@@ -31,7 +31,7 @@ contains
         &, pot_soil, p50avg, klmavg, krcmavg, pxylemavg, kxylemavg, knormavg&
         &, phavg, aravg, nppavg, laiavg, rcavg, f5avg, rmavg, rgavg, cleafavg_pft, cawoodavg_pft&
         &, cfrootavg_pft, storage_out_bdgt_1, ocpavg, wueavg, cueavg, c_defavg&
-        &, vcmax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
+        &, vcmax_1, amax_1, specific_la_1, nupt_1, pupt_1, litter_l_1, cwd_1, litter_fr_1, npp2pay_1, lit_nut_content_1&
         &, delta_cveg_1, limitation_status_1, uptk_strat_1, cp, c_cost_cwm)
 
 
@@ -94,6 +94,7 @@ contains
       real(r_8),intent(out) :: wueavg         ! Water use efficiency
       real(r_8),intent(out) :: cueavg         ! [0-1]
       real(r_8),intent(out) :: vcmax_1          ! µmol m-2 s-1
+      real(r_8),intent(out) :: amax_1           ! mol m-2 s-1
       real(r_8),intent(out) :: specific_la_1    ! m2 g(C)-1
       real(r_8),intent(out) :: c_defavg       ! kg(C) m-2 Carbon deficit due to negative NPP - i.e. ph < ar
       real(r_8),intent(out) :: litter_l_1       ! g m-2
@@ -166,6 +167,7 @@ contains
       real(r_8),dimension(:),allocatable :: ca2    ! carbon pos-allocation
       real(r_8),dimension(:,:),allocatable :: day_storage      ! D0=3 g m-2
       real(r_8),dimension(:),allocatable   :: vcmax            ! µmol m-2 s-1
+      real(r_8),dimension(:),allocatable   :: amax             ! mol m-2 s-1
       real(r_8),dimension(:),allocatable   :: specific_la      ! m2 g(C)-1
       real(r_8),dimension(:,:),allocatable :: nupt             !d0 =2      ! g m-2 (1) from Soluble (2) from organic
       real(r_8),dimension(:,:),allocatable :: pupt             !d0 =3      ! g m-2
@@ -309,6 +311,7 @@ contains
       allocate(cue(nlen))
       allocate(c_def(nlen))
       allocate(vcmax(nlen))
+      allocate(amax(nlen))
       allocate(specific_la(nlen))
       allocate(storage_out_bdgt(3, nlen))
       allocate(tra(nlen))
@@ -476,7 +479,7 @@ contains
                &, height_aux(ri), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, psi_soil, p50(p), klm(p), krcm(p), pxylem(p), kxyl(p), knor(p)&
                &, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
-               &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
+               &, wue(p), c_def(p), vcmax(p), amax(p), specific_la(p),tra(p))
 
          ! productivity.f90 no longer clamps nppa to zero when ar > ph (that clamp
          ! was removed so alloc3.f90/budget_allom.f90 can pay the deficit from
@@ -615,6 +618,7 @@ contains
       litter_fr_1 = 0.0D0
       c_defavg = 0.0D0
       vcmax_1 = 0.0D0
+      amax_1 = 0.0D0
       specific_la_1 = 0.0D0
       lit_nut_content_1(:) = 0.0D0
       nupt_1(:) = 0.0D0
@@ -657,6 +661,7 @@ contains
       cueavg = sum(real(cue, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(cue))
       c_defavg = sum(real(c_def, kind=r_8) * ocp_coeffs, mask= .not. ieee_is_nan(c_def)) / 2.73791D0
       vcmax_1 = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
+      amax_1 = sum(amax * ocp_coeffs, mask= .not. ieee_is_nan(amax))
       specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
       litter_l_1 = sum(litter_l * ocp_coeffs, mask= .not. ieee_is_nan(litter_l))
       cwd_1 = sum(cwd * ocp_coeffs, mask= .not. ieee_is_nan(cwd))
