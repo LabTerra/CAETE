@@ -458,11 +458,11 @@ contains
 
         ! Krcmax
         krcmax = max_xylem_conductance(klmax,height1,ca1_prod)   
-        !print*,'krcmax',krcmax,'klmax',klmax
+        print*,'krcmax',krcmax,'klmax',klmax, 'height1',height1
 
         ! Psixylem
         psixylem = xylem_waterpotential(psisoil,height1,e_pot,krcmax,ca1_prod)
-        print*,'psixylem',psixylem, 'psisoil',psisoil, 'epot(1)',e_pot
+        print*,'psixylem',psixylem, 'psisoil',psisoil, 'epot(1)',e_pot,  'ca1_prod',ca1_prod
 
         ! k xylem
         kxylem = xylem_conductance(krcmax,psixylem,psi50,ca1_prod)

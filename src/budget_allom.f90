@@ -654,7 +654,7 @@ module budget_allom
                &, wue(p), c_def(p), vcmax(p), amax(p), epot(p), specific_la(p),tra(p))
 
                !print*,'amax_budget',amax
-               print*,'epot_budget',epot
+               !print*,'epot_budget',epot
 
          
          evap(p) = penman(p0, temp, rh, rnet, rc2(p)) !actual evapotranspiration (evap, mm/day)
