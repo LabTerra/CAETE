@@ -642,6 +642,9 @@ class grd:
 
         self.rcm          = np.zeros(shape=(n,), order='F')
         self.f5           = np.zeros(shape=(n,), order='F')
+        self.amax         = np.zeros(shape=(n,), order='F')
+        self.epot         = np.zeros(shape=(n,), order='F')
+        
         self.runom        = np.zeros(shape=(n,), order='F')
         self.evapm        = np.zeros(shape=(n,), order='F')
         self.wsoil        = np.zeros(shape=(n,), order='F')
@@ -862,6 +865,8 @@ class grd:
                      'lai'   : self.lai_allom,
                      'rcm'   : self.rcm,
                      'f5'    : self.f5,
+                     'amax'  : self.amax,
+                     'epot'  : self.epot,
                      'runom' : self.runom,
                      'evapm' : self.evapm,
                      'wsoil' : self.wsoil,
@@ -919,6 +924,8 @@ class grd:
         self.lai_allom    = None
         self.rcm          = None
         self.f5           = None
+        self.amax         = None
+        self.epot         = None
         self.runom        = None
         self.evapm        = None
         self.wsoil        = None
@@ -2178,6 +2185,8 @@ class grd:
                     self.lai_allom[step]     = daily_output_allom['laiavg']
                     self.rcm[step]           = daily_output_allom['rcavg']
                     self.f5[step]            = daily_output_allom['f5avg']
+                    self.amax[step]          = daily_output_allom['amax']
+                    self.epot[step]          = daily_output_allom['epot']
                     self.evapm[step]         = et_real
                     self.wsoil[step]         = self.wp_water_upper_mm
                     self.swsoil[step]        = self.wp_water_lower_mm
