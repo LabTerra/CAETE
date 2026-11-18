@@ -192,7 +192,7 @@ contains
     !     Autothrophic respiration
     !     ========================
     !     Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
-        rm = m_resp(temp,ts,cl1_prod,cf1_prod,ca1_prod &
+        rm = m_resp(temp,ts,cl1_prod(:),cf1_prod,ca1_prod &
             &,n2cl_resp,n2cw_resp,n2cf_resp,awood)
     
     ! c     Growth respiration (KgC/m2/yr)(based in Ryan 1991; Sitch et al.
@@ -430,7 +430,7 @@ contains
     !     Autothrophic respiration
     !     ========================
     !     Maintenance respiration (kgC/m2/yr) (based in Ryan 1991)
-        rm = m_resp(temp,ts,cl1_prod,cf1_prod,ca1_prod &
+        rm = m_resp(temp,ts,cl1_prod(:),cf1_prod,ca1_prod &
             &,n2cl_resp,n2cw_resp,n2cf_resp,awood)
     
     ! c     Growth respiration (KgC/m2/yr)(based in Ryan 1991; Sitch et al.
