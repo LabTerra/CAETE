@@ -47,7 +47,8 @@ contains
         real(r_8), intent(in) :: w                    !Soil moisture kg m-2
         real(r_8), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
         real(r_8), intent(in) :: rh,emax !Relative humidity/MAXIMUM EVAPOTRANSPIRATION
-        real(r_8), intent(in) :: catm, cl1_prod, cf1_prod, ca1_prod        !Carbon in plant tissues (kg/m2)
+        real(r_8), dimension(3),intent(in) :: cl1_prod    !Carbon in each leaf cohort (kg/m2)
+        real(r_8), intent(in) :: catm, cf1_prod, ca1_prod !Carbon in other plant tissues (kg/m2)
         real(r_8), intent(in) :: beta_leaf            !npp allocation to carbon pools (kg/m2/day)
         real(r_8), intent(in) :: beta_awood
         real(r_8), intent(in) :: beta_froot, wmax
@@ -176,7 +177,7 @@ contains
         ! Leaf area index (m2/m2)
         ! recalcula rc e escalona para dossel
         ! laia = 0.2D0 * dexp((2.5D0 * f1)/p25)
-        laia = leaf_area_index(cl1_prod, sla)
+        laia = leaf_area_index(cl1_prod(:), sla)
         ! laia = f_four(0, cl1_prod, sla) + f_four(1, cl1_prod, sla)
         rc = rc_aux * real(laia,kind=r_8) ! RCM -!s m-1 ! CANOPY SCALING --
     
@@ -186,7 +187,7 @@ contains
         ! [SUN/SHADE FIX] Pass f1_sun and f1_shade separately so gross_ph can
         ! compute A_sun*f4sun + A_shade*f4shade (De Pury & Farquhar 1997, Eq. 24).
         ! Previously: gross_ph(f1, cl1_prod, sla) used a single rate for both fractions.
-        ph =  gross_ph(f1_sun, f1_shade, cl1_prod, sla)  ! kg m-2 year-1
+        ph =  gross_ph(f1_sun(:), f1_shade(:), cl1_prod(:), sla)  ! kg m-2 year-1
     
     !     Autothrophic respiration
     !     ========================
@@ -251,7 +252,8 @@ contains
         real(r_8), intent(in) :: w                    !Soil moisture kg m-2
         real(r_8), intent(in) :: ipar                 !Incident photosynthetic active radiation (w/m2)
         real(r_8), intent(in) :: rh,emax !Relative humidity/MAXIMUM EVAPOTRANSPIRATION
-        real(r_8), intent(in) :: catm, cl1_prod, cf1_prod, ca1_prod        !Carbon in plant tissues (kg/m2)
+        real(r_8), dimension(3),intent(in) :: cl1_prod    !Carbon in each leaf cohort (kg/m2)
+        real(r_8), intent(in) :: catm, cf1_prod, ca1_prod !Carbon in other plant tissues (kg/m2)
         real(r_8), intent(in) :: beta_leaf            !npp allocation to carbon pools (kg/m2/day)
         real(r_8), intent(in) :: beta_awood
         real(r_8), intent(in) :: beta_froot, wmax
@@ -344,7 +346,7 @@ contains
             & f1a_sun,f1a_shade,rh,g1,vpd)
 
         ! Leaf area index (m2/m2)
-        laia = leaf_area_index(cl1_prod, sla)
+        laia = leaf_area_index(cl1_prod(:), sla)
 
         ! Leaf respiration Rd per unit leaf area (molCO2/m2/s): leaf term of the
         ! maintenance respiration (Ryan 1991, as in m_resp) divided by the LAI.
@@ -361,8 +363,8 @@ contains
         ! Same two-big-leaf scaling as the canopy resistance rc below ([N1]); the
         ! demand of the water stress modifier uses the canopy conductance (Gerten
         ! et al. 2004). See note [N6] in budget_allom.f90.
-        gc_canopy = f_four(1, cl1_prod, sla) / canopy_resistence(vpd, max(f1a_sun - rd_leaf, 0.0D0), g1, catm, temp) &
-                & + f_four(2, cl1_prod, sla) / canopy_resistence(vpd, max(f1a_shade - rd_leaf, 0.0D0), g1, catm, temp)
+        gc_canopy = f_four(1, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_sun - rd_leaf, 0.0D0), g1, catm, temp) &
+                & + f_four(2, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_shade - rd_leaf, 0.0D0), g1, catm, temp)
         if (gc_canopy .gt. 0.0D0) then
             rc_pot = 1.0D0 / gc_canopy  ! s m-1, canopy
         else
@@ -410,7 +412,7 @@ contains
         ! gs from the net assimilation of each leaf class (note [N7]).
         rc_sun   = canopy_resistence(vpd, max(f1_sun   - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
         rc_shade = canopy_resistence(vpd, max(f1_shade - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
-        gc_canopy = f_four(1, cl1_prod, sla) / rc_sun + f_four(2, cl1_prod, sla) / rc_shade  ! m s-1
+        gc_canopy = f_four(1, cl1_prod(:), sla) / rc_sun + f_four(2, cl1_prod(:), sla) / rc_shade  ! m s-1
         if (gc_canopy .gt. 0.0D0) then
             rc = 1.0D0 / gc_canopy  ! s m-1, canopy
         else
@@ -423,7 +425,7 @@ contains
         ! [SUN/SHADE FIX] Pass f1_sun and f1_shade separately so gross_ph can
         ! compute A_sun*f4sun + A_shade*f4shade (De Pury & Farquhar 1997, Eq. 24).
         ! Previously: gross_ph(f1, cl1_prod, sla) used a single rate for both fractions.
-        ph =  gross_ph(f1_sun, f1_shade, cl1_prod, sla)  ! kg m-2 year-1
+        ph =  gross_ph(f1_sun(:), f1_shade(:), cl1_prod(:), sla)  ! kg m-2 year-1
     
     !     Autothrophic respiration
     !     ========================
