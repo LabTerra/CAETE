@@ -785,7 +785,7 @@ contains
    ! Simplified LIGHT COMPETITION block: Subroutine now maps PFT to its 
    ! respective layer and fetches linc_layer values directly.
 
-   subroutine photosynthesis_rate(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
+   subroutine photosynthesis_rate(c_atm, temp,p0,ipar,sla,leaf_turnover,c4,nbio,pbio,&
         & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
         & f1ab_sun, f1ab_shade, rh)
 
@@ -809,8 +809,8 @@ contains
       real(r_8),intent(in) :: rh    ! relative humidity (0-1)
       ! logical(l_1),intent(in) :: ll ! is light limited?
       integer(i_4),intent(in) :: c4 ! is C4 Photosynthesis pathway?
-      ! real(r_8),intent(in) :: leaf_turnover   ! y
       real(r_8),intent(in) :: sla
+      real(r_8),intent(in) :: leaf_turnover   ! Leaf longevity (years)
       real(r_8),intent(in) :: height1
       real(r_8),intent(in) :: cawood1
       real(r_8),dimension(3),intent(in) :: cleaf
@@ -820,12 +820,12 @@ contains
       real(r_8), dimension(nl_shared), intent(in) :: linc_layer
 
       ! O
-      real(r_8),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
+      real(r_8),dimension(3),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
       real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
       real(r_8),intent(out) :: amax ! light saturated PH rate
       ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
-      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
-      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
+      real(r_8),dimension(3),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
+      real(r_8),dimension(3),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
 
       real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
       real(r_8) :: mgama,vm_in      !Photo-respiration compensation point (Pa)
@@ -865,6 +865,31 @@ contains
       real(r_8) :: shape_day               ! diurnal shape factor of the irradiance
       integer(i_4), parameter :: nsteps = 12 ! points of the diurnal integration
       integer(i_4) :: k
+
+      ! LEAF AGE EFFECT ON PHOTOSYNTHESIS
+      ! ==========================================================
+      real(r_8), dimension(3) :: umol_penalties = (/-0.4, 1.0, 0.6/) !Penalization in photosynthesis for each cohort, defined by Wu et al (2016) and Albert et al (2018)
+      real(r_8),dimension(3) :: leaf_age
+      real(r_8),dimension(3) :: penalization_by_age
+      real(r_8) :: age_crit
+
+      ! Sun/shade assimilation before leaf age effects
+      real(r_8) :: f1_sun_base, f1_shade_base
+      integer(i_4) :: i 
+
+      age_crit = (leaf_turnover / 3.0D0) * 2.0D0
+
+      leaf_age(1) = leaf_turnover * (1.0D0/12.0D0)
+      leaf_age(2) = leaf_turnover * (1.0D0/2.0D0)
+      leaf_age(3) = leaf_turnover * (5.0D0/6.0D0)
+
+      do i = 1,3
+         penalization_by_age(i) = leaf_age_factor(umol_penalties(i), age_crit, leaf_age(i))
+      enddo
+      print*,'fa young',penalization_by_age(1)
+      print*,'fa mature',penalization_by_age(2)
+      print*,'fa old',penalization_by_age(3)
+      ! ==========================================================
 
       nbio2 = nbio !nrubisco(leaf_turnover, nbio)
       pbio2 = pbio !nrubisco(leaf_turnover, pbio)
@@ -1004,20 +1029,37 @@ contains
       ! [DIURNAL] aux_ipar is a 24 h mean. It is spread over a sinusoid of
       ! daylength_h hours (zero at night) and the leaf rates are averaged over
       ! the 24 h, so that light saturation around noon is accounted for.
-      f1ab_sun   = 0.0D0
-      f1ab_shade = 0.0D0
+      f1_sun_base   = 0.0D0
+      f1_shade_base = 0.0D0
       do k = 1, nsteps
          shape_day = (pi/2.0D0) * (24.0D0/daylength_h) * sin(pi * (real(k, r_8) - 0.5D0) / real(nsteps, r_8))
          i_now  = aux_ipar * shape_day
          q_sun = p26 * i_now
          q_sh  = i_now * exp(-p27 * sunlai_loc)
-         f1ab_sun   = f1ab_sun   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
-         f1ab_shade = f1ab_shade + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
+         f1_sun_base   = f1_sun_base   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
+         f1_shade_base = f1_shade_base + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
       enddo
-      f1ab_sun   = f1ab_sun   / real(nsteps, r_8) * (daylength_h / 24.0D0)
-      f1ab_shade = f1ab_shade / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1_sun_base   = f1_sun_base   / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1_shade_base = f1_shade_base / real(nsteps, r_8) * (daylength_h / 24.0D0)
 
-      f1ab = f1ab_sun
+      ! Apply leaf age effects to the three cohorts
+      do i = 1,3
+         f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
+         f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
+      enddo
+
+      print*,'SUN base:',f1_sun_base
+      print*,'SHADE base:',f1_shade_base
+      ! Sunlit photosynthesis (mol CO2 m-2 s-1)
+      print*,'SUN young:',f1ab_sun(1)
+      print*,'SUN mature:',f1ab_sun(2)
+      print*,'SUN old:',f1ab_sun(3)
+      ! Shaded photosynthesis (mol CO2 m-2 s-1)
+      print*,'SHADE young:',f1ab_shade(1)
+      print*,'SHADE mature:',f1ab_shade(2)
+      print*,'SHADE old:',f1ab_shade(3)
+
+      f1ab(:) = f1ab_sun(:)
       ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
       amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
 
@@ -1030,7 +1072,7 @@ contains
    ! (prod_allom). It differs only in the internal CO2 (ci) of C3 leaves, which
    ! is derived from the Medlyn conductance (note [N4]); photosynthesis_rate is
    ! kept unchanged for the classic version.
-   subroutine photosynthesis_rate_allom(c_atm, temp,p0,ipar,sla,c4,nbio,pbio,&
+   subroutine photosynthesis_rate_allom(c_atm, temp,p0,ipar,sla,leaf_turnover,c4,nbio,pbio,&
         & cleaf,cawood1,height1,linc_layer,nl_shared,lsize_shared,f1ab,vm, amax,&
         & f1ab_sun, f1ab_shade, rh, g1, vpd)
 
@@ -1056,8 +1098,8 @@ contains
       real(r_8),intent(in) :: vpd   ! vapour pressure deficit (kPa)
       ! logical(l_1),intent(in) :: ll ! is light limited?
       integer(i_4),intent(in) :: c4 ! is C4 Photosynthesis pathway?
-      ! real(r_8),intent(in) :: leaf_turnover   ! y
       real(r_8),intent(in) :: sla
+      real(r_8),intent(in) :: leaf_turnover   ! Leaf longevity (years)
       real(r_8),intent(in) :: height1
       real(r_8),intent(in) :: cawood1
       real(r_8),dimension(3),intent(in) :: cleaf
@@ -1067,12 +1109,12 @@ contains
       real(r_8), dimension(nl_shared), intent(in) :: linc_layer
 
       ! O
-      real(r_8),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
+      real(r_8),dimension(3),intent(out) :: f1ab ! Gross CO2 Assimilation Rate mol m-2 s-1
       real(r_8),intent(out) :: vm   ! PLS Vcmax mol m-2 s-1
       real(r_8),intent(out) :: amax ! light saturated PH rate
       ! [SUN/SHADE] New outputs: sun and shade leaf-level assimilation rates
-      real(r_8),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
-      real(r_8),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
+      real(r_8),dimension(3),intent(out) :: f1ab_sun   ! mol m-2 s-1 - sun  leaves (I_sun = aux_ipar*p26)
+      real(r_8),dimension(3),intent(out) :: f1ab_shade ! mol m-2 s-1 - shade leaves (I_shade attenuated)
 
       real(r_8) :: f2,f3            !Michaelis-Menten CO2/O2 constant (Pa)
       real(r_8) :: mgama,vm_in      !Photo-respiration compensation point (Pa)
@@ -1113,6 +1155,31 @@ contains
       real(r_8) :: shape_day               ! diurnal shape factor of the irradiance
       integer(i_4), parameter :: nsteps = 12 ! points of the diurnal integration
       integer(i_4) :: k
+
+      ! LEAF AGE EFFECT ON PHOTOSYNTHESIS
+      ! ==========================================================
+      real(r_8), dimension(3) :: umol_penalties = (/-0.4, 1.0, 0.6/) !Penalization in photosynthesis for each cohort, defined by Wu et al (2016) and Albert et al (2018)
+      real(r_8),dimension(3) :: leaf_age
+      real(r_8),dimension(3) :: penalization_by_age
+      real(r_8) :: age_crit
+
+      ! Sun/shade assimilation before leaf age effects
+      real(r_8) :: f1_sun_base, f1_shade_base
+      integer(i_4) :: i 
+
+      age_crit = (leaf_turnover / 3.0D0) * 2.0D0
+
+      leaf_age(1) = leaf_turnover * (1.0D0/12.0D0)
+      leaf_age(2) = leaf_turnover * (1.0D0/2.0D0)
+      leaf_age(3) = leaf_turnover * (5.0D0/6.0D0)
+
+      do i = 1,3
+         penalization_by_age(i) = leaf_age_factor(umol_penalties(i), age_crit, leaf_age(i))
+      enddo
+      print*,'fa young',penalization_by_age(1)
+      print*,'fa mature',penalization_by_age(2)
+      print*,'fa old',penalization_by_age(3)
+      ! ==========================================================
 
       nbio2 = nbio !nrubisco(leaf_turnover, nbio)
       pbio2 = pbio !nrubisco(leaf_turnover, pbio)
@@ -1250,20 +1317,37 @@ contains
       ! [DIURNAL] aux_ipar is a 24 h mean. It is spread over a sinusoid of
       ! daylength_h hours (zero at night) and the leaf rates are averaged over
       ! the 24 h, so that light saturation around noon is accounted for.
-      f1ab_sun   = 0.0D0
-      f1ab_shade = 0.0D0
+      f1_sun_base   = 0.0D0
+      f1_shade_base = 0.0D0
       do k = 1, nsteps
          shape_day = (pi/2.0D0) * (24.0D0/daylength_h) * sin(pi * (real(k, r_8) - 0.5D0) / real(nsteps, r_8))
          i_now  = aux_ipar * shape_day
          q_sun = p26 * i_now
          q_sh  = i_now * exp(-p27 * sunlai_loc)
-         f1ab_sun   = f1ab_sun   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
-         f1ab_shade = f1ab_shade + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
+         f1_sun_base   = f1_sun_base   + leaf_gross_rate(c4, q_sun, ci, mgama, jc, je, vpm, cm, kp)
+         f1_shade_base = f1_shade_base + leaf_gross_rate(c4, q_sh,  ci, mgama, jc, je, vpm, cm, kp)
       enddo
-      f1ab_sun   = f1ab_sun   / real(nsteps, r_8) * (daylength_h / 24.0D0)
-      f1ab_shade = f1ab_shade / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1_sun_base   = f1_sun_base   / real(nsteps, r_8) * (daylength_h / 24.0D0)
+      f1_shade_base = f1_shade_base / real(nsteps, r_8) * (daylength_h / 24.0D0)
 
-      f1ab = f1ab_sun
+      ! Apply leaf age effects to the three cohorts
+      do i = 1,3
+         f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
+         f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
+      enddo
+
+      print*,'SUN base:',f1_sun_base
+      print*,'SHADE base:',f1_shade_base
+      ! Sunlit photosynthesis (mol CO2 m-2 s-1)
+      print*,'SUN young:',f1ab_sun(1)
+      print*,'SUN mature:',f1ab_sun(2)
+      print*,'SUN old:',f1ab_sun(3)
+      ! Shaded photosynthesis (mol CO2 m-2 s-1)
+      print*,'SHADE young:',f1ab_shade(1)
+      print*,'SHADE mature:',f1ab_shade(2)
+      print*,'SHADE old:',f1ab_shade(3)
+
+      f1ab(:) = f1ab_sun(:)
       ! light limited rate of the sunlit leaves at the daily mean irradiance (diagnostic)
       amax = leaf_gross_rate(c4, p26 * aux_ipar, ci, mgama, jc, je, vpm, cm, kp)
 

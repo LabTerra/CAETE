@@ -89,14 +89,15 @@ contains
         real(r_8) :: n2cw_resp
         real(r_8) :: n2cf_resp
         real(r_8) :: p2cl
+        real(r_8) :: sla_mm2_mg
         integer(i_4) :: c4_int
         real(r_8) :: jl_out
 
-        real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
-        real(r_8) :: f1a      !auxiliar_f1
+        real(r_8), dimension(3) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
+        real(r_8), dimension(3) :: f1a      !auxiliar_f1
         ! [SUN/SHADE FIX] Sun and shade assimilation rates (before and after water stress)
-        real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
-        real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
+        real(r_8), dimension(3) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
+        real(r_8), dimension(3) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
 
     !getting pls parameters
@@ -109,6 +110,11 @@ contains
         n2cw_resp = dt(11)
         n2cf_resp = dt(12)
         p2cl = dt(13)
+        sla_mm2_mg = dt(18)
+
+        !> Leaf demography
+        ! Obtain leaf longevity: leaf_long(SLA[mm²/mg]) → LL[months] / 12 → tleaf[years]
+        tleaf = leaf_long(sla_mm2_mg) / 12.0D0
 
         n2cl = n2cl * 1.0D3 ! N in leaf mg g-1
         p2cl = p2cl * 1.0D3 ! P in leaf mg g-1
@@ -128,7 +134,7 @@ contains
         ! o dossel individualmente para cada PLS.
         ! [SUN/SHADE FIX] Also captures f1a_sun and f1a_shade (new outputs).
         
-        call photosynthesis_rate(catm,temp,p0,ipar,sla,c4_int,n2cl,&
+        call photosynthesis_rate(catm,temp,p0,ipar,sla,tleaf,c4_int,n2cl,&
             & p2cl,cl1_prod,ca1_prod,height1,&
             & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
             & f1a_sun,f1a_shade,rh)
@@ -150,21 +156,21 @@ contains
     
         if ((temp.ge.-10.0).and.(temp.le.50.0)) then
 
-            f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
+            f1(:) = f1a(:) * f5 ! : age factor in f1a and water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
 
             ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
             ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
             ! fractions (both are within the same atmospheric/soil water environment).
             
-            f1_sun   = f1a_sun   * f5
-            f1_shade = f1a_shade * f5
+            f1_sun(:)   = f1a_sun(:)   * f5
+            f1_shade(:) = f1a_shade(:) * f5
 
         else
-            f1 = 0.0D0      !Temperature above/below photosynthesis windown
+            f1(:) = 0.0D0      !Temperature above/below photosynthesis windown
 
             ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
-            f1_sun   = 0.0D0
-            f1_shade = 0.0D0
+            f1_sun(:)   = 0.0D0
+            f1_shade(:) = 0.0D0
         endif
     
         rc_aux = canopy_resistence(vpd, f1(:), g1, catm,temp)  ! RCM leaf level -!s m-1
@@ -294,14 +300,15 @@ contains
         real(r_8) :: n2cw_resp
         real(r_8) :: n2cf_resp
         real(r_8) :: p2cl
+        real(r_8) :: sla_mm2_mg
         integer(i_4) :: c4_int
         real(r_8) :: jl_out
 
-        real(r_8) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
-        real(r_8) :: f1a      !auxiliar_f1
+        real(r_8), dimension(3) :: f1       !Leaf level gross photosynthesis (molCO2/m2/s)
+        real(r_8), dimension(3) :: f1a      !auxiliar_f1
         ! [SUN/SHADE FIX] Sun and shade assimilation rates (before and after water stress)
-        real(r_8) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
-        real(r_8) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
+        real(r_8), dimension(3) :: f1a_sun, f1a_shade  ! raw rates from photosynthesis_rate
+        real(r_8), dimension(3) :: f1_sun,  f1_shade   ! water-stress-adjusted rates for gross_ph
         real(r_8) :: rc_pot, rc_aux
         real(r_8) :: rc_sun, rc_shade, gc_canopy  ! canopy resistance (two-big-leaf)
         real(r_8) :: rd_leaf  ! leaf respiration per unit leaf area (molCO2/m2/s), note [N7]
@@ -316,6 +323,11 @@ contains
         n2cw_resp = dt(11)
         n2cf_resp = dt(12)
         p2cl = dt(13)
+        sla_mm2_mg = dt(18)
+
+        !> Leaf demography
+        ! Obtain leaf longevity: leaf_long(SLA[mm²/mg]) → LL[months] / 12 → tleaf[years]
+        tleaf = leaf_long(sla_mm2_mg) / 12.0D0
 
         n2cl = n2cl * 1.0D3 ! N in leaf mg g-1
         p2cl = p2cl * 1.0D3 ! P in leaf mg g-1
@@ -340,7 +352,7 @@ contains
         vpd = vapor_p_defcit(temp,rh)
 
         ! ci from the Medlyn conductance (Medlyn et al. 2011; note [N4] in funcs.f90)
-        call photosynthesis_rate_allom(catm,temp,p0,ipar,sla,c4_int,n2cl,&
+        call photosynthesis_rate_allom(catm,temp,p0,ipar,sla,tleaf,c4_int,n2cl,&
             & p2cl,cl1_prod,ca1_prod,height1,&
             & linc_layer,nl_shared,lsize_shared,f1a,vm_out,jl_out,&
             & f1a_sun,f1a_shade,rh,g1,vpd)
@@ -353,7 +365,7 @@ contains
         ! The Medlyn conductance uses the net assimilation max(A - Rd, 0); GPP and
         ! the respiration of the PLS are unchanged. See note [N7] at the end.
         if (laia .gt. 0.0D0) then
-            rd_leaf = leaf_maint_resp(temp, cl1_prod, n2cl_resp) / (0.012D0 * 31557600.0D0) / laia
+            rd_leaf = leaf_maint_resp(temp, cl1_prod(:), n2cl_resp) / (0.012D0 * 31557600.0D0) / laia
         else
             rd_leaf = 0.0D0
         endif
@@ -381,27 +393,27 @@ contains
     
         if ((temp.ge.-10.0).and.(temp.le.50.0)) then
 
-            f1 = f1a * f5 ! :water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
+            f1(:) = f1a(:) * f5 ! : age factor in f1a and water stress factor ! Ancient floating-point underflow spring (from CPTEC-PVM2)
 
             ! [SUN/SHADE FIX] Apply the same water-stress factor to sun and shade rates.
             ! f5 is derived from the canopy-mean f1a, so it applies uniformly to both
             ! fractions (both are within the same atmospheric/soil water environment).
             
-            f1_sun   = f1a_sun   * f5
-            f1_shade = f1a_shade * f5
+            f1_sun(:)   = f1a_sun(:)   * f5
+            f1_shade(:) = f1a_shade(:) * f5
 
         else
-            f1 = 0.0D0      !Temperature above/below photosynthesis windown
+            f1(:) = 0.0D0      !Temperature above/below photosynthesis windown
 
             ! [SUN/SHADE FIX] Zero both fractions outside the temperature window
-            f1_sun   = 0.0D0
-            f1_shade = 0.0D0
+            f1_sun(:) = 0.0D0
+            f1_shade(:) = 0.0D0
         endif
     
         ! sunlit leaf, net assimilation (note [N7]): leaf transpiration e and wue (A_net/E)
         rc_aux = canopy_resistence(vpd, max(f1(:) - rd_leaf, 0.0D0), g1, catm,temp)  ! RCM leaf level -!s m-1
 
-        wue = water_ue(max(f1 - rd_leaf, 0.0D0), rc_aux, p0, vpd,temp)
+        wue = water_ue(max(f1(:) - rd_leaf, 0.0D0), rc_aux, p0, vpd,temp)
 
         !     calcula a transpiração em mm/s
         e = transpiration(rc_aux, p0, vpd, 2,temp)
