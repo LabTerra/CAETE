@@ -1883,7 +1883,7 @@ contains
          if(sum(cleaf(:,p)) .lt. cmin .and. cfroot(p) .lt. cmin) then
             is_living(p) = .false.
             c_to_soil(p) = sum(cleaf(:,p)) + cawood(p) + cfroot(p)
-            cleaf(p) = 0.0D0
+            cleaf(:,p) = 0.0D0
             cawood(p) = 0.0D0
             cfroot(p) = 0.0D0
          else
@@ -1997,9 +1997,12 @@ contains
       use global_par
 
       real(r_8), intent(in) :: awood
-      real(r_8), intent(in) :: cleaf, cwood, cfroot, csoil
+      real(r_8), dimension(3), intent(in) :: cleaf
+      real(r_8), intent(in) :: cwood, cfroot, csoil
       real(r_8) :: biomass, carbon_soil !internal variable
       real(r_8) :: co2_abs
+
+      real(r_8) :: cl_total
 
       !CO2_abs - Quantidade de CO2 absorvido (sequestrado) e estocado 
       !nos tecidos vegetais (caule, folha e raízes), no solo e na serrapilheira. 
@@ -2014,12 +2017,13 @@ contains
       !#:~:text=The%20atomic%20weight%20of%20Carbon,in%20the%20tree%20by%203.67. 
 
       carbon_soil = (csoil/1.0D3) !transfor to g/m2 to kg/m2
+      cl_total = sum(cleaf(:))
 
       if (awood .le. 0.0D0) then
-         biomass = (cleaf + cfroot + carbon_soil) !transfor kgC/m² -> t/ha in BUDGET.f90
+         biomass = (cl_total + cfroot + carbon_soil) !transfor kgC/m² -> t/ha in BUDGET.f90
          co2_abs = (biomass*3.67) !CO2 absorvido em t/ha
       else
-         biomass = (cleaf + cwood + cfroot + carbon_soil) !transfor kgC/m² -> t/ha in BUDGET.f90
+         biomass = (cl_total + cwood + cfroot + carbon_soil) !transfor kgC/m² -> t/ha in BUDGET.f90
          co2_abs = (biomass*3.67) !CO2 absorvido em t/ha
       endif
 
