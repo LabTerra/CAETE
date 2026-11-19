@@ -139,7 +139,7 @@ contains
 
         !Stomatal resistence
         !===================
-        rc_pot = canopy_resistence(vpd, f1a, g1, catm,temp) ! Potential RCM leaf level - s m-1
+        rc_pot = canopy_resistence(vpd, f1a(:), g1, catm,temp) ! Potential RCM leaf level - s m-1
 
         !Water stress response modifier (dimensionless)
         !----------------------------------------------
@@ -167,7 +167,7 @@ contains
             f1_shade = 0.0D0
         endif
     
-        rc_aux = canopy_resistence(vpd, f1, g1, catm,temp)  ! RCM leaf level -!s m-1
+        rc_aux = canopy_resistence(vpd, f1(:), g1, catm,temp)  ! RCM leaf level -!s m-1
     
         wue = water_ue(f1(:), rc_aux, p0, vpd,temp)
     
@@ -363,8 +363,8 @@ contains
         ! Same two-big-leaf scaling as the canopy resistance rc below ([N1]); the
         ! demand of the water stress modifier uses the canopy conductance (Gerten
         ! et al. 2004). See note [N6] in budget_allom.f90.
-        gc_canopy = f_four(1, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_sun - rd_leaf, 0.0D0), g1, catm, temp) &
-                & + f_four(2, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_shade - rd_leaf, 0.0D0), g1, catm, temp)
+        gc_canopy = f_four(1, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_sun(:) - rd_leaf, 0.0D0), g1, catm, temp) &
+                & + f_four(2, cl1_prod(:), sla) / canopy_resistence(vpd, max(f1a_shade(:) - rd_leaf, 0.0D0), g1, catm, temp)
         if (gc_canopy .gt. 0.0D0) then
             rc_pot = 1.0D0 / gc_canopy  ! s m-1, canopy
         else
@@ -399,7 +399,7 @@ contains
         endif
     
         ! sunlit leaf, net assimilation (note [N7]): leaf transpiration e and wue (A_net/E)
-        rc_aux = canopy_resistence(vpd, max(f1 - rd_leaf, 0.0D0), g1, catm,temp)  ! RCM leaf level -!s m-1
+        rc_aux = canopy_resistence(vpd, max(f1(:) - rd_leaf, 0.0D0), g1, catm,temp)  ! RCM leaf level -!s m-1
 
         wue = water_ue(max(f1 - rd_leaf, 0.0D0), rc_aux, p0, vpd,temp)
 
@@ -410,8 +410,8 @@ contains
         ! leaves are parallel conductances, gc = gs_sun*f4sun + gs_shade*f4shade, with the
         ! same sun/shade weights used for GPP in gross_ph. See note [N1] at the end.
         ! gs from the net assimilation of each leaf class (note [N7]).
-        rc_sun   = canopy_resistence(vpd, max(f1_sun   - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
-        rc_shade = canopy_resistence(vpd, max(f1_shade - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
+        rc_sun   = canopy_resistence(vpd, max(f1_sun(:)   - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
+        rc_shade = canopy_resistence(vpd, max(f1_shade(:) - rd_leaf, 0.0D0), g1, catm, temp)  ! s m-1, leaf
         gc_canopy = f_four(1, cl1_prod(:), sla) / rc_sun + f_four(2, cl1_prod(:), sla) / rc_shade  ! m s-1
         if (gc_canopy .gt. 0.0D0) then
             rc = 1.0D0 / gc_canopy  ! s m-1, canopy

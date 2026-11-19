@@ -412,7 +412,6 @@ contains
    !=================================================================
    !=================================================================
 
-
    function canopy_resistence(vpd_in,f1_in,g1,ca,temp) result(rc2_in)
       ! return stomatal resistence based on Medlyn et al. 2011a
       ! Coded by Helena Alves do Prado
@@ -422,7 +421,7 @@ contains
 
       !implicit none
 
-      real(r_8),intent(in) :: f1_in    !Photosynthesis (molCO2/m2/s)
+      real(r_8),dimension(3),intent(in) :: f1_in    !Photosynthesis (molCO2/m2/s)
       real(r_8),intent(in) :: vpd_in   !hPa
       real(r_8),intent(in) :: g1       ! model m (slope) (sqrt(kPa))
       real(r_8),intent(in) :: ca
@@ -433,6 +432,7 @@ contains
 
       !     Internal
       !     --------
+      real(r_8),dimension(3) :: gs_aux
       real(r_8) :: gs       !Canopy conductance (molCO2 m-2 s-1)
       real(r_8) :: D1       !sqrt(kPA)
       real(r_8) :: vapour_p_d
@@ -458,7 +458,10 @@ contains
       ! +++ BC +++
    
       D1 = sqrt(vapour_p_d)
-      gs = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in * 1.0e6)/ca) ! mol m-2 s-1
+
+
+      gs_aux(:) = = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in(:) * 1.0e6)/ca) ! mol m-2 s-1
+      gs = sum(gs_aux(:))
       ! +++ BC +++
       gs = gs * conv_factor ! convert from mol m-2 s-1 to m s-1
       ! +++ BC +++
