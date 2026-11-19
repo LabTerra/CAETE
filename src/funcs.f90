@@ -152,6 +152,15 @@ contains
 
       if(ph .lt. 0.0) ph = 0.0
 
+      print *, '===== GPP COHORT CHECK ====='
+      print *, 'Leaf carbon:', cleaf(:)
+      print *, 'Total LAI:', leaf_area_index(cleaf(:), sla)
+      print *, 'Sunlit area factor:', f4sun
+      print *, 'Shaded area factor:', f4shade
+      print *, 'GPP by cohort:', ph_aux(:)
+      print *, 'Total GPP:', ph
+      print *, '============================'
+
    end function gross_ph
 
    !=================================================================
@@ -460,7 +469,7 @@ contains
       D1 = sqrt(vapour_p_d)
 
 
-      gs_aux(:) = = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in(:) * 1.0e6)/ca) ! mol m-2 s-1
+      gs_aux(:) = 0.003 + 1.6D0 * (1.0D0 + (g1/D1)) * ((f1_in(:) * 1.0e6)/ca) ! mol m-2 s-1
       gs = sum(gs_aux(:))
       ! +++ BC +++
       gs = gs * conv_factor ! convert from mol m-2 s-1 to m s-1
@@ -504,7 +513,7 @@ contains
     ! endif
 
     D1 = sqrt(vapour_p_d)
-    gs_aux(:) = = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in(:)/ca) !mol m-2 s-1
+    gs_aux(:) = 1.6D0 * (1.0D0 + (g1/D1)) * (f1_in(:)/ca) !mol m-2 s-1
     gs = sum(gs_aux(:))
  end function stomatal_conductance
 
@@ -1686,8 +1695,8 @@ contains
       real(r_8) :: rml
 
       real(r_8) :: cl_total
-      cl_total = sum(cleaf(:))
       real(r_8), parameter :: a1 = 25.0D0, a2 = 0.04D0   ! same as m_resp
+      cl_total = sum(cleaf(:))
       rml = (n2cl * (cl_total * 1.0D3)) * a1 * dexp(a2 * temp) * 1.0D-3
       if (rml .lt. 0.0D0) rml = 0.0D0
    end function leaf_maint_resp

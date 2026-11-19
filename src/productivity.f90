@@ -90,6 +90,7 @@ contains
         real(r_8) :: n2cf_resp
         real(r_8) :: p2cl
         real(r_8) :: sla_mm2_mg
+        real(r_8) :: tleaf  ! Leaf residence time (yr) — derived from SLA via leaf_long (Sakschewsky 2016)
         integer(i_4) :: c4_int
         real(r_8) :: jl_out
 
@@ -301,6 +302,7 @@ contains
         real(r_8) :: n2cf_resp
         real(r_8) :: p2cl
         real(r_8) :: sla_mm2_mg
+        real(r_8) :: tleaf  ! Leaf residence time (yr) — derived from SLA via leaf_long (Sakschewsky 2016)
         integer(i_4) :: c4_int
         real(r_8) :: jl_out
 
@@ -438,6 +440,15 @@ contains
         ! compute A_sun*f4sun + A_shade*f4shade (De Pury & Farquhar 1997, Eq. 24).
         ! Previously: gross_ph(f1, cl1_prod, sla) used a single rate for both fractions.
         ph =  gross_ph(f1_sun(:), f1_shade(:), cl1_prod(:), sla)  ! kg m-2 year-1
+
+        print *, '===== PHENOLOGY DIAGNOSTIC ====='
+        print *, 'Leaf carbon by cohort:', cl1_prod(:)
+        print *, 'Total leaf carbon:', sum(cl1_prod(:))
+        print *, 'Sunlit rates after f5:', f1_sun(:)
+        print *, 'Shaded rates after f5:', f1_shade(:)
+        print *, 'Water stress factor:', f5
+        print *, 'Canopy GPP:', ph
+        print *, '==============================='
     
     !     Autothrophic respiration
     !     ========================
