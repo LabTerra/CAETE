@@ -183,7 +183,6 @@ module alloc3
 
    end subroutine nitrogen_fixation
 
-
    !==========================================================================
    ! NUTRIENT (N,P) limitation of structural growth, uptake and reserve
    ! refill - shared by the woody (allocation3) and grass (grass_allocation3)
@@ -465,7 +464,6 @@ module alloc3
 
    end subroutine cap_nutrient_reserve
 
-
    !==========================================================================
    ! LITTER NUTRIENT CONTENT AND RESORPTION - shared by the woody and grass
    ! paths. All carbon arguments are g(C) m-2, nutrient outputs g m-2.
@@ -567,7 +565,8 @@ module alloc3
       real(r_8), dimension(ntraits), intent(in) :: dt !PLS attributes
       integer(i_4), intent(in) :: p, ri, step
 
-      real(r_8), intent(in) :: leaf_in, wood_in, root_in, sap_in, heart_in, sto_in !kgC/m2
+      real(r_8), dimension(3), intent(in) :: leaf_in !kgC/m2
+      real(r_8), intent(in) :: wood_in, root_in, sap_in, heart_in, sto_in !kgC/m2
       real(r_8), intent(in) :: npp        !kgC/m2/yr - annualized NPP rate
       real(r_8), intent(in) :: height_in  !m - precomputed this timestep by the caller
 
@@ -583,7 +582,8 @@ module alloc3
       real(r_8), intent(in) :: te        !plant transpiration (mm/s)
 
       !VARIABLE OUTPUTS
-      real(r_8), intent(out) :: leaf_out, wood_out, root_out, sap_out, heart_out, sto_out !kgC/m2
+      real(r_8), dimension(3), intent(out) :: leaf_out !kgC/m2
+      real(r_8), intent(out) :: wood_out, root_out, sap_out, heart_out, sto_out !kgC/m2
 
       !NUTRIENT OUTPUTS (g/m2)
       real(r_8), intent(out) :: sto_n_out, sto_p_out !updated PLS N/P reserve
@@ -627,7 +627,16 @@ module alloc3
       real(r_8) :: delta_leaf, delta_root, delta_sapwood
       real(r_8) :: leaf_mass_new, root_mass_new, sapwood_mass_new, heartwood_mass_new
 
+      ! Leaf carbon biomass by age cohort (young, mature, old), in gC/individual
+      real(r_8), dimension(3) :: leaf_cohort_ind  ! Initial biomass
+      real(r_8), dimension(3) :: leaf_cohort_new  ! Updated biomass
+
       real(r_8) :: starvation_share, leaf_starv, root_starv, sap_starv, sap_to_heart
+      real(r_8) :: remaining_leaf_starv  ! Leaf carbon deficit remaining after cohort removal (gC/individual)
+
+      ! Carbon transfers between leaf age cohorts (gC/individual)
+      real(r_8) :: young_to_mature, mature_to_old
+      real(r_8) :: leaf_residence_years
 
       real(r_8) :: storage_after_alloc
       real(r_8) :: leaf_turn, root_turn, sap_turn, sto_turn, heart_turn, sap_to_heart_turn
@@ -644,7 +653,7 @@ module alloc3
       real(r_8) :: ctonfix_refund !g(C) m-2 - carbon not used by the N fixers, back to storage
 
       ! initialize ALL outputs
-      leaf_out                   = 0.0D0
+      leaf_out(:)                = 0.0D0
       wood_out                   = 0.0D0
       root_out                   = 0.0D0
       sap_out                    = 0.0D0
@@ -678,7 +687,10 @@ module alloc3
       dens_in = 1.0D0
 
       !convert kgC/m2 -> gC/ind
-      leaf_in_ind  = (leaf_in/dens_in)*1.0D3
+      ! individual leaf carbon by age cohort (gC/ind)
+      leaf_cohort_ind(:) = (leaf_in(:)/dens_in) * 1.0D3
+      ! total leaf carbon used by allometric calculations
+      leaf_in_ind = sum(leaf_cohort_ind(:))
       root_in_ind  = (root_in/dens_in)*1.0D3
       sap_in_ind   = (sap_in/dens_in)*1.0D3
       heart_in_ind = (heart_in/dens_in)*1.0D3
@@ -838,9 +850,16 @@ module alloc3
 
       !--------------------------------------------------------------------
       ! Update the structural compartments with today's growth (delta_*)
-      leaf_mass_new      = leaf_in_ind  + delta_leaf
-      root_mass_new      = root_in_ind  + delta_root
-      sapwood_mass_new   = sap_in_ind   + delta_sapwood
+
+      ! Update leaf biomass by age cohort (gC/individual).
+      ! New leaf growth is allocated exclusively to the young cohort.
+      leaf_cohort_new(:) = leaf_cohort_ind(:)
+      leaf_cohort_new(1) = leaf_cohort_new(1) + delta_leaf
+      ! Total leaf biomass for the existing allometric calculations.
+      leaf_mass_new = sum(leaf_cohort_new(:))
+
+      root_mass_new      = root_in_ind + delta_root
+      sapwood_mass_new   = sap_in_ind  + delta_sapwood
       heartwood_mass_new = heart_in_ind
 
       !--------------------------------------------------------------------
@@ -861,7 +880,23 @@ module alloc3
          sap_starv  = min(starvation_share, sapwood_mass_new)
          sap_to_heart = sap_starv
 
-         leaf_mass_new      = leaf_mass_new      - leaf_starv
+         ! Remove leaf carbon preferentially from older cohorts.
+         ! Priority: old -> mature -> young.
+         remaining_leaf_starv = leaf_starv
+
+         ! Old leaves
+         leaf_cohort_new(3) = leaf_cohort_new(3) - min(remaining_leaf_starv, leaf_cohort_new(3))
+         remaining_leaf_starv = max(0.0D0, leaf_starv - (leaf_mass_new - sum(leaf_cohort_new(:))))
+
+         ! Mature leaves, if necessary
+         leaf_cohort_new(2) = leaf_cohort_new(2) - min(remaining_leaf_starv, leaf_cohort_new(2))
+         remaining_leaf_starv = max(0.0D0, leaf_starv - (leaf_mass_new - sum(leaf_cohort_new(:))))
+
+         ! Young leaves, only if necessary
+         leaf_cohort_new(1) = leaf_cohort_new(1) - min(remaining_leaf_starv, leaf_cohort_new(1))
+
+         ! Update total leaf biomass
+         leaf_mass_new = sum(leaf_cohort_new(:))
          root_mass_new      = root_mass_new      - root_starv
          sapwood_mass_new   = sapwood_mass_new   - sap_starv
          heartwood_mass_new = heartwood_mass_new + sap_to_heart
@@ -878,7 +913,25 @@ module alloc3
       ! Leaf turnover (yr-1) = 12 / leaf longevity (months), from the SLA
       ! trait (leaf_long, Sakschewsky et al. 2016), as in allocation.f90.
       !--------------------------------------------------------------------
-      leaf_turn  = min(leaf_mass_new,      leaf_mass_new      * (12.0D0/leaf_long(dt(18))) * dt_years)
+      !--------------------------------------------------------------------
+      ! Continuous compartment turnover (annual rates converted to a daily
+      ! loss via dt_years = 1/year_days). Sapwood turnover becomes heartwood.
+      ! Leaf turnover is based on leaf longevity (months), derived from the
+      ! SLA trait (leaf_long, Sakschewsky et al. 2016).
+      ! Leaf phenology considers three age cohorts (young, mature, old).
+      ! Carbon moves from young to mature (tleaf/6), then to old (4*tleaf/6).
+      ! Only old leaves contribute to litter, with turnover rate 1/tleaf,
+      ! following the previous phenology formulation in allocation.f90.
+      !--------------------------------------------------------------------
+      ! Leaf longevity in years
+      leaf_residence_years = leaf_long(dt(18)) / 12.0D0
+      ! Young -> Mature
+      young_to_mature = min(leaf_cohort_new(1), leaf_cohort_new(1) * dt_years / (leaf_residence_years * (1.0D0/6.0D0)))
+      ! Mature -> Old
+      mature_to_old = min(leaf_cohort_new(2), leaf_cohort_new(2) * dt_years / (leaf_residence_years * (4.0D0/6.0D0)))
+      ! Old -> Litter (same turnover rate as your previous allocation.f90)
+      leaf_turn = min(leaf_cohort_new(3), leaf_cohort_new(3) * dt_years / leaf_residence_years)
+      ! Other compartments
       root_turn  = min(root_mass_new,      root_mass_new      * r_turnover   * dt_years)
       sap_turn   = min(sapwood_mass_new,   sapwood_mass_new   * s_turnover   * dt_years)
       sto_turn   = min(storage_after_alloc, storage_after_alloc * sto_turnover * dt_years)
@@ -886,7 +939,12 @@ module alloc3
 
       sap_to_heart_turn = sap_turn
 
-      leaf_mass_new      = leaf_mass_new      - leaf_turn
+      ! Update leaf carbon by age cohort (gC/individual)
+      leaf_cohort_new(1) = leaf_cohort_new(1) - young_to_mature
+      leaf_cohort_new(2) = leaf_cohort_new(2) + young_to_mature - mature_to_old
+      leaf_cohort_new(3) = leaf_cohort_new(3) + mature_to_old - leaf_turn
+      ! Update total biomass for allometry
+      leaf_mass_new      = sum(leaf_cohort_new(:))
       root_mass_new      = root_mass_new      - root_turn
       sapwood_mass_new   = sapwood_mass_new   - sap_turn
       heartwood_mass_new = heartwood_mass_new + sap_to_heart_turn - heart_turn
@@ -949,12 +1007,12 @@ module alloc3
       root_inc_min = root_demand_daily
 
       !convert back to kgC/m2
-      leaf_out  = (leaf_mass_new*dens_in)/1.0D3
-      root_out  = (root_mass_new*dens_in)/1.0D3
-      sap_out   = (sapwood_mass_new*dens_in)/1.0D3
-      heart_out = (heartwood_mass_new*dens_in)/1.0D3
-      sto_out   = (sto_final_ind*dens_in)/1.0D3
-      wood_out  = sap_out + heart_out
+      leaf_out(:) = (leaf_cohort_new(:)*dens_in)/1.0D3
+      root_out    = (root_mass_new*dens_in)/1.0D3
+      sap_out     = (sapwood_mass_new*dens_in)/1.0D3
+      heart_out   = (heartwood_mass_new*dens_in)/1.0D3
+      sto_out     = (sto_final_ind*dens_in)/1.0D3
+      wood_out    = sap_out + heart_out
 
    end subroutine allocation3
 
