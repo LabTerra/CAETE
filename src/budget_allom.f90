@@ -346,7 +346,7 @@ module budget_allom
       real(r_8), allocatable :: lavai_layer(:) ! luz disponivel saindo de cada camada
       real(r_8), dimension(:), allocatable :: height_pls
       real(r_8), parameter :: gap_fraction = 0.15D0 ! 15% da luz vaza pelas clareiras
-
+      real(r_8), parameter :: h_cut = 30.0D0
       !===========================================================================
 
       !Initializing
@@ -758,6 +758,17 @@ module budget_allom
          if (cheart_int(p).lt.0.0D0) cheart_int(p) = 0.0D0
          if (csto_int(p).lt.0.0D0)   csto_int(p) = 0.0D0
          if (cwood_int(p).lt.0.0D0)  cwood_int(p) = 0.0D0
+
+         ! [HEIGHT TEST FOR HYDRAULIC] Remove woody PLSs taller than 30 m
+         !if (dt1(7) .gt. 0.0D0 .and. height_pls(p) .gt. h_cut) then
+         !   print *, 'HEIGHT MORTALITY: PLS', ri, 'height =', height_pls(p)
+         !   cleaf_int(p)  = 0.0D0
+         !   croot_int(p)  = 0.0D0
+         !   csap_int(p)   = 0.0D0
+         !   cheart_int(p) = 0.0D0
+         !   csto_int(p)   = 0.0D0
+         !   cwood_int(p)  = 0.0D0
+         !endif
       
          !calculating deltas
          if (dt1(7) .gt. 0.0D0)then

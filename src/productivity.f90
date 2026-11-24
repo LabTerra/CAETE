@@ -171,7 +171,7 @@ contains
 
         ! Klmax
         !=========
-        klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,ca1_prod)
+        klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,f1a* 1e6,ca1_prod)
         !print*,'klmax',klmax
 
         ! Krcmax
@@ -453,8 +453,11 @@ contains
         !print*,'P50',psi50, 'wd',wd_allom
 
         ! Klmax
-        klmax = leaf_xylem_conductivity(wd_allom,jl_out* 1e6,ca1_prod)
+        klmax = leaf_xylem_conductivity(wd_allom,jl_out*1e6,f1a*1e6,ca1_prod)
         !print*,'klmax',klmax,'jl_out*1e6',jl_out* 1e6, 'jl_out',jl_out
+        print*,'klmax',klmax
+        print*,'f1a',f1a
+        print*,'f1a in umol',f1a* 1e6
 
         ! Krcmax
         krcmax = max_xylem_conductance(klmax,height1,ca1_prod)   
