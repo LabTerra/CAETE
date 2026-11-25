@@ -90,7 +90,7 @@ module budget_allom
       real(r_8),intent(in) :: wmax_in ! Saturation point
 
       !Vegetation pools
-      real(r_8),dimension(npls),intent(in) :: cleaf_in
+      real(r_8),dimension(3,npls),intent(in) :: cleaf_in
       real(r_8),dimension(npls),intent(in) :: cwood_in
       real(r_8),dimension(npls),intent(in) :: croot_in
       real(r_8),dimension(npls),intent(in) :: csap_in
@@ -112,7 +112,7 @@ module budget_allom
 
       !DAILY OUTPUTS
       !Vegetation pools
-      real(r_8),dimension(npls),intent(out) :: cleaf_out
+      real(r_8),dimension(3,npls),intent(out) :: cleaf_out
       real(r_8),dimension(npls),intent(out) :: cwood_out
       real(r_8),dimension(npls),intent(out) :: croot_out
       real(r_8),dimension(npls),intent(out) :: csap_out
@@ -196,7 +196,7 @@ module budget_allom
       real(r_8), dimension(:), allocatable :: idx_grasses !grass identifier
 
       !Carbon vegetation pools
-      real(r_8),dimension(npls) :: cleaf_pls
+      real(r_8),dimension(3,npls) :: cleaf_pls
       real(r_8),dimension(npls) :: cwood_pls
       real(r_8),dimension(npls) :: croot_pls
       real(r_8),dimension(npls) :: csap_pls
@@ -208,7 +208,7 @@ module budget_allom
       real(r_8),dimension(npls) :: p_sto_pls
 
       !Carbon vegetation pools after allocation routine
-      real(r_8),dimension(:), allocatable :: cleaf_pls2
+      real(r_8),dimension(:,:), allocatable :: cleaf_pls2
       real(r_8),dimension(:), allocatable :: cwood_pls2
       real(r_8),dimension(:), allocatable :: croot_pls2
       real(r_8),dimension(:), allocatable :: csap_pls2
@@ -229,7 +229,7 @@ module budget_allom
       real(r_8),dimension(:), allocatable :: ctonfix_pls             !g(C) m-2 - C sent to N fixers
 
       !carbon vegetation pools discounting c deficit
-      real(r_8),dimension(:), allocatable :: cleaf_int
+      real(r_8),dimension(:,:), allocatable :: cleaf_int
       real(r_8),dimension(:), allocatable :: cwood_int
       real(r_8),dimension(:), allocatable :: croot_int
       real(r_8),dimension(:), allocatable :: csap_int
@@ -290,6 +290,7 @@ module budget_allom
       real(r_8), parameter :: csto_max = 0.5D2 !ceiling of the C storage, g(C) m-2 (same value as budget.f90)
       real(r_8) :: sto_excess            !storage above the ceiling, respired, g(C) m-2 day-1
       real(r_8) :: rg_growth             !growth respiration of the day (allocation3), g(C) m-2 day-1
+      real(r_8) :: grass_leaf_out        !single leaf C returned by grass allocation
 
       !water pools
       real(r_8) :: w  !Daily soil moisture storage (mm)
@@ -336,7 +337,7 @@ module budget_allom
       do i = 1, npls
          awood_aux(i) = dt(7,i)
 
-         cleaf_pls(i)  = cleaf_in(i)
+         cleaf_pls(:,i)  = cleaf_in(:,i)
          cwood_pls(i)  = cwood_in(i)
          croot_pls(i)  = croot_in(i)
          csap_pls(i)   = csap_in(i)
@@ -424,7 +425,7 @@ module budget_allom
       allocate(litter_fr(nlen))
       allocate(tra(nlen))
 
-      allocate(cleaf_pls2(nlen))
+      allocate(cleaf_pls2(3,nlen))
       allocate(cwood_pls2(nlen))
       allocate(croot_pls2(nlen))
       allocate(csap_pls2(nlen))
@@ -445,7 +446,7 @@ module budget_allom
       allocate(leaf_inc_min(nlen))
       allocate(root_inc_min(nlen))
 
-      allocate(cleaf_int(nlen))
+      allocate(cleaf_int(3,nlen))
       allocate(cwood_int(nlen))
       allocate(croot_int(nlen))
       allocate(csap_int(nlen))
@@ -508,7 +509,7 @@ module budget_allom
          ! de cada PLS (OBS.: PLS dominantes contribuem mais para a extincao de luz).
 
          ! SLA from the SLA trait of the PLS (sla_random, dt(18)), converted to m2 gC-1.
-         idx_pre = leaf_area_index(cleaf_pls(ri), sla_trait(dt(18,ri))) * ocpavg(ri)
+         idx_pre = leaf_area_index(cleaf_pls(:,ri), sla_trait(dt(18,ri))) * ocpavg(ri)
          if (idx_pre .lt. 0.0D0) idx_pre = 0.0D0
          ! Aloca o LAI na camada correta
          do n_pre = 1, nl_shared
@@ -579,7 +580,7 @@ module budget_allom
       !$OMP PARALLEL DO &
       !$OMP SCHEDULE(AUTO) &
       !$OMP DEFAULT(SHARED) &
-      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess, rg_growth)
+      !$OMP PRIVATE(p, ri, dt1, mr_sto, sr, growth_stoc, csto_aux, sto_aux, sto_excess, rg_growth, grass_leaf_out)
 
       do p = 1,nlen
          
@@ -605,7 +606,7 @@ module budget_allom
                ! Zero increments are passed here so that g_resp returns zero and
                ! nppa entering the allocation is photosynthesis - maintenance
                ! respiration.
-               &, cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
+               &, cleaf_pls(:,ri), cwood_pls(ri), croot_pls(ri), 0.0D0, 0.0D0, 0.0D0&
                &, height_pls(p), linc_layer, nl_shared, lsize_shared&
                &, soil_sat, ph(p), ar(p), nppa(p), laia(p), f5(p), vpd(p), rm(p), rg(p), rc2(p)&
                &, wue(p), c_def(p), vcmax(p),specific_la(p),tra(p))
@@ -634,23 +635,31 @@ module budget_allom
 
          if (dt1(7) .gt. 0.0D0) then
             call allocation3(step, ri, p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
-               &,cleaf_pls(ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
+               &,cleaf_pls(:,ri), cwood_pls(ri), croot_pls(ri), csap_pls(ri), cheart_pls(ri), csto_aux, height_pls(p)&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
-               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,cleaf_pls2(:,p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
                &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
                &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
                &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
                &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p)&
                &,leaf_req(p), leaf_inc_min(p), root_inc_min(p), rg_growth)
          else
+            !grasses have a single leaf C pool, without age cohorts.
+            !sum(cleaf_pls(:,ri)) to get total leaf C
+            !then grass_leaf_out receives its output before storing it in the shared 3dim array
             call grass_allocation3(p, dt1, nppa(p), uptk_costs_in(ri), soil_temp, w, evap(p) / 86400.0D0&
-               &,cleaf_pls(ri), croot_pls(ri), csto_aux&
+               &,sum(cleaf_pls(:,ri)), croot_pls(ri), csto_aux&
                &,mineral_n, labile_p, on, sop, op, n_sto_pls(ri), p_sto_pls(ri)&
-               &,cleaf_pls2(p), cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
+               &,grass_leaf_out, cwood_pls2(p), croot_pls2(p), csap_pls2(p), cheart_pls2(p), csto_pls2(p)&
                &,n_sto_pls2(p), p_sto_pls2(p), litter_l(p), litter_fr(p), cwd(p)&
                &,nitrogen_uptake_pls(:,p), phosphorus_uptake_pls(:,p)&
                &,litter_nutrient_pls(:,p), limiting_nutrient_pls(:,p)&
                &,npp2pay(p), uptk_strat(:,p), ctonfix_pls(p))
+            ! dim 2 is used only as a storage convention, not as a mature leaf cohort
+            ! dim 1 and 3 remain zero to avoid double-counting leaf C
+            cleaf_pls2(:,p) = 0.0D0
+            cleaf_pls2(2,p) = grass_leaf_out
+
             leaf_req(p) = 0.0D0
             leaf_inc_min(p) = 0.0D0
             root_inc_min(p) = 0.0D0
@@ -699,14 +708,16 @@ module budget_allom
          ! Carbon deficit (ar > ph): paid inside allocation3/grass_allocation3,
          ! first by the storage and then by leaf, root and sapwood. c_def is
          ! only a diagnostic here and is not discounted from the pools again.
-         cleaf_int(p)  = cleaf_pls2(p)
+         cleaf_int(:,p)  = cleaf_pls2(:,p)
          croot_int(p)  = croot_pls2(p)
          csap_int(p)   = csap_pls2(p)
          cheart_int(p) = cheart_pls2(p)
          csto_int(p)   = csto_pls2(p)
          cwood_int(p)  = csap_int(p) + cheart_int(p)
 
-         if (cleaf_int(p).lt.0.0D0)  cleaf_int(p) = 0.0D0
+         if (cleaf_int(1,p) .lt. 0.0D0) cleaf_int(1,p) = 0.0D0
+         if (cleaf_int(2,p) .lt. 0.0D0) cleaf_int(2,p) = 0.0D0
+         if (cleaf_int(3,p) .lt. 0.0D0) cleaf_int(3,p) = 0.0D0
          if (croot_int(p).lt.0.0D0)  croot_int(p) = 0.0D0
          if (csap_int(p).lt.0.0D0)   csap_int(p) = 0.0D0
          if (cheart_int(p).lt.0.0D0) cheart_int(p) = 0.0D0
@@ -715,14 +726,14 @@ module budget_allom
       
          !calculating deltas
          if (dt1(7) .gt. 0.0D0)then
-            dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
+            dleaf_pls_aux(p) = sum(cleaf_pls2(:,p)) - sum(cleaf_pls(:,ri))
             droot_pls_aux(p)  = croot_pls2(p)  - croot_pls(ri)
             dsap_pls_aux(p)   = csap_pls2(p)   - csap_pls(ri)
             dheart_pls_aux(p) = cheart_pls2(p) - cheart_pls(ri)
             dsto_pls_aux(p)   = csto_pls2(p)   - csto_pls(ri)
             dwood_pls_aux(p)  = cwood_pls2(p)  - cwood_pls(ri)
          else
-            dleaf_pls_aux(p)  = cleaf_pls2(p)  - cleaf_pls(ri)
+            dleaf_pls_aux(p) = sum(cleaf_pls2(:,p)) - sum(cleaf_pls(:,ri))
             droot_pls_aux(p)  = croot_pls2(p)  - croot_pls(ri)
             dsap_pls_aux(p)   = 0.0D0
             dheart_pls_aux(p) = 0.0D0
@@ -758,7 +769,7 @@ module budget_allom
       vcmax_1 = 0.0D0       
       specific_la_1 = 0.0D0
       
-      cleaf_out(:)  = 0.0D0
+      cleaf_out(:,:)  = 0.0D0
       cwood_out(:)  = 0.0D0
       croot_out(:)  = 0.0D0
       csap_out(:)   = 0.0D0
@@ -814,7 +825,7 @@ module budget_allom
       vcmax_1       = sum(vcmax * ocp_coeffs, mask= .not. ieee_is_nan(vcmax))
       specific_la_1 = sum(specific_la * ocp_coeffs, mask= .not. ieee_is_nan(specific_la))
 
-      cleaf_grd  = sum(cleaf_int  * ocp_coeffs, mask = .not. ieee_is_nan(cleaf_int))
+      cleaf_grd = sum(sum(cleaf_int, dim=1, mask=.not. ieee_is_nan(cleaf_int)) * ocp_coeffs)
       cwood_grd  = sum(cwood_int * ocp_coeffs, mask = .not. ieee_is_nan(cwood_int ))
       croot_grd  = sum(croot_int  * ocp_coeffs, mask = .not. ieee_is_nan(croot_int ))
       csap_grd   = sum(csap_int   * ocp_coeffs, mask = .not. ieee_is_nan(csap_int  ))
@@ -850,7 +861,7 @@ module budget_allom
       do p = 1, nlen
          ri = lp(p)
 
-         cleaf_out(ri)  =  cleaf_int(p) 
+         cleaf_out(:,ri) = cleaf_int(:,p)
          croot_out(ri)  =  croot_int(p)
          cheart_out(ri) =  cheart_int(p)
          csap_out(ri)   =  csap_int(p)

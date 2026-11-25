@@ -1051,11 +1051,17 @@ contains
       f1_sun_base   = f1_sun_base   / real(nsteps, r_8) * (daylength_h / 24.0D0)
       f1_shade_base = f1_shade_base / real(nsteps, r_8) * (daylength_h / 24.0D0)
 
-      ! Apply leaf age effects to the three cohorts
-      do i = 1,3
-         f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
-         f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
-      enddo
+      ! Apply leaf age effects only to woody PLSs
+      if (cawood1 .gt. 0.0D0) then
+         do i = 1,3
+            f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
+            f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
+         enddo
+      else
+         ! Grasses: no leaf age penalization
+         f1ab_sun(:) = max(0.0D0, f1_sun_base)
+         f1ab_shade(:) = max(0.0D0, f1_shade_base)
+      endif
 
       print*,'SUN base:',f1_sun_base
       print*,'SHADE base:',f1_shade_base
@@ -1339,11 +1345,17 @@ contains
       f1_sun_base   = f1_sun_base   / real(nsteps, r_8) * (daylength_h / 24.0D0)
       f1_shade_base = f1_shade_base / real(nsteps, r_8) * (daylength_h / 24.0D0)
 
-      ! Apply leaf age effects to the three cohorts
-      do i = 1,3
-         f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
-         f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
-      enddo
+      ! Apply leaf age effects only to woody PLSs
+      if (cawood1 .gt. 0.0D0) then
+         do i = 1,3
+            f1ab_sun(i) = max(0.0D0, f1_sun_base * penalization_by_age(i))
+            f1ab_shade(i) = max(0.0D0, f1_shade_base * penalization_by_age(i))
+         enddo
+      else
+         ! Grasses: no leaf age penalization
+         f1ab_sun(:) = max(0.0D0, f1_sun_base)
+         f1ab_shade(:) = max(0.0D0, f1_shade_base)
+      endif
 
       print*,'SUN base:',f1_sun_base
       print*,'SHADE base:',f1_shade_base
